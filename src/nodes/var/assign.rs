@@ -1,5 +1,6 @@
+use std::any::Any;
 use std::fmt::{Display, Formatter};
-use crate::nodes::Node;
+use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::token::Token;
 
@@ -27,6 +28,12 @@ impl Display for VarAssignNode {
     }
 }
 
+impl NodeToAny for VarAssignNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 impl Node for VarAssignNode {
     fn pos_start(&self) -> &Position {
         &self.pos_start
@@ -34,5 +41,9 @@ impl Node for VarAssignNode {
 
     fn pos_end(&self) -> &Position {
         self.value_node.pos_end()
+    }
+
+    fn node_type(&self) -> NodeType {
+        NodeType::VarAssign
     }
 }

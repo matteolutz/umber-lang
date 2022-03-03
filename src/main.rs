@@ -1,10 +1,12 @@
 use std::any::Any;
 use std::time::Instant;
+use umber_lang::context::Context;
 use umber_lang::lexer::Lexer;
 use umber_lang::parser::Parser;
+use umber_lang::semantics;
 
 static TEXT_TO_LEX: &'static str = "\
-
+print(\"Hello, World!\");
 ";
 
 
@@ -23,11 +25,15 @@ fn main() {
     let parse_res = parser.parse();
 
     if parse_res.has_error() {
-        println!("parser err: {}!", parse_res.error().as_ref().unwrap());
-        return;
+        panic!("parser err: {}!", parse_res.error().as_ref().unwrap());
     }
 
     println!("took: {}ms", start_time.elapsed().as_millis());
     println!("node: {}", parse_res.node().as_ref().unwrap());
+
+    let validation_res = semantics::validate(parse_res.node().as_ref().unwrap(), &Context::new_with_symbol_table("Test", None, None));
+    if validation_res.1.is_some() {
+        panic!("semantic validation error: {}", validation_res.1.unwrap());
+    }
 
 }

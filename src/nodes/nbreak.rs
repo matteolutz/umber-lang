@@ -1,5 +1,6 @@
+use std::any::Any;
 use std::fmt::{Display, Formatter};
-use crate::nodes::Node;
+use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::token::Token;
 
@@ -25,6 +26,12 @@ impl Display for BreakNode {
     }
 }
 
+impl NodeToAny for BreakNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 impl Node for BreakNode {
 
     fn pos_start(&self) -> &Position {
@@ -35,4 +42,7 @@ impl Node for BreakNode {
         &self.pos_end
     }
 
+    fn node_type(&self) -> NodeType {
+        NodeType::Break
+    }
 }

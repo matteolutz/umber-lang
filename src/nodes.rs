@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::{Display, Formatter};
 use crate::position::Position;
 use crate::token::Token;
@@ -16,7 +17,31 @@ pub mod nreturn;
 pub mod unaryop;
 pub mod nwhile;
 
-pub trait Node: Display {
+#[derive(Debug)]
+pub enum NodeType {
+    BinOp,
+    Call,
+    FunctionDef,
+    List,
+    Break,
+    Continue,
+    If,
+    Return,
+    Number,
+    While,
+    String,
+    UnaryOp,
+    VarAccess,
+    VarAssign,
+    VarDeclaration
+}
+
+pub trait NodeToAny: 'static {
+    fn as_any(&self) -> &dyn Any;
+}
+
+pub trait Node: NodeToAny + Display {
     fn pos_start(&self) -> &Position;
     fn pos_end(&self) -> &Position;
+    fn node_type(&self) -> NodeType;
 }

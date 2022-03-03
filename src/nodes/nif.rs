@@ -1,7 +1,8 @@
+use std::any::Any;
 use std::fmt::{Display, Formatter};
 use crate::nodes::nif::case::IfCase;
 use crate::nodes::nif::elsecase::ElseCase;
-use crate::nodes::Node;
+use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
 pub mod case;
@@ -37,6 +38,12 @@ impl Display for IfNode {
     }
 }
 
+impl NodeToAny for IfNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 impl Node for IfNode {
 
     fn pos_start(&self) -> &Position {
@@ -47,4 +54,7 @@ impl Node for IfNode {
         (if self.else_case.is_some() { self.else_case.as_ref().unwrap().statements() } else { self.cases.last().as_ref().unwrap().statements() }).pos_end()
     }
 
+    fn node_type(&self) -> NodeType {
+        NodeType::If
+    }
 }

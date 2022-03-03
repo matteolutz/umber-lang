@@ -1,5 +1,6 @@
+use std::any::Any;
 use std::fmt::{Display, Formatter};
-use crate::nodes::Node;
+use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
 pub struct ContinueNode {
@@ -24,6 +25,12 @@ impl Display for ContinueNode {
     }
 }
 
+impl NodeToAny for ContinueNode {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 impl Node for ContinueNode {
     fn pos_start(&self) -> &Position {
         &self.pos_start
@@ -31,5 +38,9 @@ impl Node for ContinueNode {
 
     fn pos_end(&self) -> &Position {
         &self.pos_end
+    }
+
+    fn node_type(&self) -> NodeType {
+        NodeType::Continue
     }
 }
