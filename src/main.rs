@@ -7,6 +7,7 @@ use umber_lang::semantics;
 
 static TEXT_TO_LEX: &'static str = "\
 print(\"Hello, World!\");
+test;
 ";
 
 
@@ -32,8 +33,8 @@ fn main() {
     println!("node: {}", parse_res.node().as_ref().unwrap());
 
     let validation_res = semantics::validate(parse_res.node().as_ref().unwrap(), &Context::new_with_symbol_table("Test", None, None));
-    if validation_res.1.is_some() {
-        panic!("semantic validation error: {}", validation_res.1.unwrap());
+    if validation_res.has_error() {
+        panic!("semantic validation error: {}", validation_res.error().as_ref().unwrap());
     }
 
 }

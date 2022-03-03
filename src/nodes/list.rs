@@ -19,6 +19,8 @@ impl ListNode {
         }
     }
 
+    pub fn element_nodes(&self) -> &Vec<Box<dyn Node>> { &self.element_nodes }
+
 }
 
 impl Display for ListNode {
