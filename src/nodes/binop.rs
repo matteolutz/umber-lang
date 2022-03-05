@@ -18,6 +18,17 @@ impl BinOpNode {
             left_node
         }
     }
+
+    pub fn left_node(&self) -> &Box<dyn Node> {
+        &self.left_node
+    }
+    pub fn op_token(&self) -> &Token {
+        &self.op_token
+    }
+    pub fn right_node(&self) -> &Box<dyn Node> {
+        &self.right_node
+    }
+
 }
 
 impl Display for BinOpNode {

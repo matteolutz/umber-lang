@@ -11,3 +11,4 @@ pub mod constants;
 pub mod results;
 pub mod semantics;
 pub mod values;
+pub mod compiler;

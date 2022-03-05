@@ -16,6 +16,14 @@ impl UnaryOpNode {
             node,
         }
     }
+
+    pub fn op_token(&self) -> &Token {
+        &self.op_token
+    }
+    pub fn node(&self) -> &Box<dyn Node> {
+        &self.node
+    }
+
 }
 
 impl Display for UnaryOpNode {

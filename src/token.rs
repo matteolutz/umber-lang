@@ -27,6 +27,10 @@ impl TokenValue {
         self.value.parse::<i32>().unwrap()
     }
 
+    pub fn get_as_u32(&self) -> u32 {
+        self.value.parse::<u32>().unwrap()
+    }
+
     pub fn get_as_f32(&self) -> f32 {
         self.value.parse::<f32>().unwrap()
     }
@@ -180,6 +184,7 @@ pub enum TokenType {
     Comma,
     Arrow,
     Newline,
+    Bof,
     Eof,
 }
 

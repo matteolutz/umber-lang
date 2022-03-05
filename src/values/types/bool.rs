@@ -1,35 +1,34 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
 use crate::token::{Token, TokenType};
-use crate::values::types::bool::BoolType;
 use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::vtype::ValueTypes::Bool;
 
-pub struct NumberType {}
+pub struct BoolType {}
 
-impl NumberType {
+impl BoolType {
 
     pub fn new() -> Self {
-        NumberType {}
+        BoolType {}
     }
 
 }
 
-impl ValueTypeAsAny for NumberType {
+impl ValueTypeAsAny for BoolType {
     fn as_any(&self) -> &dyn Any {
-        self
+        todo!()
     }
 }
 
-impl Display for NumberType {
+impl Display for BoolType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<NumberType>[]")
+        write!(f, "<BoolType>[]")
     }
 }
 
-impl ValueType for NumberType {
+impl ValueType for BoolType {
     fn value_type(&self) -> ValueTypes {
-        ValueTypes::Number
+        ValueTypes::Bool
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
@@ -37,21 +36,18 @@ impl ValueType for NumberType {
     }
 
     fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
-        if t.value_type() != ValueTypes::Number {
+        if t.value_type() != ValueTypes::Bool {
             return None;
         }
 
         match op.token_type() {
-            TokenType::Minus | TokenType::Plus | TokenType::Mul | TokenType::Div | TokenType::BitOr | TokenType::BitAnd => Some(Box::from(NumberType::new())),
+            TokenType::Or | TokenType::And => Some(Box::from(BoolType::new())),
             TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::from(BoolType::new())),
             _ => None,
         }
     }
 
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
-        match op.token_type() {
-            TokenType::Minus | TokenType::Plus => Some(Box::from(NumberType::new())),
-            _ => None
-        }
+        None
     }
 }

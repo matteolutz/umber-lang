@@ -12,7 +12,6 @@ pub struct Error {
 }
 
 impl Error {
-
     pub fn new(pos_start: Position, pos_end: Position, error_name: String, details: String) -> Self {
         Error {
             pos_start,
@@ -26,7 +25,7 @@ impl Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}, {}\n  File '{}', line {}\n\n", self.error_name, self.details, self.pos_start.file_name(), self.pos_start.line() + 1)
+        write!(f, "{}: {}\n  File '{}', line {}\n\n", self.error_name, self.details, self.pos_start.file_name(), self.pos_start.line() + 1)
     }
 }
 
@@ -56,13 +55,13 @@ impl<'a> RTError<'a> {
                 break;
             }
 
-            ctx = Some(ctx.as_ref().unwrap().parent().unwrap());
+            ctx = Some(ctx.as_ref().unwrap().parent().as_ref().unwrap());
         }
 
         return result;
     }
 
-    pub fn new(pos_start: Position, pos_end: Position, details: String, context: &'a Context ) -> Self {
+    pub fn new(pos_start: Position, pos_end: Position, details: String, context: &'a Context<'a>) -> Self {
         RTError {
             error: Error::new(pos_start, pos_end, String::from("RuntimeError"), details),
             context

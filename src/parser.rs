@@ -56,12 +56,27 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> ParseResult {
-        let mut res = self.statements();
+        let mut res = ParseResult::new();
+
+        if self.current_token().token_type() == TokenType::Bof {
+            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected BOF!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        let stmts = res.register_res(self.statements());
+        if res.has_error() {
+            return res;
+        }
 
         if !res.has_error() && self.current_token().token_type() != TokenType::Eof {
             res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected statements!"));
+            return res;
         }
 
+        res.success(stmts.unwrap());
         res
     }
 

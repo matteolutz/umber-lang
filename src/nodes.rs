@@ -17,7 +17,7 @@ pub mod nreturn;
 pub mod unaryop;
 pub mod nwhile;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum NodeType {
     BinOp,
     Call,

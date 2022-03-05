@@ -39,7 +39,7 @@ impl Lexer {
     }
 
     pub fn make_tokens(&mut self) -> (Vec<Token>, Option<Error>) {
-        let mut tokens: Vec<Token> = vec![];
+        let mut tokens: Vec<Token> = vec![Token::new_without_value(TokenType::Eof, self.pos)];
 
         while self.current_char.is_some() {
             let current = self.current_char.unwrap();

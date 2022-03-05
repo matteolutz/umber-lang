@@ -20,6 +20,18 @@ impl VarDeclarationNode {
             pos_start,
         }
     }
+
+    pub fn var_name(&self) -> &String { &self.var_name }
+    pub fn value_node(&self) -> &Box<dyn Node> {
+        &self.value_node
+    }
+    pub fn is_mutable(&self) -> bool {
+        self.is_mutable
+    }
+    pub fn pos_start(&self) -> &Position {
+        &self.pos_start
+    }
+
 }
 
 impl Display for VarDeclarationNode {

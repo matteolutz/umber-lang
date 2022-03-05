@@ -16,6 +16,10 @@ impl NumberNode {
         }
     }
 
+    pub fn get_number(&self) -> u32 {
+        self.token.token_value().as_ref().unwrap().get_as_u32()
+    }
+
 }
 
 impl Display for NumberNode {
