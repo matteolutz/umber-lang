@@ -17,6 +17,13 @@ impl CallNode {
         }
     }
 
+    pub fn node_to_call(&self) -> &Box<dyn Node> {
+        &self.node_to_call
+    }
+    pub fn arg_nodes(&self) -> &Vec<Box<dyn Node>> {
+        &self.arg_nodes
+    }
+
 }
 
 impl Display for CallNode {

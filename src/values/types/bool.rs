@@ -16,7 +16,7 @@ impl BoolType {
 
 impl ValueTypeAsAny for BoolType {
     fn as_any(&self) -> &dyn Any {
-        todo!()
+        self
     }
 }
 

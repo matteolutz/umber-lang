@@ -21,6 +21,20 @@ impl FunctionDefinitionNode {
             pos_start,
         }
     }
+
+    pub fn var_name(&self) -> &Option<String> {
+        &self.var_name
+    }
+    pub fn arg_names(&self) -> &Vec<String> {
+        &self.arg_names
+    }
+    pub fn body_node(&self) -> &Box<dyn Node> {
+        &self.body_node
+    }
+    pub fn should_auto_return(&self) -> bool {
+        self.should_auto_return
+    }
+
 }
 
 impl Display for FunctionDefinitionNode {

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::env::var;
 use std::fmt::Write;
 use crate::nodes::{Node, NodeType};
 use crate::nodes::binop::BinOpNode;
@@ -7,11 +8,12 @@ use crate::nodes::list::ListNode;
 use crate::nodes::number::NumberNode;
 use crate::nodes::string::StringNode;
 use crate::nodes::unaryop::UnaryOpNode;
+use crate::nodes::var::access::VarAccessNode;
 use crate::nodes::var::assign::VarAssignNode;
 use crate::nodes::var::declare::VarDeclarationNode;
 use crate::token::{Token, TokenType};
 
-const WORD_SIZE: u8 = 4;
+const WORD_SIZE: usize = 4;
 
 #[derive(Debug)]
 #[repr(u8)]
@@ -73,7 +75,7 @@ fn emit_word_at(c: &mut Vec<u8>, w: u32, n: usize) {
         emit_word(c, w);
     }
 
-    c.splice(n..n + WORD_SIZE as usize, w.to_ne_bytes());
+    c.splice(n..n + WORD_SIZE, w.to_ne_bytes());
 }
 
 fn hole(c: &mut Vec<u8>) -> usize {
@@ -81,18 +83,39 @@ fn hole(c: &mut Vec<u8>) -> usize {
     c.len()
 }
 
-fn code_gen(code: &mut Vec<u8>, string_pool: &mut HashMap<String, u32>, node: &Box<dyn Node>) {
+fn code_gen(code: &mut Vec<u8>, string_pool: &mut HashMap<String, u32>, var_pool: &mut HashMap<String, u32>, node: &Box<dyn Node>) {
     if node.node_type() == NodeType::VarAccess {
         emit_byte(code, Instructions::Fetch as u8);
-        emit_word(code, 0);
+
+        let key = node.as_any().downcast_ref::<VarAccessNode>().unwrap().var_name();
+        if !var_pool.contains_key(key) {
+            panic!("Variable name not found in var pool!");
+        }
+
+        emit_word(code, var_pool[key]);
     } else if node.node_type() == NodeType::VarAssign {
-        code_gen(code, string_pool, node.as_any().downcast_ref::<VarAssignNode>().unwrap().value_node());
+        code_gen(code, string_pool, var_pool, node.as_any().downcast_ref::<VarAssignNode>().unwrap().value_node());
         emit_byte(code, Instructions::Store as u8);
-        emit_word(code, 0);
+
+        let key = node.as_any().downcast_ref::<VarAssignNode>().unwrap().var_name();
+        if !var_pool.contains_key(key) {
+            panic!("Variable name not found in var pool!");
+        }
+
+        emit_word(code, var_pool[key]);
     } else if node.node_type() == NodeType::VarDeclaration {
-        code_gen(code, string_pool, node.as_any().downcast_ref::<VarDeclarationNode>().unwrap().value_node());
+        code_gen(code, string_pool, var_pool, node.as_any().downcast_ref::<VarDeclarationNode>().unwrap().value_node());
         emit_byte(code, Instructions::Store as u8);
-        emit_word(code, 0);
+
+        let key = node.as_any().downcast_ref::<VarDeclarationNode>().unwrap().var_name();
+
+        if var_pool.contains_key(key) {
+            emit_word(code, var_pool[key]);
+        } else {
+            let prev_len = var_pool.len();
+            var_pool.insert(key.clone(), prev_len as u32);
+            emit_word(code, prev_len as u32);
+        }
     } else if node.node_type() == NodeType::Number {
         emit_byte(code, Instructions::Push as u8);
         emit_word(code, node.as_any().downcast_ref::<NumberNode>().unwrap().get_number());
@@ -101,7 +124,7 @@ fn code_gen(code: &mut Vec<u8>, string_pool: &mut HashMap<String, u32>, node: &B
         emit_byte(code, Instructions::Push as u8);
 
         if string_pool.contains_key(&string) {
-            emit_word(code, *string_pool.get(&string).unwrap());
+            emit_word(code, string_pool[&string]);
         } else {
             let prev_len = string_pool.len();
             string_pool.insert(string, prev_len as u32);
@@ -110,13 +133,13 @@ fn code_gen(code: &mut Vec<u8>, string_pool: &mut HashMap<String, u32>, node: &B
 
     } else if node.node_type() == NodeType::BinOp {
         let bin_op_node = node.as_any().downcast_ref::<BinOpNode>().unwrap();
-        code_gen(code, string_pool, bin_op_node.left_node());
-        code_gen(code, string_pool, bin_op_node.right_node());
+        code_gen(code, string_pool, var_pool, bin_op_node.left_node());
+        code_gen(code, string_pool, var_pool, bin_op_node.right_node());
         emit_byte(code, get_binary_op(bin_op_node.op_token()) as u8);
     } else if node.node_type() == NodeType::UnaryOp {
         let unary_op = node.as_any().downcast_ref::<UnaryOpNode>().unwrap();
 
-        code_gen(code, string_pool, unary_op.node());
+        code_gen(code, string_pool, var_pool, unary_op.node());
 
         if unary_op.op_token().token_type() == TokenType::Minus {
             panic!("negative numbers not implemented yet!")
@@ -129,25 +152,28 @@ fn code_gen(code: &mut Vec<u8>, string_pool: &mut HashMap<String, u32>, node: &B
         }
     } else if node.node_type() == NodeType::List {
         for el in node.as_any().downcast_ref::<ListNode>().unwrap().element_nodes() {
-            code_gen(code, string_pool, el);
+            code_gen(code, string_pool, var_pool, el);
         }
     } else {
         panic!("No code gen method for node type {:?}!", node.node_type());
     }
 }
 
-pub fn compile(node: &Box<dyn Node>) -> (Vec<u8>, HashMap<String, u32>) {
+pub fn compile(node: &Box<dyn Node>) -> (Vec<u8>, HashMap<String, u32>, HashMap<String, u32>) {
     let mut code: Vec<u8> = vec![];
     let mut string_pool: HashMap<String, u32> = HashMap::new();
+    let mut var_pool: HashMap<String, u32> = HashMap::new();
 
-    code_gen(&mut code, &mut string_pool, node);
+    code_gen(&mut code, &mut string_pool, &mut var_pool, node);
     emit_byte(&mut code, Instructions::Halt as u8);
 
-    (code, string_pool)
+    (code, string_pool, var_pool)
 }
 
-pub fn to_virtual_bin(code: &Vec<u8>) -> String {
+pub fn to_virtual_bin(code: &Vec<u8>, string_pool: &HashMap<String, u32>, var_pool: &HashMap<String, u32>) -> String {
     let mut temp = String::new();
+
+    writeln!(&mut temp, "{},{}", var_pool.len(), string_pool.len());
 
     let mut pc: usize = 0;
     while pc < code.len() {
@@ -157,17 +183,17 @@ pub fn to_virtual_bin(code: &Vec<u8>) -> String {
         pc += 1;
 
         if op == Instructions::Fetch as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE as usize].try_into().expect("Couldn't convert!"));
+            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().unwrap());
             writeln!(&mut temp, "fetch [{}]", x);
-            pc += WORD_SIZE as usize;
+            pc += WORD_SIZE;
         } else if op == Instructions::Store as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE as usize].try_into().expect("Couldn't convert!"));
+            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().unwrap());
             writeln!(&mut temp, "store [{}]", x);
-            pc += WORD_SIZE as usize;
+            pc += WORD_SIZE;
         } else if op == Instructions::Push as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE as usize].try_into().expect("Couldn't convert!"));
+            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().unwrap());
             writeln!(&mut temp, "push  {}", x);
-            pc += WORD_SIZE as usize;
+            pc += WORD_SIZE;
         } else if op == Instructions::Add as u8 {
             writeln!(&mut temp, "add");
         } else if op == Instructions::Sub as u8 {
@@ -197,13 +223,13 @@ pub fn to_virtual_bin(code: &Vec<u8>) -> String {
         } else if op == Instructions::Not as u8 {
             writeln!(&mut temp, "not");
         } else if op == Instructions::Jmp as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE as usize].try_into().expect("Couldn't convert!"));
+            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().expect("Couldn't convert!"));
             writeln!(&mut temp, "jmp   ({}) {}", x, pc + x as usize);
-            pc += WORD_SIZE as usize;
+            pc += WORD_SIZE;
         } else if op == Instructions::Jz as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE as usize].try_into().expect("Couldn't convert!"));
+            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().expect("Couldn't convert!"));
             writeln!(&mut temp, "jz   ({}) {}", x, pc + x as usize);
-            pc += WORD_SIZE as usize;
+            pc += WORD_SIZE;
         } else if op == Instructions::Halt as u8 {
             writeln!(&mut temp, "halt");
         } else {

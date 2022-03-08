@@ -3,12 +3,9 @@ use std::time::Instant;
 use umber_lang::context::Context;
 use umber_lang::lexer::Lexer;
 use umber_lang::parser::Parser;
-use umber_lang::{compiler, semantics};
+use umber_lang::{compiler, runtime, semantics};
 
 static TEXT_TO_LEX: &'static str = "\
-\"Hello World\";
-\"Whats up\";
-1 + 1;
 ";
 
 fn main() {
@@ -39,12 +36,15 @@ fn main() {
 
     println!("semantics ok!");
 
-    let (code, string_pool) = compiler::compile(parse_res.node().as_ref().unwrap());
+    let (code, string_pool, var_pool) = compiler::compile(parse_res.node().as_ref().unwrap());
     println!("code:\n{:?}", code);
     println!("string pool: {:?}", string_pool);
+    println!("var pool: {:?}", var_pool);
 
-    let virtual_bin = compiler::to_virtual_bin(&code);
+    let virtual_bin = compiler::to_virtual_bin(&code, &string_pool, &var_pool);
 
-    println!("virtual bin\n{}", virtual_bin);
+    println!("virtual bin\n\n{}", virtual_bin);
+
+    runtime::run_code(&virtual_bin);
 
 }

@@ -20,6 +20,16 @@ impl VarAccessNode {
         }
     }
 
+    pub fn var_name(&self) -> &String {
+        &self.var_name
+    }
+    pub fn pos_start(&self) -> &Position {
+        &self.pos_start
+    }
+    pub fn pos_end(&self) -> &Position {
+        &self.pos_end
+    }
+
 }
 
 impl Display for VarAccessNode {

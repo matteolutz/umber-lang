@@ -15,7 +15,7 @@ impl StringType {
 
 impl ValueTypeAsAny for StringType {
     fn as_any(&self) -> &dyn Any {
-        todo!()
+        self
     }
 }
 
