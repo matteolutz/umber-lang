@@ -6,6 +6,7 @@ use umber_lang::parser::Parser;
 use umber_lang::{compiler, runtime, semantics};
 
 static TEXT_TO_LEX: &'static str = "\
+1+1
 ";
 
 fn main() {
@@ -36,7 +37,7 @@ fn main() {
 
     println!("semantics ok!");
 
-    let (code, string_pool, var_pool) = compiler::compile(parse_res.node().as_ref().unwrap());
+    /*let (code, string_pool, var_pool) = compiler::compile(parse_res.node().as_ref().unwrap());
     println!("code:\n{:?}", code);
     println!("string pool: {:?}", string_pool);
     println!("var pool: {:?}", var_pool);
@@ -45,6 +46,7 @@ fn main() {
 
     println!("virtual bin\n\n{}", virtual_bin);
 
-    runtime::run_code(&virtual_bin);
+    runtime::run_code(&virtual_bin);*/
+    println!("asm:\n\n{}", compiler::to_asm(parse_res.node().as_ref().unwrap()));
 
 }

@@ -130,7 +130,6 @@ fn code_gen(code: &mut Vec<u8>, string_pool: &mut HashMap<String, u32>, var_pool
             string_pool.insert(string, prev_len as u32);
             emit_word(code, prev_len as u32);
         }
-
     } else if node.node_type() == NodeType::BinOp {
         let bin_op_node = node.as_any().downcast_ref::<BinOpNode>().unwrap();
         code_gen(code, string_pool, var_pool, bin_op_node.left_node());
@@ -183,15 +182,15 @@ pub fn to_virtual_bin(code: &Vec<u8>, string_pool: &HashMap<String, u32>, var_po
         pc += 1;
 
         if op == Instructions::Fetch as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().unwrap());
+            let x = u32::from_ne_bytes(code[pc..pc + WORD_SIZE].try_into().unwrap());
             writeln!(&mut temp, "fetch [{}]", x);
             pc += WORD_SIZE;
         } else if op == Instructions::Store as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().unwrap());
+            let x = u32::from_ne_bytes(code[pc..pc + WORD_SIZE].try_into().unwrap());
             writeln!(&mut temp, "store [{}]", x);
             pc += WORD_SIZE;
         } else if op == Instructions::Push as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().unwrap());
+            let x = u32::from_ne_bytes(code[pc..pc + WORD_SIZE].try_into().unwrap());
             writeln!(&mut temp, "push  {}", x);
             pc += WORD_SIZE;
         } else if op == Instructions::Add as u8 {
@@ -223,11 +222,11 @@ pub fn to_virtual_bin(code: &Vec<u8>, string_pool: &HashMap<String, u32>, var_po
         } else if op == Instructions::Not as u8 {
             writeln!(&mut temp, "not");
         } else if op == Instructions::Jmp as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().expect("Couldn't convert!"));
+            let x = u32::from_ne_bytes(code[pc..pc + WORD_SIZE].try_into().expect("Couldn't convert!"));
             writeln!(&mut temp, "jmp   ({}) {}", x, pc + x as usize);
             pc += WORD_SIZE;
         } else if op == Instructions::Jz as u8 {
-            let x = u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().expect("Couldn't convert!"));
+            let x = u32::from_ne_bytes(code[pc..pc + WORD_SIZE].try_into().expect("Couldn't convert!"));
             writeln!(&mut temp, "jz   ({}) {}", x, pc + x as usize);
             pc += WORD_SIZE;
         } else if op == Instructions::Halt as u8 {
@@ -238,4 +237,70 @@ pub fn to_virtual_bin(code: &Vec<u8>, string_pool: &HashMap<String, u32>, var_po
     }
 
     temp
+}
+
+fn code_gen_asm(node: &Box<dyn Node>, string_pool: &mut HashMap<&str, String>) -> String {
+    if node.node_type() == NodeType::Number {
+        return node.as_any().downcast_ref::<NumberNode>().unwrap().get_number().to_string();
+    } else if node.node_type() == NodeType::String {
+
+    } else if node.node_type() == NodeType::BinOp {
+        let bin_op_node = node.as_any().downcast_ref::<BinOpNode>().unwrap();
+        return format!(
+            "\tmov     eax, {}\n\t{}     eax, {}",
+            code_gen_asm(bin_op_node.left_node(), string_pool),
+            match bin_op_node.op_token().token_type() {
+                TokenType::Plus => "add",
+                _ => panic!("No valid bin op")
+            }, code_gen_asm(bin_op_node.right_node(), string_pool));
+    } else if node.node_type() == NodeType::List {
+        let mut temp = String::new();
+        for el in node.as_any().downcast_ref::<ListNode>().unwrap().element_nodes() {
+            writeln!(&mut temp, "{}", code_gen_asm(el, string_pool));
+        }
+        return temp;
+    }
+
+    format!("\t;; TODO: ASM code gen for node type '{:?}' not implemented yet.", node.node_type())
+}
+
+pub fn to_asm(node: &Box<dyn Node>) -> String {
+    let mut asm = String::new();
+
+    let mut string_pool: HashMap<&str, String> = HashMap::new();
+
+    let mut global = String::new();
+    let mut start_l = String::new();
+
+    /*writeln!(&mut global, "section .data\n");
+    // TODO: add strings
+
+    writeln!(&mut global, "section .bss\n");
+    // TODO: add vars*/
+
+    /*writeln!(&mut global, "print:
+\tmov     eax, 4
+\tmov     ebx, 1
+\tint     0x80
+\tret
+    ");*/
+
+    writeln!(&mut start_l, "\tpush    rbp
+\tmov     rbp, rsp
+    ");
+    writeln!(&mut start_l, "{}", code_gen_asm(node, &mut string_pool));
+
+    writeln!(&mut start_l, "\tpop     rbp");
+
+    /*// region End
+    writeln!(&mut start_l, "\n\t;; Quit");
+    writeln!(&mut start_l, "\tmov     eax, 1
+\tmov     ebx, 0
+\tint     0x80");
+    // endregion*/
+
+    write!(&mut asm, "{}", global);
+    write!(&mut asm, "section .text\n\tglobal  _start\n\n_start:\n{}", start_l);
+
+    asm
 }
