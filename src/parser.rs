@@ -9,14 +9,16 @@ use crate::nodes::functiondef::FunctionDefinitionNode;
 use crate::nodes::list::ListNode;
 use crate::nodes::nbreak::BreakNode;
 use crate::nodes::ncontinue::ContinueNode;
-use crate::nodes::Node;
+use crate::nodes::{Node, NodeType};
 use crate::nodes::nreturn::ReturnNode;
 use crate::nodes::number::NumberNode;
+use crate::nodes::statements::StatementsNode;
 use crate::nodes::string::StringNode;
 use crate::nodes::unaryop::UnaryOpNode;
 use crate::nodes::var::access::VarAccessNode;
 use crate::nodes::var::assign::VarAssignNode;
 use crate::nodes::var::declare::VarDeclarationNode;
+use crate::parser::BinOpFunction::Call;
 use crate::position::Position;
 
 #[derive(Copy, Clone)]
@@ -301,7 +303,7 @@ impl Parser {
             statements.push(statement.unwrap());
         }
 
-        res.success(Box::from(ListNode::new(statements, pos_start, *self.current_token().pos_start())));
+        res.success(Box::from(StatementsNode::new(statements, pos_start, *self.current_token().pos_start())));
         res
     }
 
@@ -383,6 +385,24 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
+            /*if self.current_token().token_type() != TokenType::Colon {
+                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Identifier {
+                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type identifier!"));
+                return res;
+            }
+
+            let value_type = self.current_token().token_value().as_ref().unwrap().get_as_str().clone();
+
+            res.register_advancement();
+            self.advance();*/
+
             if self.current_token().token_type() != TokenType::Eq {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '='!"));
                 return res;
@@ -393,10 +413,11 @@ impl Parser {
 
             let expr = res.register_res(self.expression());
             if res.has_error() {
+                panic!("value has err!");
                 return res;
             }
 
-            res.success(Box::from(VarDeclarationNode::new(var_name, expr.unwrap(), is_mutable, pos_start)));
+            res.success(Box::from(VarDeclarationNode::new(var_name, String::from(""), expr.unwrap(), is_mutable, pos_start)));
             return res;
         }
 
@@ -552,7 +573,12 @@ impl Parser {
                 self.advance();
             }
 
-            res.success(Box::from(CallNode::new(atom.unwrap(), arg_nodes)));
+            //res.success(Box::from(CallNode::new(atom.unwrap(), arg_nodes)));
+            if atom.as_ref().unwrap().node_type() != NodeType::VarAccess {
+                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Dynamic calls aren't implemented yet!"));
+            }
+
+            res.success(Box::from(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().clone(), arg_nodes, *atom.as_ref().unwrap().pos_start())));
             return res;
         }
 

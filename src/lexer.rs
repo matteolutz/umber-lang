@@ -178,7 +178,8 @@ impl Lexer {
         if dot_count == 0 {
             Token::new(TokenType::Int, Some(TokenValue::new(TokenValueType::Int, num_str)), pos_start, self.pos)
         } else {
-            Token::new(TokenType::Float, Some(TokenValue::new(TokenValueType::Float, num_str)), pos_start, self.pos)
+            // Token::new(TokenType::Float, Some(TokenValue::new(TokenValueType::Float, num_str)), pos_start, self.pos)
+            panic!("Floats are not supported for now!");
         }
     }
 

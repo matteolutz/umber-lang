@@ -192,7 +192,7 @@ fn validate_function_def_node(node: &FunctionDefinitionNode, context: &mut Conte
     arg_types.reserve(node.arg_names().len());
 
     for (i, arg) in node.arg_names().iter().enumerate() {
-        arg_types[i] = Box::from(BoolType::new());
+        arg_types.push(Box::from(BoolType::new()));
     }
 
     context.symbol_table().declare(
@@ -207,7 +207,11 @@ fn validate_function_def_node(node: &FunctionDefinitionNode, context: &mut Conte
 fn validate_call_node(node: &CallNode, context: &mut Context) -> ValidationResult {
     let mut res = ValidationResult::new();
 
-    let call_type = res.register_res(validate(node.node_to_call(), context));
+    if !context.symbol_table().has(node.func_to_call()) || context.symbol_table().get(node.func_to_call()).unwrap().value_type().value_type() != ValueTypes::Function {
+        res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "Expected function!"))
+    }
+
+    /*let call_type = res.register_res(validate(node.node_to_call(), context));
     if res.has_error() {
         return res;
     }
@@ -215,13 +219,13 @@ fn validate_call_node(node: &CallNode, context: &mut Context) -> ValidationResul
     if call_type.as_ref().unwrap().value_type() != ValueTypes::Function {
         res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Can't call type: {}", call_type.as_ref().unwrap()).as_str()));
         return res;
-    }
+    }*/
 
-    let function_type = call_type.as_ref().unwrap().as_any().downcast_ref::<FunctionType>().unwrap();
+    /*let function_type = context.c_symbol_table().get(node.func_to_call()).as_ref().unwrap().value_type().as_any().downcast_ref::<FunctionType>().unwrap();
     if function_type.arg_types().len() != node.arg_nodes().len() {
         res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Function expected {} parameters. Passed {}!", function_type.arg_types().len(), node.arg_nodes().len()).as_str()));
         return res;
-    }
+    }*/
 
     for (i, arg) in node.arg_nodes().iter().enumerate() {
         let t = res.register_res(validate(arg, context));
@@ -229,10 +233,10 @@ fn validate_call_node(node: &CallNode, context: &mut Context) -> ValidationResul
             return res;
         }
 
-        if !t.as_ref().unwrap().eq(&function_type.arg_types()[i]) {
+        /*if !t.as_ref().unwrap().eq(&function_type.arg_types()[i]) {
             res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Expected type {}, got {}!", function_type.arg_types()[i], t.as_ref().unwrap()).as_str()));
             return res;
-        }
+        }*/
     }
 
     res.success(Box::from(BoolType::new()));

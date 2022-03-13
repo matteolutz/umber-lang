@@ -16,6 +16,7 @@ pub mod nif;
 pub mod nreturn;
 pub mod unaryop;
 pub mod nwhile;
+pub mod statements;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -33,7 +34,8 @@ pub enum NodeType {
     UnaryOp,
     VarAccess,
     VarAssign,
-    VarDeclaration
+    VarDeclaration,
+    Statements,
 }
 
 pub trait NodeToAny: 'static {

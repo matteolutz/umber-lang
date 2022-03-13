@@ -4,21 +4,23 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
 pub struct CallNode {
-    node_to_call: Box<dyn Node>,
-    arg_nodes: Vec<Box<dyn Node>>
+    func_to_call: String,
+    arg_nodes: Vec<Box<dyn Node>>,
+    pos_start: Position
 }
 
 impl CallNode {
 
-    pub fn new(node_to_call: Box<dyn Node>, arg_nodes: Vec<Box<dyn Node>>) -> Self {
+    pub fn new(func_to_call: String, arg_nodes: Vec<Box<dyn Node>>, pos_start: Position) -> Self {
         CallNode {
-            node_to_call,
-            arg_nodes
+            func_to_call,
+            arg_nodes,
+            pos_start
         }
     }
 
-    pub fn node_to_call(&self) -> &Box<dyn Node> {
-        &self.node_to_call
+    pub fn func_to_call(&self) -> &String {
+        &self.func_to_call
     }
     pub fn arg_nodes(&self) -> &Vec<Box<dyn Node>> {
         &self.arg_nodes
@@ -28,7 +30,7 @@ impl CallNode {
 
 impl Display for CallNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<CallNode>[NodeToCall: {}, Args: [{}]]", self.node_to_call, self.arg_nodes.iter().map(|el| format!("{}", el)).collect::<Vec<String>>().join(","))
+        write!(f, "<CallNode>[FuncToCall: {}, Args: [{}]]", self.func_to_call, self.arg_nodes.iter().map(|el| format!("{}", el)).collect::<Vec<String>>().join(","))
     }
 }
 
@@ -40,11 +42,11 @@ impl NodeToAny for CallNode {
 
 impl Node for CallNode {
     fn pos_start(&self) -> &Position {
-        self.node_to_call.pos_start()
+        &self.pos_start
     }
 
     fn pos_end(&self) -> &Position {
-        if !self.arg_nodes.is_empty() { self.arg_nodes.last().as_ref().unwrap().pos_end() } else { self.node_to_call.pos_end() }
+        if !self.arg_nodes.is_empty() { self.arg_nodes.last().as_ref().unwrap().pos_end() } else { &self.pos_start }
     }
 
     fn node_type(&self) -> NodeType {

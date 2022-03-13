@@ -6,15 +6,17 @@ use crate::token::Token;
 
 pub struct VarDeclarationNode {
     var_name: String,
+    var_type: String,
     value_node: Box<dyn Node>,
     is_mutable: bool,
     pos_start: Position,
 }
 
 impl VarDeclarationNode {
-    pub fn new(var_name: String, value_node: Box<dyn Node>, is_mutable: bool, pos_start: Position) -> Self {
+    pub fn new(var_name: String, var_type: String, value_node: Box<dyn Node>, is_mutable: bool, pos_start: Position) -> Self {
         VarDeclarationNode {
             var_name,
+            var_type,
             value_node,
             is_mutable,
             pos_start,
@@ -22,6 +24,7 @@ impl VarDeclarationNode {
     }
 
     pub fn var_name(&self) -> &String { &self.var_name }
+    pub fn var_type(&self) -> &String { &self.var_type }
     pub fn value_node(&self) -> &Box<dyn Node> {
         &self.value_node
     }

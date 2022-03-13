@@ -33,6 +33,7 @@ impl<'a> Context<'a> {
     pub fn display_name(&self) -> &String { &self.display_name }
     pub fn parent(&self) -> &Option<&'a mut Context<'a>> { &self.parent }
     pub fn parent_entry_pos(&self) -> &Option<Position> { &self.parent_entry_pos }
+    pub fn c_symbol_table(&self) -> &SymbolTable<'a> { &self.symbol_table }
     pub fn symbol_table(&mut self) -> &mut SymbolTable<'a> { &mut self.symbol_table }
 
 }

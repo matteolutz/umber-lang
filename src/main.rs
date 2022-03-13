@@ -6,7 +6,15 @@ use umber_lang::parser::Parser;
 use umber_lang::{compiler, runtime, semantics};
 
 static TEXT_TO_LEX: &'static str = "\
-1+1
+fun a(b) {
+    b;
+    1;
+};
+
+fun main() {
+    let test = 123;
+    a(test);
+};
 ";
 
 fn main() {
