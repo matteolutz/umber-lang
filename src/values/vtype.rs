@@ -8,6 +8,7 @@ pub enum ValueTypes {
     Bool,
     String,
     Function,
+    Void,
 }
 
 pub trait ValueTypeAsAny {

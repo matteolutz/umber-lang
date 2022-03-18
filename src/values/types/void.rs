@@ -5,31 +5,31 @@ use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::vtype::ValueTypes::Bool;
 
 #[derive(Clone)]
-pub struct BoolType {}
+pub struct VoidType {}
 
-impl BoolType {
+impl VoidType {
 
     pub fn new() -> Self {
-        BoolType {}
+        VoidType {}
     }
 
 }
 
-impl ValueTypeAsAny for BoolType {
+impl ValueTypeAsAny for VoidType {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Display for BoolType {
+impl Display for VoidType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<BoolType>[]")
+        write!(f, "<VoidType>[]")
     }
 }
 
-impl ValueType for BoolType {
+impl ValueType for VoidType {
     fn value_type(&self) -> ValueTypes {
-        ValueTypes::Bool
+        ValueTypes::Void
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
@@ -37,15 +37,7 @@ impl ValueType for BoolType {
     }
 
     fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
-        if t.value_type() != ValueTypes::Bool {
-            return None;
-        }
-
-        match op.token_type() {
-            TokenType::Or | TokenType::And => Some(Box::new(BoolType::new())),
-            TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::new(BoolType::new())),
-            _ => None,
-        }
+        None
     }
 
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {

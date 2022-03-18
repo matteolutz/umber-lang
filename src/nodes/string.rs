@@ -17,7 +17,7 @@ impl StringNode {
     }
 
     pub fn get_string(&self) -> String {
-        self.token.token_value().as_ref().unwrap().get_as_str().clone()
+        self.token.token_value().as_ref().unwrap().clone()
     }
 
 }

@@ -15,6 +15,7 @@ impl Compiler {
         }
     }
 
+    // region Register distribution
     pub fn res_reg(&mut self) -> u8 {
         if self.gen_regs ^ 0b1111111 == 0 {
             panic!("No free general purpose registers were found!");
@@ -33,9 +34,13 @@ impl Compiler {
     }
 
     pub fn free_reg(&mut self, reg: u8) {
-        // TODO: refactor
-        self.gen_regs = self.gen_regs ^ (1 << reg);
+        self.gen_regs = !(!self.gen_regs | (1 << reg));
     }
+    // endregion
 
     pub fn gen_regs(&self) -> &u8 { &self.gen_regs }
+}
+
+impl Compiler {
+
 }

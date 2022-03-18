@@ -43,15 +43,15 @@ impl ValueType for NumberType {
         }
 
         match op.token_type() {
-            TokenType::Minus | TokenType::Plus | TokenType::Mul | TokenType::Div | TokenType::BitOr | TokenType::BitAnd => Some(Box::from(NumberType::new())),
-            TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::from(BoolType::new())),
+            TokenType::Minus | TokenType::Plus | TokenType::Mul | TokenType::Div | TokenType::BitOr | TokenType::BitAnd => Some(Box::new(NumberType::new())),
+            TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::new(BoolType::new())),
             _ => None,
         }
     }
 
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
         match op.token_type() {
-            TokenType::Minus | TokenType::Plus => Some(Box::from(NumberType::new())),
+            TokenType::Minus | TokenType::Plus => Some(Box::new(NumberType::new())),
             _ => None
         }
     }

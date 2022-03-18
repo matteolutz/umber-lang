@@ -1,20 +1,22 @@
 use std::any::Any;
 use std::time::Instant;
-use umber_lang::context::Context;
 use umber_lang::lexer::Lexer;
 use umber_lang::parser::Parser;
 use umber_lang::{compiler, runtime, semantics};
+use umber_lang::symboltable::SymbolTable;
 
 static TEXT_TO_LEX: &'static str = "\
-fun a(b) {
-    b;
-    1;
+
+fun main(): void {
+    let b: number = 1;
+    return;
 };
 
-fun main() {
-    let test = 123;
-    a(test);
+fun b(): void {
+    let c: number = 123;
+    return;
 };
+
 ";
 
 fn main() {
@@ -38,7 +40,7 @@ fn main() {
     println!("took: {}ms", start_time.elapsed().as_millis());
     println!("node: {}", parse_res.node().as_ref().unwrap());
 
-    let validation_res = semantics::validate(parse_res.node().as_ref().unwrap(), &mut Context::new_with_symbol_table("Test", None, None));
+    let validation_res = semantics::validate(parse_res.node().as_ref().unwrap(), &mut SymbolTable::new(None));
     if validation_res.has_error() {
         panic!("semantic validation error: {}", validation_res.error().as_ref().unwrap());
     }

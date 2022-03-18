@@ -16,8 +16,8 @@ impl NumberNode {
         }
     }
 
-    pub fn get_number(&self) -> u32 {
-        self.token.token_value().as_ref().unwrap().get_as_u32()
+    pub fn get_number(&self) -> u64 {
+        self.token.token_value().as_ref().unwrap().parse::<u64>().unwrap()
     }
 
 }

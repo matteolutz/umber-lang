@@ -5,6 +5,7 @@ use crate::values::vtype::ValueType;
 pub struct ValidationResult {
     error: Option<Error>,
     value_type: Option<Box<dyn ValueType>>,
+    return_type: Option<Box<dyn ValueType>>,
 }
 
 impl ValidationResult {
@@ -13,6 +14,7 @@ impl ValidationResult {
         ValidationResult {
             error: None,
             value_type: None,
+            return_type: None
         }
     }
 
@@ -22,6 +24,8 @@ impl ValidationResult {
             return None;
         }
 
+        self.return_type = res.return_type.clone();
+
         if !res.has_value_type() {
             return None;
         }
@@ -29,18 +33,24 @@ impl ValidationResult {
         return res.value_type;
     }
 
-    pub fn success(&mut self, value_type: Box<dyn ValueType>) -> () {
+    pub fn success(&mut self, value_type: Box<dyn ValueType>) {
         self.value_type = Some(value_type);
     }
 
-    pub fn failure(&mut self, error: Error) -> () {
+    pub fn success_return(&mut self, return_type: Box<dyn ValueType>) {
+        self.return_type = Some(return_type);
+    }
+
+    pub fn failure(&mut self, error: Error) {
         self.error = Some(error);
     }
 
-    pub fn has_error(&self) -> bool { return self.error.is_some(); }
-    pub fn has_value_type(&self) -> bool { return self.value_type.is_some(); }
+    pub fn has_error(&self) -> bool { self.error.is_some() }
+    pub fn has_value_type(&self) -> bool { self.value_type.is_some() }
+    pub fn has_return_type(&self) -> bool { self.return_type.is_some() }
 
-    pub fn value_type(&self) -> &Option<Box<dyn ValueType>> { return &self.value_type; }
-    pub fn error(&self) -> &Option<Error> { return &self.error; }
+    pub fn value_type(&self) -> &Option<Box<dyn ValueType>> { &self.value_type }
+    pub fn return_type(&self) -> &Option<Box<dyn ValueType>> { &self.return_type }
+    pub fn error(&self) -> &Option<Error> { &self.error }
 
 }

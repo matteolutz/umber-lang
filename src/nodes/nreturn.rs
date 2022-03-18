@@ -19,6 +19,8 @@ impl ReturnNode {
         }
     }
 
+    pub fn node_to_return(&self) -> &Option<Box<dyn Node>> { &self.node_to_return }
+
 }
 
 impl Display for ReturnNode {

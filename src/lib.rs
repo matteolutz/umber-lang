@@ -1,7 +1,6 @@
 pub mod lexer;
 pub mod parser;
 pub mod nodes;
-pub mod context;
 pub mod symboltable;
 pub mod error;
 pub mod position;

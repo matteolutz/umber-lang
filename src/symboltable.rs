@@ -22,7 +22,7 @@ impl Symbol {
 }
 
 pub struct SymbolTable<'a> {
-    symbols: HashMap::<String, Symbol>,
+    symbols: HashMap<String, Symbol>,
     parent: Option<&'a mut SymbolTable<'a>>
 }
 
@@ -76,6 +76,4 @@ impl<'a> SymbolTable<'a> {
         self.symbols.insert(String::from(name), symbol);
         true
     }
-
-
 }

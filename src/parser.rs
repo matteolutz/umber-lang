@@ -1,7 +1,8 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::detect::__is_feature_detected::adx;
 use crate::results::parse::ParseResult;
-use crate::token::{Token, TokenType, TokenValue, TokenValueType};
+use crate::token::{Token, TokenType};
 use crate::error;
 use crate::nodes::binop::BinOpNode;
 use crate::nodes::call::CallNode;
@@ -20,6 +21,11 @@ use crate::nodes::var::assign::VarAssignNode;
 use crate::nodes::var::declare::VarDeclarationNode;
 use crate::parser::BinOpFunction::Call;
 use crate::position::Position;
+use crate::values::types::bool::BoolType;
+use crate::values::types::number::NumberType;
+use crate::values::types::string::StringType;
+use crate::values::types::void::VoidType;
+use crate::values::vtype::ValueType;
 
 #[derive(Copy, Clone)]
 enum BinOpFunction {
@@ -68,7 +74,7 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        let stmts = res.register_res(self.statements());
+        let stmts = res.register_res(self.statements(true));
         if res.has_error() {
             return res;
         }
@@ -81,6 +87,30 @@ impl Parser {
         res.success(stmts.unwrap());
         res
     }
+
+    // region Helper functions
+
+    fn get_intrinsic_type(&self, t: &Token) -> Box<dyn ValueType> {
+        if t.token_type() != TokenType::Keyword {
+            panic!("TokenType '{:?}' can't be handled in function `get_intrinsic_type``!", t.token_type());
+        }
+
+        let s = t.token_value().as_ref().unwrap().as_str();
+
+        if s == "number" {
+            return Box::new(NumberType::new());
+        } else if s == "string" {
+            return Box::new(StringType::new());
+        } else if s == "bool" {
+            return Box::new(BoolType::new());
+        } else if s == "void" {
+            return Box::new(VoidType::new());
+        }
+
+        panic!("'{}' is not an intrinsic type!", s)
+    }
+
+    // endregion
 
     // region Parsing functions
 
@@ -126,19 +156,15 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        let mut func_name: Option<String> = None;
-
-        if self.current_token().token_type() == TokenType::Identifier {
-            if self.current_token().token_value().is_none() {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Identifier malformed!"));
-                return res;
-            }
-
-            func_name = Some(self.current_token().token_value().as_ref().unwrap().get_as_str().clone());
-
-            res.register_advancement();
-            self.advance();
+        if self.current_token().token_type() != TokenType::Identifier {
+            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected identifier!"));
+            return res;
         }
+
+        let mut func_name = self.current_token().token_value().as_ref().unwrap().clone();
+
+        res.register_advancement();
+        self.advance();
 
         if self.current_token().token_type() != TokenType::Lparen {
             res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '('!"));
@@ -148,14 +174,39 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        let mut arg_names: Vec<String> = vec![];
+        let mut args: HashMap<String, Box<dyn ValueType>> = HashMap::new();
+
         if self.current_token().token_type() == TokenType::Identifier {
+
             if self.current_token().token_value().is_none() {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Identifier malformed!"));
                 return res;
             }
 
-            arg_names.push(self.current_token().token_value().as_ref().unwrap().get_as_str().clone());
+            let arg_name = self.current_token().token_value().as_ref().unwrap().clone();
+
+            if args.contains_key(&arg_name) {
+                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Colon {
+                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Keyword {
+                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type keyword!"));
+                return res;
+            }
+
+            args.insert(arg_name, self.get_intrinsic_type(self.current_token()));
 
             res.register_advancement();
             self.advance();
@@ -169,7 +220,30 @@ impl Parser {
                     return res;
                 }
 
-                arg_names.push(self.current_token().token_value().as_ref().unwrap().get_as_str().clone());
+                let arg_name = self.current_token().token_value().as_ref().unwrap().clone();
+
+                if args.contains_key(&arg_name) {
+                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Colon {
+                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Keyword {
+                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type keyword!"));
+                    return res;
+                }
+
+                args.insert(arg_name, self.get_intrinsic_type(self.current_token()));
 
                 res.register_advancement();
                 self.advance();
@@ -184,6 +258,24 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
+        if self.current_token().token_type() != TokenType::Colon {
+            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        if self.current_token().token_type() != TokenType::Keyword {
+            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type keyword!"));
+            return res;
+        }
+
+        let return_type = self.get_intrinsic_type(self.current_token());
+
+        res.register_advancement();
+        self.advance();
+
         if self.current_token().token_type() == TokenType::Arrow {
             res.register_advancement();
             self.advance();
@@ -193,7 +285,7 @@ impl Parser {
                 return res;
             }
 
-            res.success(Box::from(FunctionDefinitionNode::new(func_name, arg_names, node_to_return.unwrap(), true, pos_start)));
+            res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, node_to_return.unwrap(), true, pos_start)));
             return res;
         }
 
@@ -205,7 +297,7 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        let func_body = res.register_res(self.statements());
+        let func_body = res.register_res(self.statements(false));
         if res.has_error() {
             return res;
         }
@@ -218,7 +310,7 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        res.success(Box::from(FunctionDefinitionNode::new(func_name, arg_names, func_body.unwrap(), false, pos_start)));
+        res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, func_body.unwrap(), false, pos_start)));
         res
     }
 
@@ -250,14 +342,14 @@ impl Parser {
                 return res;
             }
 
-            left = Some(Box::from(BinOpNode::new(left.unwrap(), op_token, right.unwrap())));
+            left = Some(Box::new(BinOpNode::new(left.unwrap(), op_token, right.unwrap())));
         }
 
         res.success(left.unwrap());
         res
     }
 
-    fn statements(&mut self) -> ParseResult {
+    fn statements(&mut self, is_top_level: bool) -> ParseResult {
         let mut res = ParseResult::new();
 
         let mut statements: Vec<Box<dyn Node>> = vec![];
@@ -268,7 +360,7 @@ impl Parser {
             self.advance();
         }
 
-        let statement = res.register_res(self.statement());
+        let statement = res.register_res(self.statement(is_top_level));
         if res.has_error() {
             return res;
         }
@@ -293,9 +385,9 @@ impl Parser {
                 break;
             }
 
-            let statement = res.try_register_res(self.statement());
+            let statement = res.try_register_res(self.statement(is_top_level));
             if statement.is_none() {
-                self.reverse(res.to_reverse_count().clone());
+                self.reverse(res.to_reverse_count());
                 more_statements = false;
                 continue;
             }
@@ -303,55 +395,72 @@ impl Parser {
             statements.push(statement.unwrap());
         }
 
-        res.success(Box::from(StatementsNode::new(statements, pos_start, *self.current_token().pos_start())));
+        res.success(Box::new(StatementsNode::new(statements, pos_start, *self.current_token().pos_start())));
         res
     }
 
-    fn statement(&mut self) -> ParseResult {
+    fn statement(&mut self, is_top_level: bool) -> ParseResult {
         let mut res = ParseResult::new();
         let pos_start = *self.current_token().pos_start();
 
-        if self.current_token().matches_keyword("return") {
-
-            res.register_advancement();
-            self.advance();
-
-            let expr = res.try_register_res(self.expression());
-            if expr.is_none() {
-                self.reverse(res.to_reverse_count());
+        if is_top_level {
+            println!("top level!");
+            if self.current_token().matches_keyword("import") {
+                todo!("import");
             }
 
-            res.success(Box::from(ReturnNode::new(expr, pos_start, *self.current_token().pos_end())));
-            return res;
+            if self.current_token().matches_keyword("fun") {
+                let func_def = res.register_res(self.function_def());
+
+                if res.has_error() {
+                    return res;
+                }
+
+                res.success(func_def.unwrap());
+                return res;
+            }
+
+            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected top level statement!"));
+        } else {
+            println!("non top level!");
+            if self.current_token().matches_keyword("return") {
+                res.register_advancement();
+                self.advance();
+
+                let expr = res.try_register_res(self.expression());
+                if expr.is_none() {
+                    self.reverse(res.to_reverse_count());
+                }
+
+                res.success(Box::new(ReturnNode::new(expr, pos_start, *self.current_token().pos_end())));
+                return res;
+            }
+
+            if self.current_token().matches_keyword("continue") {
+                res.register_advancement();
+                self.advance();
+
+                res.success(Box::new(ContinueNode::new(pos_start, *self.current_token().pos_end())));
+                return res;
+            }
+
+            if self.current_token().matches_keyword("break") {
+                res.register_advancement();
+                self.advance();
+
+                res.success(Box::new(BreakNode::new(pos_start, *self.current_token().pos_end())));
+                return res;
+            }
+
+            let expr = res.register_res(self.expression());
+            if res.has_error() {
+                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected non top level statement or expression!"));
+                return res;
+            }
+
+            res.success(expr.unwrap());
         }
 
-        if self.current_token().matches_keyword("continue") {
-            res.register_advancement();
-            self.advance();
-
-            res.success(Box::from(ContinueNode::new(pos_start, *self.current_token().pos_end())));
-            return res;
-        }
-
-        if self.current_token().matches_keyword("break") {
-            res.register_advancement();
-            self.advance();
-
-            res.success(Box::from(BreakNode::new(pos_start, *self.current_token().pos_end())));
-            return res;
-        }
-
-        if self.current_token().matches_keyword("import") {
-            todo!("import");
-        }
-
-        let expr = res.register_res(self.expression());
-        if res.has_error() {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected 'return', 'continue', 'break', 'import' or expression!"));
-            return res;
-        }
-
-        res.success(expr.unwrap());
         res
     }
 
@@ -375,17 +484,17 @@ impl Parser {
                 return res;
             }
 
-            if self.current_token().token_value().is_none() || !self.current_token().token_value().as_ref().unwrap().is_type(&TokenValueType::String) {
+            if self.current_token().token_value().is_none() {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Identifier malformed!"));
                 return res;
             }
 
-            let var_name = self.current_token().token_value().as_ref().unwrap().get_as_str().clone();
+            let var_name = self.current_token().token_value().as_ref().unwrap().clone();
 
             res.register_advancement();
             self.advance();
 
-            /*if self.current_token().token_type() != TokenType::Colon {
+            if self.current_token().token_type() != TokenType::Colon {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
                 return res;
             }
@@ -393,15 +502,15 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            if self.current_token().token_type() != TokenType::Identifier {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type identifier!"));
+            if self.current_token().token_type() != TokenType::Keyword {
+                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type keyword!"));
                 return res;
             }
 
-            let value_type = self.current_token().token_value().as_ref().unwrap().get_as_str().clone();
+            let value_type = self.get_intrinsic_type(self.current_token());
 
             res.register_advancement();
-            self.advance();*/
+            self.advance();
 
             if self.current_token().token_type() != TokenType::Eq {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '='!"));
@@ -413,11 +522,10 @@ impl Parser {
 
             let expr = res.register_res(self.expression());
             if res.has_error() {
-                panic!("value has err!");
                 return res;
             }
 
-            res.success(Box::from(VarDeclarationNode::new(var_name, String::from(""), expr.unwrap(), is_mutable, pos_start)));
+            res.success(Box::new(VarDeclarationNode::new(var_name, value_type, expr.unwrap(), is_mutable, pos_start)));
             return res;
         }
 
@@ -445,7 +553,7 @@ impl Parser {
                 return res;
             }
 
-            res.success(Box::from(UnaryOpNode::new(op_token, node.unwrap())));
+            res.success(Box::new(UnaryOpNode::new(op_token, node.unwrap())));
             return res;
         }
 
@@ -509,7 +617,7 @@ impl Parser {
                 return res;
             }
 
-            res.success(Box::from(UnaryOpNode::new(token, factor.unwrap())));
+            res.success(Box::new(UnaryOpNode::new(token, factor.unwrap())));
             return res;
         }
 
@@ -573,12 +681,12 @@ impl Parser {
                 self.advance();
             }
 
-            //res.success(Box::from(CallNode::new(atom.unwrap(), arg_nodes)));
+            //res.success(Box::new(CallNode::new(atom.unwrap(), arg_nodes)));
             if atom.as_ref().unwrap().node_type() != NodeType::VarAccess {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Dynamic calls aren't implemented yet!"));
             }
 
-            res.success(Box::from(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().clone(), arg_nodes, *atom.as_ref().unwrap().pos_start())));
+            res.success(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().clone(), arg_nodes, *atom.as_ref().unwrap().pos_start())));
             return res;
         }
 
@@ -594,7 +702,7 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            res.success(Box::from(NumberNode::new(token)));
+            res.success(Box::new(NumberNode::new(token)));
             return res;
         }
 
@@ -602,7 +710,7 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            res.success(Box::from(StringNode::new(token)));
+            res.success(Box::new(StringNode::new(token)));
             return res;
         }
 
@@ -610,7 +718,7 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            let var_name = token.token_value().as_ref().unwrap().get_as_str().clone();
+            let var_name = token.token_value().as_ref().unwrap().clone();
 
             if self.current_token().token_type() == TokenType::Eq {
                 res.register_advancement();
@@ -621,11 +729,11 @@ impl Parser {
                     return res;
                 }
 
-                res.success(Box::from(VarAssignNode::new(var_name, expr.unwrap(), *token.pos_start())));
+                res.success(Box::new(VarAssignNode::new(var_name, expr.unwrap(), *token.pos_start())));
                 return res;
             }
 
-            res.success(Box::from(VarAccessNode::new(var_name, *token.pos_start(), *token.pos_end())));
+            res.success(Box::new(VarAccessNode::new(var_name, *token.pos_start(), *token.pos_end())));
             return res;
         }
 
@@ -653,17 +761,6 @@ impl Parser {
         // TODO: list!
 
         // TODO: if, for, while
-
-        if token.matches_keyword("fun") {
-            let func_def = res.register_res(self.function_def());
-
-            if res.has_error() {
-                return res;
-            }
-
-            res.success(func_def.unwrap());
-            return res;
-        }
 
         res.failure(error::invalid_syntax_error(*token.pos_start(), *token.pos_end(), "Expected atom!"));
         res
