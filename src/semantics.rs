@@ -41,7 +41,7 @@ impl Validator {
         }
     }
 
-    fn has_symbol(&self, name: &str) -> bool {
+    pub fn has_symbol(&self, name: &str) -> bool {
         for s in self.type_stack.iter().rev() {
             if s.contains_key(name) {
                 return true;
@@ -51,7 +51,17 @@ impl Validator {
         false
     }
 
-    fn get_symbol(&self, name: &str) -> Option<&Symbol> {
+    pub fn is_symbol_mut(&self, name: &str) -> bool {
+        let s = self.get_symbol(name);
+
+        if s.is_some() {
+            return s.unwrap().is_mutable();
+        }
+
+        false
+    }
+
+    pub fn get_symbol(&self, name: &str) -> Option<&Symbol> {
         for s in self.type_stack.iter().rev() {
             if s.contains_key(name) {
                 return s.get(name);
@@ -61,7 +71,7 @@ impl Validator {
         None
     }
 
-    fn declare(&mut self, name: &str, sym: Symbol) {
+    pub fn declare(&mut self, name: &str, sym: Symbol) {
         if self.has_symbol(name) {
             return;
         }
