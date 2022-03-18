@@ -45,16 +45,4 @@ fn main() {
 
     println!("semantics ok!");
 
-    /*let (code, string_pool, var_pool) = compiler::compile(parse_res.node().as_ref().unwrap());
-    println!("code:\n{:?}", code);
-    println!("string pool: {:?}", string_pool);
-    println!("var pool: {:?}", var_pool);
-
-    let virtual_bin = compiler::to_virtual_bin(&code, &string_pool, &var_pool);
-
-    println!("virtual bin\n\n{}", virtual_bin);
-
-    runtime::run_code(&virtual_bin);*/
-    println!("asm:\n\n{}", compiler::to_asm(parse_res.node().as_ref().unwrap()));
-
 }

@@ -4,6 +4,7 @@ use crate::token::{Token, TokenType};
 use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::vtype::ValueTypes::Bool;
 
+#[derive(Clone)]
 pub struct BoolType {}
 
 impl BoolType {
@@ -50,4 +51,9 @@ impl ValueType for BoolType {
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
         None
     }
+
+    fn box_clone(&self) -> Box<dyn ValueType> {
+        Box::new(self.clone())
+    }
+
 }

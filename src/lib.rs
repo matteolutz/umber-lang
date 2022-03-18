@@ -13,3 +13,6 @@ pub mod semantics;
 pub mod values;
 pub mod compiler;
 pub mod runtime;
+
+#[cfg(test)]
+pub mod tests;

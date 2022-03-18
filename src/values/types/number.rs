@@ -5,6 +5,7 @@ use crate::values::types::bool::BoolType;
 use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::vtype::ValueTypes::Bool;
 
+#[derive(Clone)]
 pub struct NumberType {}
 
 impl NumberType {
@@ -54,4 +55,9 @@ impl ValueType for NumberType {
             _ => None
         }
     }
+
+    fn box_clone(&self) -> Box<dyn ValueType> {
+        Box::new(self.clone())
+    }
+    
 }

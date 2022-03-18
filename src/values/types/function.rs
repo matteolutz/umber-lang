@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use crate::token::Token;
 use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
 
+#[derive(Clone)]
 pub struct FunctionType {
     arg_types: Vec<Box<dyn ValueType>>,
     return_type: Box<dyn ValueType>
@@ -53,4 +54,9 @@ impl ValueType for FunctionType {
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
         None
     }
+
+    fn box_clone(&self) -> Box<dyn ValueType> {
+        Box::new(self.clone())
+    }
+    
 }

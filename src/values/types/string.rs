@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use crate::token::Token;
 use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
 
+#[derive(Clone)]
 pub struct StringType {}
 
 impl StringType {
@@ -41,4 +42,9 @@ impl ValueType for StringType {
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
         None
     }
+
+    fn box_clone(&self) -> Box<dyn ValueType> {
+        Box::new(self.clone())
+    }
+    
 }
