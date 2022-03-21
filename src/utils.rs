@@ -1,14 +1,33 @@
-use std::cmp::max;
 use crate::position::Position;
-use crate::token::Token;
 
-pub fn string_with_arrows<'a>(text: &'a str, pos_start: &'a Position, pos_end: &'a Position) -> String {
+pub fn string_with_arrows(text: &str, pos_start: &Position, pos_end: &Position) -> String {
     let mut result = String::new();
 
-    let idx_start = max(text.find("\n").or(Some(0)).expect("Error, while creating string with arrows!"), 0);
+    let mut idx_start = text[0..*pos_start.index()].rfind('\n').unwrap_or(0);
+    let mut idx_end = text[(idx_start + 1)..].find('\n').unwrap_or(text.len()) + (idx_start + 1);
 
-    let idx_end_opt = text[idx_start + 1..].find("\n");
-    let idx_end = if idx_end_opt.is_some() { idx_end_opt.expect("Error, while creating string with arrows!") } else { text.len() };
+    let line_count = pos_end.line() - pos_start.line() + 1;
+
+    for i in 0..line_count {
+        println!("idx_start: {} | idx_end: {}", &idx_start, &idx_end);
+        let line = &text[idx_start..idx_end];
+
+        let col_start = if i == 0 { *pos_start.col() } else { 0 };
+        let col_end = if i == line_count - 1 { *pos_end.col() } else { line.len() - 1 };
+
+        result.push_str(line);
+        result.push('\n');
+
+        for s in 0..col_start {
+            result.push(' ');
+        }
+        for s in col_start..col_end {
+            result.push('^');
+        }
+
+        idx_start = idx_end;
+        idx_end = text[idx_start + 1..].find('\n').unwrap_or(text.len());
+    }
 
     return result;
 }

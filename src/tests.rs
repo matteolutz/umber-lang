@@ -35,9 +35,21 @@ pub fn compiler_register_distr() {
 pub fn semantics_symbol_stack() {
     let mut v = Validator::new();
 
-    v.declare("a", Symbol::new(Box::new(VoidType::new()), false));
+    v.declare_symbol("a", Symbol::new(Box::new(VoidType::new()), false));
 
     assert_eq!(v.has_symbol("a"), true);
     assert_eq!(v.get_symbol("a").unwrap().value_type().value_type(), ValueTypes::Void);
     assert_eq!(v.is_symbol_mut("a"), false);
+
+    v.push_child_table();
+
+    assert_eq!(v.has_symbol("a"), true);
+    assert_eq!(v.has_symbol("b"), false);
+    v.declare_symbol("b", Symbol::new(Box::new(VoidType::new()), false));
+    assert_eq!(v.has_symbol("b"), true);
+
+    v.pop_child_table();
+
+    assert_eq!(v.has_symbol("a"), true);
+    assert_eq!(v.has_symbol("b"), false);
 }

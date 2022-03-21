@@ -9,6 +9,7 @@ pub enum ValueTypes {
     String,
     Function,
     Void,
+    Array,
 }
 
 pub trait ValueTypeAsAny {

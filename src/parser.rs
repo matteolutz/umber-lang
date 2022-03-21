@@ -4,6 +4,7 @@ use std::detect::__is_feature_detected::adx;
 use crate::results::parse::ParseResult;
 use crate::token::{Token, TokenType};
 use crate::error;
+use crate::error::Error;
 use crate::nodes::binop::BinOpNode;
 use crate::nodes::call::CallNode;
 use crate::nodes::functiondef::FunctionDefinitionNode;
@@ -21,11 +22,13 @@ use crate::nodes::var::assign::VarAssignNode;
 use crate::nodes::var::declare::VarDeclarationNode;
 use crate::parser::BinOpFunction::Call;
 use crate::position::Position;
+use crate::values::types::array::ArrayType;
 use crate::values::types::bool::BoolType;
 use crate::values::types::number::NumberType;
 use crate::values::types::string::StringType;
 use crate::values::types::void::VoidType;
 use crate::values::vtype::ValueType;
+use crate::values::vtype::ValueTypes::{Bool, Void};
 
 #[derive(Copy, Clone)]
 enum BinOpFunction {
@@ -90,14 +93,48 @@ impl Parser {
 
     // region Helper functions
 
-    fn get_intrinsic_type(&self, t: &Token) -> Box<dyn ValueType> {
-        if t.token_type() != TokenType::Keyword {
-            panic!("TokenType '{:?}' can't be handled in function `get_intrinsic_type``!", t.token_type());
+    fn parse_intrinsic_type(&mut self) -> (Option<Box<dyn ValueType>>, Option<Error>) {
+        if self.current_token().token_type() != TokenType::Keyword {
+            panic!("TokenType '{:?}' can't be handled in function `get_intrinsic_type``!", self.current_token().token_type());
         }
 
-        let s = t.token_value().as_ref().unwrap().as_str();
+        let s = self.current_token().token_value().as_ref().unwrap().as_str();
 
-        if s == "number" {
+        let base_type: Box<dyn ValueType> = match s {
+            "number" => Box::new(NumberType::new()),
+            "string" => Box::new(StringType::new()),
+            "bool" => Box::new(BoolType::new()),
+            "void" => Box::new(VoidType::new()),
+            _ => return (None, Some(Error::new(*self.current_token().pos_start(), *self.current_token().pos_end(), "NotAnIntrinsicType".to_string(), format!("'{}' is not an intrinsic type!", self.current_token().token_value().as_ref().unwrap()))))
+        };
+
+        self.advance();
+
+        if self.current_token().token_type() == TokenType::Lsquare {
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Int {
+                self.reverse(2);
+                return (None, Some(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected integer after '[' on an array type!")));
+            }
+
+            // TODO: error handling
+            let size: u64 = self.current_token().token_value().as_ref().unwrap().parse::<u64>().unwrap();
+
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Rsquare {
+                self.reverse(3);
+                return (None, Some(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ']' after integer on an array type!")));
+            }
+
+            return (Some(Box::new(ArrayType::new(size, base_type))), None)
+        }
+
+        self.reverse(1);
+
+        (Some(base_type), None)
+        /*if s == "number" {
             return Box::new(NumberType::new());
         } else if s == "string" {
             return Box::new(StringType::new());
@@ -107,7 +144,7 @@ impl Parser {
             return Box::new(VoidType::new());
         }
 
-        panic!("'{}' is not an intrinsic type!", s)
+        panic!("'{}' is not an intrinsic type!", s)*/
     }
 
     // endregion
@@ -177,7 +214,6 @@ impl Parser {
         let mut args: HashMap<String, Box<dyn ValueType>> = HashMap::new();
 
         if self.current_token().token_type() == TokenType::Identifier {
-
             if self.current_token().token_value().is_none() {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Identifier malformed!"));
                 return res;
@@ -206,7 +242,13 @@ impl Parser {
                 return res;
             }
 
-            args.insert(arg_name, self.get_intrinsic_type(self.current_token()));
+            let i_type = self.parse_intrinsic_type();
+            if i_type.1.is_some() {
+                res.failure(i_type.1.unwrap());
+                return res;
+            }
+
+            args.insert(arg_name, i_type.0.unwrap());
 
             res.register_advancement();
             self.advance();
@@ -243,7 +285,13 @@ impl Parser {
                     return res;
                 }
 
-                args.insert(arg_name, self.get_intrinsic_type(self.current_token()));
+                let i_type = self.parse_intrinsic_type();
+                if i_type.1.is_some() {
+                    res.failure(i_type.1.unwrap());
+                    return res;
+                }
+
+                args.insert(arg_name, i_type.0.unwrap());
 
                 res.register_advancement();
                 self.advance();
@@ -271,7 +319,13 @@ impl Parser {
             return res;
         }
 
-        let return_type = self.get_intrinsic_type(self.current_token());
+        let i_type = self.parse_intrinsic_type();
+        if i_type.1.is_some() {
+            res.failure(i_type.1.unwrap());
+            return res;
+        }
+
+        let return_type = i_type.0.unwrap();
 
         res.register_advancement();
         self.advance();
@@ -404,7 +458,6 @@ impl Parser {
         let pos_start = *self.current_token().pos_start();
 
         if is_top_level {
-            println!("top level!");
             if self.current_token().matches_keyword("import") {
                 todo!("import");
             }
@@ -422,7 +475,6 @@ impl Parser {
 
             res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected top level statement!"));
         } else {
-            println!("non top level!");
             if self.current_token().matches_keyword("return") {
                 res.register_advancement();
                 self.advance();
@@ -507,7 +559,13 @@ impl Parser {
                 return res;
             }
 
-            let value_type = self.get_intrinsic_type(self.current_token());
+            let i_type = self.parse_intrinsic_type();
+            if i_type.1.is_some() {
+                res.failure(i_type.1.unwrap());
+                return res;
+            }
+
+            let value_type = i_type.0.unwrap();
 
             res.register_advancement();
             self.advance();
@@ -567,7 +625,7 @@ impl Parser {
                 TokenType::Gte,
                 TokenType::Lte,
             ],
-            BinOpFunction::Arith
+            BinOpFunction::Arith,
         ));
         if res.has_error() {
             res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected arithmetic expression!"));
@@ -585,9 +643,9 @@ impl Parser {
                 TokenType::Plus,
                 TokenType::Minus,
                 TokenType::BitAnd,
-                TokenType::BitOr
+                TokenType::BitOr,
             ],
-            BinOpFunction::Term
+            BinOpFunction::Term,
         )
     }
 
@@ -599,13 +657,12 @@ impl Parser {
                 TokenType::Div,
                 TokenType::Modulo,
             ],
-            BinOpFunction::Factor
+            BinOpFunction::Factor,
         )
     }
 
     fn factor(&mut self) -> ParseResult {
         if self.current_token().token_type() == TokenType::Plus || self.current_token().token_type() == TokenType::Minus {
-
             let mut res = ParseResult::new();
             let token = self.current_token().clone();
 
@@ -628,7 +685,7 @@ impl Parser {
         self.bin_operation(
             BinOpFunction::Call,
             vec![TokenType::Pow],
-            BinOpFunction::Factor
+            BinOpFunction::Factor,
         )
     }
 
