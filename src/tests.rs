@@ -5,7 +5,7 @@ use crate::values::types::void::VoidType;
 use crate::values::vtype::ValueTypes;
 
 #[test]
-pub fn compiler_register_distr() {
+pub fn compiler_register_distribution() {
     let mut c = Compiler::new();
 
     c.res_reg();

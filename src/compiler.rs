@@ -1,4 +1,6 @@
+use std::fmt::Write;
 
+use crate::nodes::Node;
 
 const GENERAL_REGS: [&str; 7] = [
     "rbx", "r10", "r11", "r12", "r13", "r14", "r15"
@@ -42,5 +44,12 @@ impl Compiler {
 }
 
 impl Compiler {
+    fn code_gen() -> u8 {
+        0
+    }
 
+
+    pub fn compile_to_str(node: &Box<dyn Node>) -> String {
+        "".to_string()
+    }
 }
