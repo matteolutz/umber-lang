@@ -1,25 +1,20 @@
-use std::any::{Any, TypeId};
-use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::ops::IndexMut;
+
 use crate::error;
-use crate::error::{Error, semantic_error};
-use crate::nodes::binop::BinOpNode;
 use crate::nodes::{Node, NodeType};
+use crate::nodes::binop::BinOpNode;
 use crate::nodes::call::CallNode;
 use crate::nodes::functiondef::FunctionDefinitionNode;
 use crate::nodes::list::ListNode;
-use crate::nodes::NodeType::VarAssign;
 use crate::nodes::nreturn::ReturnNode;
-use crate::nodes::number::NumberNode;
 use crate::nodes::statements::StatementsNode;
-use crate::nodes::string::StringNode;
 use crate::nodes::unaryop::UnaryOpNode;
 use crate::nodes::var::access::VarAccessNode;
 use crate::nodes::var::assign::VarAssignNode;
 use crate::nodes::var::declare::VarDeclarationNode;
 use crate::results::validation::ValidationResult;
-use crate::symboltable::{Symbol, SymbolTable};
+use crate::symboltable::Symbol;
 use crate::values::types::bool::BoolType;
 use crate::values::types::function::FunctionType;
 use crate::values::types::number::NumberType;
@@ -310,7 +305,7 @@ impl Validator {
         let mut arg_types: Vec<Box<dyn ValueType>> = vec![];
         arg_types.reserve(node.args().len());
 
-        for (name, value_type) in node.args() {
+        for (_name, value_type) in node.args() {
             arg_types.push(value_type.clone());
         }
 

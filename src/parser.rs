@@ -1,17 +1,13 @@
-use std::any::Any;
 use std::collections::HashMap;
-use std::detect::__is_feature_detected::adx;
-use crate::results::parse::ParseResult;
-use crate::token::{Token, TokenType};
+
 use crate::error;
 use crate::error::Error;
+use crate::nodes::{Node, NodeType};
 use crate::nodes::binop::BinOpNode;
 use crate::nodes::call::CallNode;
 use crate::nodes::functiondef::FunctionDefinitionNode;
-use crate::nodes::list::ListNode;
 use crate::nodes::nbreak::BreakNode;
 use crate::nodes::ncontinue::ContinueNode;
-use crate::nodes::{Node, NodeType};
 use crate::nodes::nreturn::ReturnNode;
 use crate::nodes::number::NumberNode;
 use crate::nodes::statements::StatementsNode;
@@ -20,15 +16,14 @@ use crate::nodes::unaryop::UnaryOpNode;
 use crate::nodes::var::access::VarAccessNode;
 use crate::nodes::var::assign::VarAssignNode;
 use crate::nodes::var::declare::VarDeclarationNode;
-use crate::parser::BinOpFunction::Call;
-use crate::position::Position;
+use crate::results::parse::ParseResult;
+use crate::token::{Token, TokenType};
 use crate::values::types::array::ArrayType;
 use crate::values::types::bool::BoolType;
 use crate::values::types::number::NumberType;
 use crate::values::types::string::StringType;
 use crate::values::types::void::VoidType;
 use crate::values::vtype::ValueType;
-use crate::values::vtype::ValueTypes::{Bool, Void};
 
 #[derive(Copy, Clone)]
 enum BinOpFunction {
@@ -152,31 +147,31 @@ impl Parser {
     // region Parsing functions
 
     fn if_expr(&mut self) -> ParseResult {
-        let mut res = ParseResult::new();
+        let res = ParseResult::new();
 
         res
     }
 
     fn for_expr(&mut self) -> ParseResult {
-        let mut res = ParseResult::new();
+        let res = ParseResult::new();
 
         res
     }
 
     fn while_expr(&mut self) -> ParseResult {
-        let mut res = ParseResult::new();
+        let res = ParseResult::new();
 
         res
     }
 
     fn list_expr(&mut self) -> ParseResult {
-        let mut res = ParseResult::new();
+        let res = ParseResult::new();
 
         res
     }
 
     fn dict_expr(&mut self) -> ParseResult {
-        let mut res = ParseResult::new();
+        let res = ParseResult::new();
 
         res
     }
@@ -198,7 +193,7 @@ impl Parser {
             return res;
         }
 
-        let mut func_name = self.current_token().token_value().as_ref().unwrap().clone();
+        let func_name = self.current_token().token_value().as_ref().unwrap().clone();
 
         res.register_advancement();
         self.advance();

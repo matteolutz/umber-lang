@@ -1,5 +1,5 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
+
 use crate::values::vtype::ValueType;
 
 pub struct Symbol {

@@ -1,14 +1,13 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
-use crate::token::{Token, TokenType};
-use crate::values::types::bool::BoolType;
+
+use crate::token::Token;
 use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
-use crate::values::vtype::ValueTypes::Bool;
 
 #[derive(Clone)]
 pub struct ArrayType {
     size: u64,
-    children_type: Box<dyn ValueType>
+    children_type: Box<dyn ValueType>,
 }
 
 impl ArrayType {
@@ -46,11 +45,11 @@ impl ValueType for ArrayType {
         self.value_type() == other.value_type()
     }
 
-    fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
+    fn is_valid_bin_op(&self, _op: &Token, _t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
         None
     }
 
-    fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
+    fn is_valid_unary_op(&self, _op: &Token) -> Option<Box<dyn ValueType>> {
         None
     }
 

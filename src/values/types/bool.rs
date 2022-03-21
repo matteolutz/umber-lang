@@ -1,8 +1,8 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
+
 use crate::token::{Token, TokenType};
 use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
-use crate::values::vtype::ValueTypes::Bool;
 
 #[derive(Clone)]
 pub struct BoolType {}
@@ -48,7 +48,7 @@ impl ValueType for BoolType {
         }
     }
 
-    fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
+    fn is_valid_unary_op(&self, _op: &Token) -> Option<Box<dyn ValueType>> {
         None
     }
 

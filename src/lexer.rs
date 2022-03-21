@@ -1,12 +1,11 @@
-use std::any::Any;
 use std::collections::HashMap;
 use std::iter::FromIterator;
+
 use crate::constants::{DIGITS, ESCAPED_CHARACTERS, LETTERS, LETTERS_AND_DIGITS};
-use crate::error::Error;
 use crate::error;
+use crate::error::Error;
 use crate::position::Position;
 use crate::token::{KEYWORDS, Token, TokenType};
-use crate::token::TokenType::Float;
 
 pub struct Lexer {
     file_name: &'static str,
@@ -184,7 +183,7 @@ impl Lexer {
 
     fn make_identifier(&mut self) -> Token {
         let mut id_str = String::new();
-        let mut pos_start = self.pos;
+        let pos_start = self.pos;
 
         let identifier_chars: [char; 63] = concat_arrays::concat_arrays!(LETTERS_AND_DIGITS, ['_']);
 
@@ -211,7 +210,7 @@ impl Lexer {
         while self.current_char.is_some() && (self.current_char.unwrap() != '\"' || escape_character) {
             let current = self.current_char.unwrap();
 
-            let mut escaped_characters_map: HashMap<char, char> = HashMap::from_iter(ESCAPED_CHARACTERS);
+            let escaped_characters_map: HashMap<char, char> = HashMap::from_iter(ESCAPED_CHARACTERS);
 
             if escape_character {
                 new_string.push(escaped_characters_map[&current]);

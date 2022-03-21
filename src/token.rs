@@ -1,6 +1,5 @@
-use std::any::{Any, TypeId};
 use std::fmt::{Debug, Display, Formatter};
-use std::str::FromStr;
+
 use crate::position::Position;
 
 #[derive(Clone)]

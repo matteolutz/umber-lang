@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::convert::TryInto;
 
 const WORD_SIZE: usize = 4;
@@ -83,7 +82,7 @@ fn hole(c: &mut Vec<u8>) -> usize {
     c.len()
 }
 
-fn vm(code: &Vec<u8>, data_size: usize, string_pool: Vec<String>) -> Vec<u32> {
+fn vm(code: &Vec<u8>, data_size: usize, _string_pool: Vec<String>) -> Vec<u32> {
     let mut stack: Vec<u32> = vec![0; data_size];
     let mut pc: usize = 0;
 
@@ -92,9 +91,7 @@ fn vm(code: &Vec<u8>, data_size: usize, string_pool: Vec<String>) -> Vec<u32> {
         let op = code[pc];
         pc += 1;
 
-        if op == Instructions::Fetch as u8 {
-
-        } else if op == Instructions::Store as u8 {
+        if op == Instructions::Fetch as u8 {} else if op == Instructions::Store as u8 {
 
         } else if op == Instructions::Push as u8 {
             stack.push(u32::from_ne_bytes(code[pc..pc+WORD_SIZE].try_into().unwrap()));
@@ -139,7 +136,7 @@ pub fn run_code(code: &str) {
     lines.remove(0);
 
     let data_size: usize = conf_segments[0].parse::<usize>().unwrap();
-    let string_size: usize = conf_segments[1].parse::<usize>().unwrap();
+    let _string_size: usize = conf_segments[1].parse::<usize>().unwrap();
 
     let mut code: Vec<u8> = vec![];
     for line in lines {

@@ -1,10 +1,8 @@
-use std::any::Any;
 use std::time::Instant;
+
 use umber_lang::lexer::Lexer;
 use umber_lang::parser::Parser;
-use umber_lang::{compiler, runtime, semantics};
 use umber_lang::semantics::Validator;
-use umber_lang::symboltable::SymbolTable;
 
 static TEXT_TO_LEX: &'static str = "\
 
@@ -56,5 +54,4 @@ fn main() {
     }
 
     println!("semantics ok!");
-
 }

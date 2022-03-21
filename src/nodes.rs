@@ -1,7 +1,7 @@
 use std::any::Any;
-use std::fmt::{Display, Formatter};
+use std::fmt::Display;
+
 use crate::position::Position;
-use crate::token::Token;
 
 pub mod number;
 pub mod string;

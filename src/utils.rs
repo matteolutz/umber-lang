@@ -18,10 +18,10 @@ pub fn string_with_arrows(text: &str, pos_start: &Position, pos_end: &Position) 
         result.push_str(line);
         result.push('\n');
 
-        for s in 0..col_start {
+        for _s in 0..col_start {
             result.push(' ');
         }
-        for s in col_start..col_end {
+        for _s in col_start..col_end {
             result.push('^');
         }
 

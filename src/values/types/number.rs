@@ -1,9 +1,9 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
+
 use crate::token::{Token, TokenType};
 use crate::values::types::bool::BoolType;
 use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
-use crate::values::vtype::ValueTypes::Bool;
 
 #[derive(Clone)]
 pub struct NumberType {}
