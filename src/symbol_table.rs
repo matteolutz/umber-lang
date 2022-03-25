@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::values::vtype::ValueType;
+use crate::values::value_type::ValueType;
 
 pub struct Symbol {
     value_type: Box<dyn ValueType>,

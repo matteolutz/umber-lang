@@ -3,20 +3,20 @@ use std::fmt::Display;
 
 use crate::position::Position;
 
-pub mod number;
-pub mod string;
-pub mod list;
-pub mod var;
-pub mod binop;
-pub mod nbreak;
-pub mod call;
-pub mod ncontinue;
-pub mod functiondef;
-pub mod nif;
-pub mod nreturn;
-pub mod unaryop;
-pub mod nwhile;
-pub mod statements;
+pub mod number_node;
+pub mod string_node;
+pub mod list_node;
+pub mod var_node;
+pub mod binop_node;
+pub mod break_node;
+pub mod call_node;
+pub mod continue_node;
+pub mod functiondef_node;
+pub mod if_node;
+pub mod return_node;
+pub mod unaryop_node;
+pub mod while_node;
+pub mod statements_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {

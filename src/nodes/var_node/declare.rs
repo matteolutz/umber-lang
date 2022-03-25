@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
-use crate::values::vtype::ValueType;
+use crate::values::value_type::ValueType;
 
 pub struct VarDeclarationNode {
     var_name: String,

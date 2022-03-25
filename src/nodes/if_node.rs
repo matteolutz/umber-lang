@@ -1,8 +1,9 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
-use crate::nodes::nif::case::IfCase;
-use crate::nodes::nif::elsecase::ElseCase;
+
 use crate::nodes::{Node, NodeToAny, NodeType};
+use crate::nodes::if_node::case::IfCase;
+use crate::nodes::if_node::elsecase::ElseCase;
 use crate::position::Position;
 
 pub mod case;
@@ -10,7 +11,7 @@ pub mod elsecase;
 
 pub struct IfNode {
     cases: Vec<IfCase>,
-    else_case: Option<ElseCase>
+    else_case: Option<ElseCase>,
 }
 
 impl IfNode {

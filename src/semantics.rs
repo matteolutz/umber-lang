@@ -3,31 +3,30 @@ use std::ops::IndexMut;
 
 use crate::error;
 use crate::nodes::{Node, NodeType};
-use crate::nodes::binop::BinOpNode;
-use crate::nodes::call::CallNode;
-use crate::nodes::functiondef::FunctionDefinitionNode;
-use crate::nodes::list::ListNode;
-use crate::nodes::nreturn::ReturnNode;
-use crate::nodes::statements::StatementsNode;
-use crate::nodes::unaryop::UnaryOpNode;
-use crate::nodes::var::access::VarAccessNode;
-use crate::nodes::var::assign::VarAssignNode;
-use crate::nodes::var::declare::VarDeclarationNode;
+use crate::nodes::binop_node::BinOpNode;
+use crate::nodes::call_node::CallNode;
+use crate::nodes::functiondef_node::FunctionDefinitionNode;
+use crate::nodes::list_node::ListNode;
+use crate::nodes::return_node::ReturnNode;
+use crate::nodes::statements_node::StatementsNode;
+use crate::nodes::unaryop_node::UnaryOpNode;
+use crate::nodes::var_node::access::VarAccessNode;
+use crate::nodes::var_node::assign::VarAssignNode;
+use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::results::validation::ValidationResult;
-use crate::symboltable::Symbol;
-use crate::values::types::bool::BoolType;
-use crate::values::types::function::FunctionType;
-use crate::values::types::number::NumberType;
-use crate::values::types::string::StringType;
-use crate::values::types::void::VoidType;
-use crate::values::vtype::{ValueType, ValueTypes};
+use crate::symbol_table::Symbol;
+use crate::values::value_type::{ValueType, ValueTypes};
+use crate::values::value_type::bool_type::BoolType;
+use crate::values::value_type::function_type::FunctionType;
+use crate::values::value_type::number_type::NumberType;
+use crate::values::value_type::string_type::StringType;
+use crate::values::value_type::void_type::VoidType;
 
 pub struct Validator {
     type_stack: Vec<HashMap<String, Symbol>>,
 }
 
 impl Validator {
-
     pub fn new() -> Self {
         Validator {
             type_stack: vec![
@@ -202,7 +201,7 @@ impl Validator {
 
         let result_type = left.as_ref().unwrap().is_valid_bin_op(node.op_token(), right.as_ref().unwrap());
         if result_type.is_none() {
-            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Binary operation '{}' not allowed between types {} and {}!", node.op_token(), left.as_ref().unwrap(), right.as_ref().unwrap()).as_str()));
+            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Binary operation '{}' not allowed between value_type {} and {}!", node.op_token(), left.as_ref().unwrap(), right.as_ref().unwrap()).as_str()));
             return res;
         }
 

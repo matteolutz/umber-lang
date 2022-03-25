@@ -2,34 +2,33 @@ use std::any::Any;
 use std::fmt::{Display, Formatter};
 
 use crate::token::{Token, TokenType};
-use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
+use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
+use crate::values::value_type::bool_type::BoolType;
 
 #[derive(Clone)]
-pub struct BoolType {}
+pub struct NumberType {}
 
-impl BoolType {
-
+impl NumberType {
     pub fn new() -> Self {
-        BoolType {}
+        NumberType {}
     }
-
 }
 
-impl ValueTypeAsAny for BoolType {
+impl ValueTypeAsAny for NumberType {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Display for BoolType {
+impl Display for NumberType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<BoolType>[]")
+        write!(f, "<NumberType>[]")
     }
 }
 
-impl ValueType for BoolType {
+impl ValueType for NumberType {
     fn value_type(&self) -> ValueTypes {
-        ValueTypes::Bool
+        ValueTypes::Number
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
@@ -37,23 +36,26 @@ impl ValueType for BoolType {
     }
 
     fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
-        if t.value_type() != ValueTypes::Bool {
+        if t.value_type() != ValueTypes::Number {
             return None;
         }
 
         match op.token_type() {
-            TokenType::Or | TokenType::And => Some(Box::new(BoolType::new())),
+            TokenType::Minus | TokenType::Plus | TokenType::Mul | TokenType::Div | TokenType::BitOr | TokenType::BitAnd => Some(Box::new(NumberType::new())),
             TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::new(BoolType::new())),
             _ => None,
         }
     }
 
-    fn is_valid_unary_op(&self, _op: &Token) -> Option<Box<dyn ValueType>> {
-        None
+    fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
+        match op.token_type() {
+            TokenType::Minus | TokenType::Plus => Some(Box::new(NumberType::new())),
+            _ => None
+        }
     }
 
     fn box_clone(&self) -> Box<dyn ValueType> {
         Box::new(self.clone())
     }
-
+    
 }

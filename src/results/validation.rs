@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::values::vtype::ValueType;
+use crate::values::value_type::ValueType;
 
 pub struct ValidationResult {
     error: Option<Error>,

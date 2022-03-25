@@ -1,12 +1,12 @@
 use std::fmt::Write;
 
 use crate::nodes::{Node, NodeType};
-use crate::nodes::binop::BinOpNode;
-use crate::nodes::functiondef::FunctionDefinitionNode;
-use crate::nodes::number::NumberNode;
-use crate::nodes::statements::StatementsNode;
+use crate::nodes::binop_node::BinOpNode;
+use crate::nodes::functiondef_node::FunctionDefinitionNode;
+use crate::nodes::number_node::NumberNode;
+use crate::nodes::statements_node::StatementsNode;
 use crate::token::TokenType;
-use crate::values::types::function::FunctionType;
+use crate::values::value_type::function_type::FunctionType;
 
 const SCRATCH_REGS: [&str; 7] = [
     "%rbx", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"

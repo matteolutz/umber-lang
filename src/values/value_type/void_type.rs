@@ -2,7 +2,7 @@ use std::any::Any;
 use std::fmt::{Display, Formatter};
 
 use crate::token::Token;
-use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
+use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 #[derive(Clone)]
 pub struct VoidType {}

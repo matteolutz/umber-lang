@@ -1,7 +1,8 @@
 use crate::compiler::Compiler;
 use crate::semantics::Validator;
-use crate::symboltable::Symbol;
-use crate::values::types::void::VoidType;
+use crate::symbol_table::Symbol;
+use crate::values::value_type::ValueTypes;
+use crate::values::value_type::void_type::VoidType;
 use crate::values::vtype::ValueTypes;
 
 #[test]

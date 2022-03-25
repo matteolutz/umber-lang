@@ -2,34 +2,43 @@ use std::any::Any;
 use std::fmt::{Display, Formatter};
 
 use crate::token::Token;
-use crate::values::vtype::{ValueType, ValueTypeAsAny, ValueTypes};
+use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 #[derive(Clone)]
-pub struct StringType {}
+pub struct ArrayType {
+    size: u64,
+    children_type: Box<dyn ValueType>,
+}
 
-impl StringType {
+impl ArrayType {
 
-    pub fn new() -> Self {
-        StringType {}
+    pub fn new(size: u64, children_type: Box<dyn ValueType>) -> Self {
+        ArrayType {
+            size,
+            children_type
+        }
     }
+
+    pub fn size(&self) -> &u64 { &self.size }
+    pub fn children_type(&self) -> &Box<dyn ValueType> { &self.children_type }
 
 }
 
-impl ValueTypeAsAny for StringType {
+impl ValueTypeAsAny for ArrayType {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Display for StringType {
+impl Display for ArrayType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<StringType>[]")
+        write!(f, "<NumberType>[]")
     }
 }
 
-impl ValueType for StringType {
+impl ValueType for ArrayType {
     fn value_type(&self) -> ValueTypes {
-        ValueTypes::String
+        ValueTypes::Array
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
@@ -47,5 +56,5 @@ impl ValueType for StringType {
     fn box_clone(&self) -> Box<dyn ValueType> {
         Box::new(self.clone())
     }
-    
+
 }

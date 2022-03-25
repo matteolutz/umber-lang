@@ -1,8 +1,4 @@
-use std::collections::HashMap;
-use std::iter::FromIterator;
-
-use crate::constants::{DIGITS, ESCAPED_CHARACTERS, LETTERS, LETTERS_AND_DIGITS};
-use crate::error;
+use crate::{error, utils};
 use crate::error::Error;
 use crate::position::Position;
 use crate::token::{KEYWORDS, Token, TokenType};
@@ -43,16 +39,16 @@ impl Lexer {
         while self.current_char.is_some() {
             let current = self.current_char.unwrap();
 
-            if [' ', '\t', '\n'].contains(&current) {
+            if current == ' ' || current == '\t' || current == '\n' {
                 self.advance();
             } else if current == '#' {
                 self.skip_comment();
             } else if [';'].contains(&current) {
                 tokens.push(Token::new_without_value(TokenType::Newline, self.pos, self.pos));
                 self.advance();
-            } else if DIGITS.contains(&current) {
+            } else if utils::is_digit(&current) {
                 tokens.push(self.make_number());
-            } else if LETTERS.contains(&current) {
+            } else if utils::is_digit(&current) || utils::is_alpha(&current) {
                 tokens.push(self.make_identifier());
             } else if current == '\"' {
                 tokens.push(self.make_string());
@@ -156,9 +152,7 @@ impl Lexer {
         let mut dot_count: u8 = 0;
         let pos_start = self.pos;
 
-        let number_chars: [char; 11] = concat_arrays::concat_arrays!(DIGITS, ['.']);
-
-        while self.current_char.is_some() && number_chars.contains(&self.current_char.unwrap()) {
+        while self.current_char.is_some() && (utils::is_digit(self.current_char.as_ref().unwrap()) || self.current_char.unwrap() == '.') {
             let current = self.current_char.unwrap();
 
             if current == '.' {
@@ -185,9 +179,7 @@ impl Lexer {
         let mut id_str = String::new();
         let pos_start = self.pos;
 
-        let identifier_chars: [char; 63] = concat_arrays::concat_arrays!(LETTERS_AND_DIGITS, ['_']);
-
-        while self.current_char.is_some() && identifier_chars.contains(&self.current_char.unwrap()) {
+        while self.current_char.is_some() && (utils::is_digit(self.current_char.as_ref().unwrap()) || utils::is_alpha(self.current_char.as_ref().unwrap()) || self.current_char.unwrap() == '_') {
             id_str.push(self.current_char.unwrap());
             self.advance();
         }
@@ -210,10 +202,8 @@ impl Lexer {
         while self.current_char.is_some() && (self.current_char.unwrap() != '\"' || escape_character) {
             let current = self.current_char.unwrap();
 
-            let escaped_characters_map: HashMap<char, char> = HashMap::from_iter(ESCAPED_CHARACTERS);
-
             if escape_character {
-                new_string.push(escaped_characters_map[&current]);
+                new_string.push(utils::should_escape_char(&current).unwrap_or(current));
                 escape_character = false;
             } else {
                 if current == '\\' {

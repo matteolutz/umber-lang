@@ -1,6 +1,14 @@
 use std::any::Any;
 use std::fmt::Display;
+
 use crate::token::Token;
+
+pub mod number_type;
+pub mod bool_type;
+pub mod string_type;
+pub mod function_type;
+pub mod void_type;
+pub mod array_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
@@ -17,7 +25,6 @@ pub trait ValueTypeAsAny {
 }
 
 pub trait ValueType: ValueTypeAsAny + Display {
-
     fn value_type(&self) -> ValueTypes;
     fn eq(&self, other: &Box<dyn ValueType>) -> bool;
 
@@ -27,7 +34,6 @@ pub trait ValueType: ValueTypeAsAny + Display {
     fn box_clone(&self) -> Box<dyn ValueType>;
 
     // fn get_size(&self) -> u64;
-
 }
 
 impl Clone for Box<dyn ValueType> {

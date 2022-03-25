@@ -1,6 +1,6 @@
 use std::time::Instant;
-use umber_lang::compiler::Compiler;
 
+use umber_lang::compiler::Compiler;
 use umber_lang::lexer::Lexer;
 use umber_lang::parser::Parser;
 use umber_lang::semantics::Validator;
@@ -8,13 +8,19 @@ use umber_lang::semantics::Validator;
 static TEXT_TO_LEX: &'static str = "\
 
 fun main(b: bool): number {
-    1+1;
-};
+    let a: string = \"Hello
+World
+    \";
 
+    1+1;
+    return 1;
+};
 
 ";
 
 fn main() {
+    println!("starting!");
+
     let mut l = Lexer::new("Test", TEXT_TO_LEX);
 
     let start_time = Instant::now();

@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+
 use crate::nodes::Node;
 
 pub struct ElseCase {
