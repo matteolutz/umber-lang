@@ -12,14 +12,17 @@ use crate::nodes::number_node::NumberNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::string_node::StringNode;
+use crate::nodes::var_node::access::VarAccessNode;
+use crate::nodes::var_node::assign::VarAssignNode;
+use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::token::TokenType;
 
 
 const SCRATCH_REGS: [&str; 7] = [
-    "%rbx", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"
+    "rbx", "r10", "r11", "r12", "r13", "r14", "r15"
 ];
 
-const NUMBER_ARG_REGS: [&str; 6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
+const NUMBER_ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 pub struct Compiler {
     scratch_regs: u8,
@@ -29,7 +32,10 @@ pub struct Compiler {
     current_loop_start: Option<u128>,
     current_loop_break: Option<u128>,
 
-    strings: HashMap<String, u128>,
+    strings: HashMap<String, String>,
+
+    base_offset: u64,
+    offset_table: HashMap<String, i64>,
 }
 
 impl Compiler {
@@ -41,6 +47,8 @@ impl Compiler {
             current_loop_break: None,
             current_function_epilogue: None,
             strings: HashMap::new(),
+            base_offset: 0,
+            offset_table: HashMap::new(),
         }
     }
 
@@ -76,22 +84,37 @@ impl Compiler {
     }
 
     fn label_name(&self, label: &u128) -> String {
-        return format!(".L{}", label);
+        return format!("L{}", label);
     }
 
     fn function_label_name(&self, function: &str) -> String {
-        return format!(".F_{}", function);
+        return format!("F_{}", function);
     }
     //endregion
 
-    fn create_string_label(&mut self, string: String) -> u128 {
+    fn create_string_label(&mut self, string: String) -> String {
         if self.strings.contains_key(&string) {
-            return self.strings[&string];
+            return self.strings[&string].clone();
         }
 
-        let label = self.label_create();
-        self.strings.insert(string, label);
-        label
+        let uuid = format!("S{}", self.strings.len());
+
+        self.strings.insert(string.clone(), uuid);
+        self.strings[&string].clone()
+    }
+
+    fn register_var(&mut self, name: String, size: u64) {
+        self.base_offset += size;
+        self.offset_table.insert(name, self.base_offset as i64);
+    }
+
+    fn get_var(&self, name: &str) -> i64 {
+        self.offset_table[name]
+    }
+
+    fn clear_vars(&mut self) {
+        self.base_offset = 0;
+        self.offset_table.clear();
     }
 
     pub fn scratch_regs(&self) -> &u8 { &self.scratch_regs }
@@ -118,14 +141,14 @@ impl Compiler {
 
         if node.node_type() == NodeType::Number {
             let reg = self.res_scratch();
-            writeln!(w, "\tMOVQ    {}, {}", node.as_any().downcast_ref::<NumberNode>().unwrap().get_number(), self.scratch_name(reg));
+            writeln!(w, "\tmov     {}, QWORD {}", self.scratch_name(reg), node.as_any().downcast_ref::<NumberNode>().unwrap().get_number());
             return Some(reg);
         }
 
         if node.node_type() == NodeType::String {
             let str_label = self.create_string_label(node.as_any().downcast_ref::<StringNode>().unwrap().get_string());
             let reg = self.res_scratch();
-            writeln!(w, "\tMOVQ    ${}, {}", self.label_name(&str_label), self.scratch_name(reg));
+            writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), str_label);
             return Some(reg);
         }
 
@@ -138,14 +161,14 @@ impl Compiler {
             let mut res_reg = left_reg;
 
             if bin_op_node.op_token().token_type() == TokenType::Plus {
-                writeln!(w, "\tADDQ    {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Minus {
-                writeln!(w, "\tSUBQ    {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\tsub     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Mul {
-                writeln!(w, "\tMOVQ    {}, %rax", self.scratch_name(left_reg));
-                writeln!(w, "\tIMUL    {}", self.scratch_name(right_reg));
+                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
+                writeln!(w, "\timul    {}", self.scratch_name(right_reg));
                 res_reg = self.res_scratch();
-                writeln!(w, "\tMOVQ    %rax, {}", self.scratch_name(res_reg));
+                writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
                 self.free_scratch(left_reg);
             } else {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
@@ -161,24 +184,23 @@ impl Compiler {
             let func_label = self.function_label_name(call_node.func_to_call());
 
             let mut number_reg_index: usize = 0;
-
             for arg in call_node.arg_nodes() {
                 let reg = self.code_gen(arg, w).unwrap();
 
                 if number_reg_index >= NUMBER_ARG_REGS.len() {
-                    writeln!(w, "\tPUSHQ   {}", self.scratch_name(reg));
+                    writeln!(w, "\tpush    {}", self.scratch_name(reg));
                 } else {
-                    writeln!(w, "\tMOVQ    {}, {}", self.scratch_name(reg), NUMBER_ARG_REGS[number_reg_index]);
+                    writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), NUMBER_ARG_REGS[number_reg_index]);
                     number_reg_index += 1;
                 }
 
                 self.free_scratch(reg);
             }
 
-            writeln!(w, "\tCALL    {}", func_label);
+            writeln!(w, "\tcall    {}", func_label);
 
             let reg = self.res_scratch();
-            writeln!(w, "\tMOVQ    %rax, {}", self.scratch_name(reg));
+            writeln!(w, "\tmov     {}, rax", self.scratch_name(reg));
 
             return Some(reg);
         }
@@ -187,19 +209,35 @@ impl Compiler {
             let func_def_node = node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap();
             let func_epilogue_label = self.label_create();
 
+            self.clear_vars();
+
             writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()));
-            writeln!(w, "\tPUSHQ   %rbp");
-            writeln!(w, "\tMOVQ    %rsp, %rbp");
+            writeln!(w, "\tpush    rbp");
+            writeln!(w, "\tmov     rbp, rsp");
+
+            let mut number_reg_index: usize = 0;
+            for (key, arg_type) in func_def_node.args() {
+                self.register_var(key.clone(), arg_type.get_size());
+
+                if number_reg_index >= NUMBER_ARG_REGS.len() {
+                    let reg = self.res_scratch();
+                    writeln!(w, "\tpop     {}", self.scratch_name(reg));
+                    writeln!(w, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
+                    self.free_scratch(reg);
+                } else {
+                    writeln!(w, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, NUMBER_ARG_REGS[number_reg_index]);
+                    number_reg_index += 1;
+                }
+            }
 
             self.current_function_epilogue = Some(func_epilogue_label);
 
             self.code_gen(func_def_node.body_node(), w);
 
             writeln!(w, "{}:", self.label_name(&func_epilogue_label));
-            writeln!(w, "\tMOVQ    %rbp, %rsp");
-            writeln!(w, "\tPOPQ    %rbp");
-            writeln!(w, "\tRET");
-            writeln!(w);
+            writeln!(w, "\tmov     rsp, rbp");
+            writeln!(w, "\tpop     rbp");
+            writeln!(w, "\tret\n");
 
             return None
         }
@@ -212,27 +250,59 @@ impl Compiler {
                 reg = self.code_gen(return_node.node_to_return().as_ref().unwrap(), w).unwrap();
             } else {
                 reg = self.res_scratch();
-                writeln!(w, "\tMOVQ    $0, {}", self.scratch_name(reg));
+                writeln!(w, "\tmov     {}, 0", self.scratch_name(reg));
             }
 
-            writeln!(w, "\tMOVQ    {}, %rax", self.scratch_name(reg));
+            writeln!(w, "\tmov     rax, {}", self.scratch_name(reg));
             self.free_scratch(reg);
 
-            writeln!(w, "\tJMP     {}", self.label_name(self.current_function_epilogue.as_ref().unwrap()));
+            writeln!(w, "\tjmp     {}", self.label_name(self.current_function_epilogue.as_ref().unwrap()));
 
             return None;
         }
 
         if node.node_type() == NodeType::Break {
-            writeln!(w, "\tJMP     {}", self.label_name(self.current_loop_break.as_ref().unwrap()));
+            writeln!(w, "\tjmp     {}", self.label_name(self.current_loop_break.as_ref().unwrap()));
             return None;
         }
 
         if node.node_type() == NodeType::Continue {
-            writeln!(w, "\tJMP     {}", self.label_name(self.current_loop_start.as_ref().unwrap()));
+            writeln!(w, "\tjmp     {}", self.label_name(self.current_loop_start.as_ref().unwrap()));
             return None;
         }
 
+        if node.node_type() == NodeType::VarDeclaration {
+            let var_declaration_node = node.as_any().downcast_ref::<VarDeclarationNode>().unwrap();
+
+            self.register_var(var_declaration_node.var_name().to_string(), var_declaration_node.var_type().get_size());
+
+            let reg = self.code_gen(var_declaration_node.value_node(), w).unwrap();
+            writeln!(w, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
+            self.free_scratch(reg);
+
+            return None;
+        }
+
+        if node.node_type() == NodeType::VarAssign {
+            let var_assign_node = node.as_any().downcast_ref::<VarAssignNode>().unwrap();
+            let var_offset = self.get_var(var_assign_node.var_name());
+
+            let reg = self.code_gen(var_assign_node.value_node(), w).unwrap();
+            writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
+            self.free_scratch(reg);
+
+            return None;
+        }
+
+        if node.node_type() == NodeType::VarAccess {
+            let var_access_node = node.as_any().downcast_ref::<VarAccessNode>().unwrap();
+
+            let var_offset = self.get_var(var_access_node.var_name());
+            let reg = self.res_scratch();
+            writeln!(w, "\tmov     {}, QWORD [rbp - ({})]", self.scratch_name(reg), var_offset);
+
+            return Some(reg);
+        }
 
         None
     }
@@ -241,18 +311,23 @@ impl Compiler {
         let mut res = String::new();
 
         let mut code = String::new();
-        writeln!(code, ".file   \"{}\"\n", "umber_compiler");
 
-        writeln!(code, ".text");
-        writeln!(code, ".global  F_main\n");
+        writeln!(code, "section .text\n");
+        writeln!(code, "global  _start\n");
+
+        writeln!(code, "_start:");
+        writeln!(code, "\tcall    {}", self.function_label_name("main"));
+        writeln!(code, "\tmov     rax, 60");
+        writeln!(code, "\tmov     rdi, 0");
+        writeln!(code, "\tsyscall");
+        writeln!(code, "\tret\n");
 
         self.code_gen(node, &mut code);
 
-        writeln!(res, ".data");
+        writeln!(res, "section .data");
 
-        for (str, label) in &self.strings {
-            writeln!(res, "{}:", self.label_name(&label));
-            writeln!(res, "\t.string \"{}\"", str);
+        for (str, uuid) in &self.strings {
+            writeln!(res, "\t{}  db \"{}\"", uuid, str);
         }
 
         writeln!(res, "\n{}", code);

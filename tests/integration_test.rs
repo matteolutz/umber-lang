@@ -8,9 +8,13 @@ use umber_lang::semantics::Validator;
 
 static TEXT_TO_LEX: &'static str = "\
 
+fun add(a: number, b: number): number {
+    return a + b;
+};
+
 fun main(): number {
-    \"Hello\";
-    return 1+1;
+    let some_var: string = \"Hello, World!\";
+    return 0;
 };
 
 ";

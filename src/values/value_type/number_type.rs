@@ -57,5 +57,8 @@ impl ValueType for NumberType {
     fn box_clone(&self) -> Box<dyn ValueType> {
         Box::new(self.clone())
     }
-    
+
+    fn get_size(&self) -> u64 {
+        8
+    }
 }

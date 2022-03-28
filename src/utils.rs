@@ -39,7 +39,10 @@ pub fn is_alpha(c: &char) -> bool {
     (*c as u32 >= 65 && *c as u32 <= 90) || (*c as u32 >= 97 && *c as u32 <= 122)
 }
 
+// TODO: check how or if you need escaped characters
 pub fn should_escape_char(c: &char) -> Option<char> {
+    return None;
+
     match c {
         'n' => Some('\n'),
         't' => Some('\t'),

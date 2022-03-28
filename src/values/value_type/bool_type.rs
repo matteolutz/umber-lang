@@ -56,4 +56,7 @@ impl ValueType for BoolType {
         Box::new(self.clone())
     }
 
+    fn get_size(&self) -> u64 {
+        1
+    }
 }

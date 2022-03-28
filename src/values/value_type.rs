@@ -33,7 +33,7 @@ pub trait ValueType: ValueTypeAsAny + Display {
 
     fn box_clone(&self) -> Box<dyn ValueType>;
 
-    // fn get_size(&self) -> u64;
+    fn get_size(&self) -> u64;
 }
 
 impl Clone for Box<dyn ValueType> {

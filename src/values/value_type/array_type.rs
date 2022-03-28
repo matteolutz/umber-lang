@@ -57,4 +57,7 @@ impl ValueType for ArrayType {
         Box::new(self.clone())
     }
 
+    fn get_size(&self) -> u64 {
+        return self.size * self.children_type.get_size();
+    }
 }

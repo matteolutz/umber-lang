@@ -79,16 +79,16 @@ impl Validator {
         None
     }
 
-    fn declare_symbol(&mut self, name: &str, sym: Symbol) {
+    fn declare_symbol(&mut self, name: String, sym: Symbol) {
         if self.type_stack.is_empty() {
             return;
         }
 
-        if self.has_symbol(name) {
+        if self.has_symbol(&name) {
             return;
         }
 
-        (self.type_stack.index_mut(self.type_stack.len() - 1)).insert(name.to_string(), sym);
+        (self.type_stack.index_mut(self.type_stack.len() - 1)).insert(name, sym);
     }
 
     fn push_child_scope(&mut self, scope_type: ScopeType) {
@@ -273,7 +273,7 @@ impl Validator {
             return res;
         }
 
-        self.declare_symbol(node.var_name(), Symbol::new(symbol_type.clone(), node.is_mutable()));
+        self.declare_symbol(node.var_name().to_string(), Symbol::new(symbol_type.clone(), node.is_mutable()));
         res.success(symbol_type);
         res
     }
@@ -335,19 +335,20 @@ impl Validator {
         let mut arg_types: Vec<Box<dyn ValueType>> = vec![];
         arg_types.reserve(node.args().len());
 
-        for (_name, value_type) in node.args() {
+        for (_, value_type) in node.args() {
             arg_types.push(value_type.clone());
         }
 
         self.declare_symbol(
-            node.var_name(),
+            node.var_name().to_string(),
             Symbol::new(Box::new(FunctionType::new(arg_types.clone(), node.return_type().clone())), false),
         );
 
         self.push_child_scope(ScopeType::Function);
 
-        for a in arg_types {
-            self.declare_symbol(node.var_name(), Symbol::new(a.clone(), false));
+        for (name, value_type) in node.args() {
+            println!("declaring arg with name {}", node.var_name());
+            self.declare_symbol(name.clone(), Symbol::new(value_type.clone(), false));
         }
 
         res.register_res(self.validate(node.body_node()));
@@ -456,7 +457,7 @@ mod tests {
     pub fn semantics_symbol_stack() {
         let mut v = Validator::new();
 
-        v.declare_symbol("a", Symbol::new(Box::new(VoidType::new()), false));
+        v.declare_symbol("a".to_string(), Symbol::new(Box::new(VoidType::new()), false));
 
         assert_eq!(v.has_symbol("a"), true);
         assert_eq!(v.get_symbol("a").unwrap().value_type().value_type(), ValueTypes::Void);
@@ -466,7 +467,7 @@ mod tests {
 
         assert_eq!(v.has_symbol("a"), true);
         assert_eq!(v.has_symbol("b"), false);
-        v.declare_symbol("b", Symbol::new(Box::new(VoidType::new()), false));
+        v.declare_symbol("b".to_string(), Symbol::new(Box::new(VoidType::new()), false));
         assert_eq!(v.has_symbol("b"), true);
 
         v.pop_child_scope();

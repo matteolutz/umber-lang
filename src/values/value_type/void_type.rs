@@ -48,4 +48,7 @@ impl ValueType for VoidType {
         Box::new(self.clone())
     }
 
+    fn get_size(&self) -> u64 {
+        0
+    }
 }
