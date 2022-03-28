@@ -20,7 +20,7 @@ impl CallNode {
         }
     }
 
-    pub fn func_to_call(&self) -> &String {
+    pub fn func_to_call(&self) -> &str {
         &self.func_to_call
     }
     pub fn arg_nodes(&self) -> &Vec<Box<dyn Node>> {

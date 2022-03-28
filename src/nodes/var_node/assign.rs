@@ -20,7 +20,7 @@ impl VarAssignNode {
         }
     }
 
-    pub fn var_name(&self) -> &String {
+    pub fn var_name(&self) -> &str {
         &self.var_name
     }
     pub fn value_node(&self) -> &Box<dyn Node> {

@@ -1,4 +1,5 @@
 use std::time::Instant;
+
 use umber_lang;
 use umber_lang::compiler::Compiler;
 use umber_lang::lexer::Lexer;
@@ -7,13 +8,26 @@ use umber_lang::semantics::Validator;
 
 static TEXT_TO_LEX: &'static str = "\
 
-fun main(b: bool): number {
-    let a: string = \"Hello
-World
-    \";
+fun print(a: number): void {
+    asm__(\"
+    MOVQ    $1, %rax,
+    MOVQ    $0, %rdi,
+    MOVQ    $123, %rsi
+    MOVQ    %rdx, 4
+    SYSCALL
+    \");
+    return;
+};
 
-    1+1;
-    return 1;
+fun add(a: number, b: number, c: number, d: number): number {
+    asm__(\"
+        MOVQ rax, 1234
+        \");
+    return 1234;
+};
+
+fun main(b: bool): number {
+    return 1+1+add(1, 2, 3, 4);
 };
 
 ";

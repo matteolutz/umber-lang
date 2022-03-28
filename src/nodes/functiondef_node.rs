@@ -27,7 +27,7 @@ impl FunctionDefinitionNode {
         }
     }
 
-    pub fn var_name(&self) -> &String {
+    pub fn var_name(&self) -> &str {
         &self.var_name
     }
     pub fn args(&self) -> &HashMap<String, Box<dyn ValueType>> {

@@ -4,7 +4,9 @@ use std::ops::IndexMut;
 use crate::error;
 use crate::nodes::{Node, NodeType};
 use crate::nodes::binop_node::BinOpNode;
+use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
+use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::return_node::ReturnNode;
@@ -22,16 +24,28 @@ use crate::values::value_type::number_type::NumberType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::void_type::VoidType;
 
+#[derive(Debug, PartialOrd, PartialEq)]
+enum ScopeType {
+    Global,
+    Function,
+    Loop,
+    Block,
+}
+
 pub struct Validator {
     type_stack: Vec<HashMap<String, Symbol>>,
+    scope_stack: Vec<ScopeType>,
 }
 
 impl Validator {
     pub fn new() -> Self {
         Validator {
             type_stack: vec![
-                HashMap::new()
-            ]
+                HashMap::new(),
+            ],
+            scope_stack: vec![
+                ScopeType::Global,
+            ],
         }
     }
 
@@ -77,18 +91,28 @@ impl Validator {
         (self.type_stack.index_mut(self.type_stack.len() - 1)).insert(name.to_string(), sym);
     }
 
-    fn push_child_table(&mut self) {
+    fn push_child_scope(&mut self, scope_type: ScopeType) {
         self.type_stack.push(HashMap::new());
+        self.scope_stack.push(scope_type);
     }
 
-    fn pop_child_table(&mut self) {
+    fn pop_child_scope(&mut self) {
         if self.type_stack.len() == 1 {
             panic!("Can't pop root table!");
         }
 
         self.type_stack.pop();
+        self.scope_stack.pop();
     }
 
+    fn is_in_scope_stack(&self, scope_type: ScopeType) -> bool {
+        for s in self.scope_stack.iter().rev() {
+            if *s == scope_type {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl Validator {
@@ -107,6 +131,8 @@ impl Validator {
             NodeType::FunctionDef => self.validate_function_def_node(node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap()),
             NodeType::Call => self.validate_call_node(node.as_any().downcast_ref::<CallNode>().unwrap()),
             NodeType::Return => self.validate_return_node(node.as_any().downcast_ref::<ReturnNode>().unwrap()),
+            NodeType::Break => self.validate_break_statement(node.as_any().downcast_ref::<BreakNode>().unwrap()),
+            NodeType::Continue => self.validate_continue_statement(node.as_any().downcast_ref::<ContinueNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -114,7 +140,7 @@ impl Validator {
     fn validate_statements_node(&mut self, node: &StatementsNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        self.push_child_table();
+        self.push_child_scope(ScopeType::Block);
 
         for s in node.statement_nodes() {
             res.register_res(self.validate(s));
@@ -123,7 +149,7 @@ impl Validator {
             }
         }
 
-        self.pop_child_table();
+        self.pop_child_scope();
 
         // res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "Can't use statements as a type!"));
         res
@@ -230,7 +256,7 @@ impl Validator {
     fn validate_var_declaration_node(&mut self, node: &VarDeclarationNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        if self.has_symbol(node.var_name().as_str()) {
+        if self.has_symbol(node.var_name()) {
             res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Variable '{}' was already declared in this scope!", node.var_name()).as_str()));
             return res;
         }
@@ -247,7 +273,7 @@ impl Validator {
             return res;
         }
 
-        self.declare_symbol(node.var_name().as_str(), Symbol::new(symbol_type.clone(), node.is_mutable()));
+        self.declare_symbol(node.var_name(), Symbol::new(symbol_type.clone(), node.is_mutable()));
         res.success(symbol_type);
         res
     }
@@ -284,12 +310,12 @@ impl Validator {
     fn validate_var_access_node(&mut self, node: &VarAccessNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        if !self.has_symbol(node.var_name().as_str()) {
+        if !self.has_symbol(node.var_name()) {
             res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Variable '{}' wasn't declared in this scope!", node.var_name()).as_str()));
             return res;
         }
 
-        res.success(self.get_symbol(node.var_name().as_str()).unwrap().value_type().clone());
+        res.success(self.get_symbol(node.var_name()).unwrap().value_type().clone());
         res
     }
 
@@ -309,19 +335,19 @@ impl Validator {
         }
 
         self.declare_symbol(
-            node.var_name().as_str(),
+            node.var_name(),
             Symbol::new(Box::new(FunctionType::new(arg_types.clone(), node.return_type().clone())), false),
         );
 
-        self.push_child_table();
+        self.push_child_scope(ScopeType::Function);
 
         for a in arg_types {
-            self.declare_symbol(node.var_name().as_str(), Symbol::new(a.clone(), false));
+            self.declare_symbol(node.var_name(), Symbol::new(a.clone(), false));
         }
 
         res.register_res(self.validate(node.body_node()));
 
-        self.pop_child_table();
+        self.pop_child_scope();
 
         if res.has_error() {
             return res;
@@ -344,10 +370,11 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if !self.has_symbol(node.func_to_call()) || self.get_symbol(node.func_to_call()).unwrap().value_type().value_type() != ValueTypes::Function {
-            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "Expected function!"))
+            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "Expected function!"));
+            return res;
         }
 
-        let symbol_type = self.get_symbol(node.func_to_call().as_str()).unwrap().value_type().clone();
+        let symbol_type = self.get_symbol(node.func_to_call()).unwrap().value_type().clone();
         let function_type = symbol_type.as_any().downcast_ref::<FunctionType>().unwrap();
 
         if function_type.arg_types().len() != node.arg_nodes().len() {
@@ -374,6 +401,11 @@ impl Validator {
     fn validate_return_node(&mut self, node: &ReturnNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
+        if !self.is_in_scope_stack(ScopeType::Function) {
+            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "Return statement outside of function!"));
+            return res;
+        }
+
         if node.node_to_return().is_none() {
             res.success_return(Box::new(VoidType::new()));
             return res;
@@ -385,6 +417,28 @@ impl Validator {
         }
 
         res.success_return(return_type.unwrap());
+        res
+    }
+
+    fn validate_break_statement(&mut self, node: &BreakNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        if !self.is_in_scope_stack(ScopeType::Loop) {
+            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "Break statement outside of loop!"));
+            return res;
+        }
+
+        res
+    }
+
+    fn validate_continue_statement(&mut self, node: &ContinueNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        if !self.is_in_scope_stack(ScopeType::Loop) {
+            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "Continue statement outside of loop!"));
+            return res;
+        }
+
         res
     }
 }
@@ -403,14 +457,14 @@ mod tests {
         assert_eq!(v.get_symbol("a").unwrap().value_type().value_type(), ValueTypes::Void);
         assert_eq!(v.is_symbol_mut("a"), false);
 
-        v.push_child_table();
+        v.push_child_scope(ScopeType::Block);
 
         assert_eq!(v.has_symbol("a"), true);
         assert_eq!(v.has_symbol("b"), false);
         v.declare_symbol("b", Symbol::new(Box::new(VoidType::new()), false));
         assert_eq!(v.has_symbol("b"), true);
 
-        v.pop_child_table();
+        v.pop_child_scope();
 
         assert_eq!(v.has_symbol("a"), true);
         assert_eq!(v.has_symbol("b"), false);

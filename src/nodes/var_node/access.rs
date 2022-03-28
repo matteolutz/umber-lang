@@ -20,7 +20,7 @@ impl VarAccessNode {
         }
     }
 
-    pub fn var_name(&self) -> &String {
+    pub fn var_name(&self) -> &str {
         &self.var_name
     }
     pub fn pos_start(&self) -> &Position {

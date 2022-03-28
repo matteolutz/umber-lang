@@ -43,7 +43,7 @@ impl Lexer {
                 self.advance();
             } else if current == '#' {
                 self.skip_comment();
-            } else if [';'].contains(&current) {
+            } else if current == ';' {
                 tokens.push(Token::new_without_value(TokenType::Newline, self.pos, self.pos));
                 self.advance();
             } else if utils::is_digit(&current) {

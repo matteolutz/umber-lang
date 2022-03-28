@@ -17,6 +17,7 @@ pub mod return_node;
 pub mod unaryop_node;
 pub mod while_node;
 pub mod statements_node;
+pub mod asm_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -36,6 +37,7 @@ pub enum NodeType {
     VarAssign,
     VarDeclaration,
     Statements,
+    Assembly
 }
 
 pub trait NodeToAny: 'static {

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::error;
 use crate::error::Error;
 use crate::nodes::{Node, NodeType};
+use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
@@ -499,6 +500,42 @@ impl Parser {
                 return res;
             }
 
+            if self.current_token().matches_keyword("asm__") {
+                let pos_start = *self.current_token().pos_start();
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Lparen {
+                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '('!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::String {
+                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected string!"));
+                    return res;
+                }
+
+                let asm_str = self.current_token().token_value().as_ref().unwrap().clone();
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Rparen {
+                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ')'!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                res.success(Box::new(AssemblyNode::new(asm_str, pos_start, *self.current_token().pos_end())));
+                return res;
+            }
+
             let expr = res.register_res(self.expression());
             if res.has_error() {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected non top level statement or expression!"));
@@ -738,7 +775,7 @@ impl Parser {
                 res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Dynamic calls aren't implemented yet!"));
             }
 
-            res.success(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().clone(), arg_nodes, *atom.as_ref().unwrap().pos_start())));
+            res.success(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().to_string(), arg_nodes, *atom.as_ref().unwrap().pos_start())));
             return res;
         }
 

@@ -24,7 +24,7 @@ impl VarDeclarationNode {
         }
     }
 
-    pub fn var_name(&self) -> &String { &self.var_name }
+    pub fn var_name(&self) -> &str { &self.var_name }
     pub fn var_type(&self) -> &Box<dyn ValueType> { &self.var_type }
     pub fn value_node(&self) -> &Box<dyn Node> {
         &self.value_node

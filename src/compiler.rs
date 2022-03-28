@@ -1,9 +1,15 @@
+use std::alloc::handle_alloc_error;
+use std::collections::HashMap;
 use std::fmt::Write;
+use std::hash::Hash;
 
 use crate::nodes::{Node, NodeType};
+use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
+use crate::nodes::call_node::CallNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::number_node::NumberNode;
+use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::token::TokenType;
 use crate::values::value_type::function_type::FunctionType;
@@ -12,16 +18,28 @@ const SCRATCH_REGS: [&str; 7] = [
     "%rbx", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"
 ];
 
+const NUMBER_ARG_REGS: [&str; 6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
+
 pub struct Compiler {
     scratch_regs: u8,
-    label_count: u128
+    label_count: u128,
+    current_function_epilogue: Option<u128>,
+
+    current_loop_start: Option<u128>,
+    current_loop_end: Option<u128>,
+
+    function_names: HashMap<String, u128>,
 }
 
 impl Compiler {
     pub fn new() -> Self {
         Compiler {
             scratch_regs: 0,
-            label_count: 0
+            label_count: 0,
+            current_loop_start: None,
+            current_loop_end: None,
+            current_function_epilogue: None,
+            function_names: HashMap::new(),
         }
     }
 
@@ -56,12 +74,14 @@ impl Compiler {
         self.label_count
     }
 
-    fn label_name(&mut self, label: &u128) -> String {
+    fn label_name(&self, label: &u128) -> String {
         return format!(".L{}", label);
     }
     //endregion
 
-    fn scratch_regs(&self) -> &u8 { &self.scratch_regs }
+    pub fn scratch_regs(&self) -> &u8 { &self.scratch_regs }
+    pub fn label_count(&self) -> &u128 { &self.label_count }
+    pub fn current_function_epilogue(&self) -> &Option<u128> { &self.current_function_epilogue }
 }
 
 impl Compiler {
@@ -74,6 +94,11 @@ impl Compiler {
                 }
             }
             return None;
+        }
+
+        if node.node_type() == NodeType::Assembly {
+            let assembly_node = node.as_any().downcast_ref::<AssemblyNode>().unwrap();
+            writeln!(w, "\n;; Assembly injected im asm__(...)\n\t{}\n;; End\n", assembly_node.content());
         }
 
         if node.node_type() == NodeType::Number {
@@ -104,20 +129,77 @@ impl Compiler {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
             }
 
-
             self.free_scratch(right_reg);
 
             return Some(res_reg);
         }
 
+        if node.node_type() == NodeType::Call {
+            let call_node = node.as_any().downcast_ref::<CallNode>().unwrap();
+            let func_label = *self.function_names.get(call_node.func_to_call()).unwrap();
+
+            let mut number_reg_index: usize = 0;
+
+            for arg in call_node.arg_nodes() {
+                let reg = self.code_gen(arg, w).unwrap();
+
+                if number_reg_index >= NUMBER_ARG_REGS.len() {
+                    writeln!(w, "\tPUSHQ   {}", self.scratch_name(reg));
+                } else {
+                    writeln!(w, "\tMOVQ    {}, {}", self.scratch_name(reg), NUMBER_ARG_REGS[number_reg_index]);
+                    number_reg_index += 1;
+                }
+
+                self.free_scratch(reg);
+            }
+
+            writeln!(w, "\tCALL    {}", self.label_name(&func_label));
+
+            let reg = self.res_scratch();
+            writeln!(w, "\tMOVQ    %rax, {}", self.scratch_name(reg));
+
+            return Some(reg);
+        }
+
         if node.node_type() == NodeType::FunctionDef {
             let func_def_node = node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap();
             let func_label = self.label_create();
+            let func_epilogue_label = self.label_create();
 
             writeln!(w, "{}", self.label_name(&func_label));
+            writeln!(w, "\tPUSHQ   %rbp");
+            writeln!(w, "\tMOVQ    %rsp, %rbp");
+
+            self.current_function_epilogue = Some(func_epilogue_label);
+            self.function_names.insert(func_def_node.var_name().to_string(), func_label);
+
             self.code_gen(func_def_node.body_node(), w);
 
+            writeln!(w, "{}", self.label_name(&func_epilogue_label));
+            writeln!(w, "\tMOVQ    %rbp, %rsp");
+            writeln!(w, "\tPOPQ    %rbp");
+            writeln!(w, "\tRET");
+
             return None
+        }
+
+        if node.node_type() == NodeType::Return {
+            let return_node = node.as_any().downcast_ref::<ReturnNode>().unwrap();
+
+            let reg: u8;
+            if return_node.node_to_return().is_some() {
+                reg = self.code_gen(return_node.node_to_return().as_ref().unwrap(), w).unwrap();
+            } else {
+                reg = self.res_scratch();
+                writeln!(w, "\tMOVQ    $0, {}", self.scratch_name(reg));
+            }
+
+            writeln!(w, "\tMOVQ    {}, %rax", self.scratch_name(reg));
+            self.free_scratch(reg);
+
+            writeln!(w, "\tJMP     {}", self.label_name(self.current_function_epilogue.as_ref().unwrap()));
+
+            return None;
         }
 
 
