@@ -14,6 +14,15 @@ fun add(a: number, b: number): number {
 
 fun main(): number {
     let some_var: string = \"Hello, World!\";
+
+    asm__(\"\
+    mov rax, 1
+    mov rdi, 0
+    mov rsi, S0
+    mov rdx, 13
+    syscall
+    \");
+
     return 0;
 };
 
