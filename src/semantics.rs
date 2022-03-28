@@ -327,6 +327,11 @@ impl Validator {
             return res;
         }
 
+        if node.var_name() == "main" && (node.args().len() != 0 || node.return_type().value_type() != ValueTypes::Number) {
+            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Main function must have no arguments and return type 'number'!").as_str()));
+            return res;
+        }
+
         let mut arg_types: Vec<Box<dyn ValueType>> = vec![];
         arg_types.reserve(node.args().len());
 

@@ -1,7 +1,7 @@
-use std::alloc::handle_alloc_error;
+
 use std::collections::HashMap;
 use std::fmt::Write;
-use std::hash::Hash;
+
 
 use crate::nodes::{Node, NodeType};
 use crate::nodes::asm_node::AssemblyNode;
@@ -11,8 +11,9 @@ use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
+use crate::nodes::string_node::StringNode;
 use crate::token::TokenType;
-use crate::values::value_type::function_type::FunctionType;
+
 
 const SCRATCH_REGS: [&str; 7] = [
     "%rbx", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15"
@@ -26,9 +27,9 @@ pub struct Compiler {
     current_function_epilogue: Option<u128>,
 
     current_loop_start: Option<u128>,
-    current_loop_end: Option<u128>,
+    current_loop_break: Option<u128>,
 
-    function_names: HashMap<String, u128>,
+    strings: HashMap<String, u128>,
 }
 
 impl Compiler {
@@ -37,9 +38,9 @@ impl Compiler {
             scratch_regs: 0,
             label_count: 0,
             current_loop_start: None,
-            current_loop_end: None,
+            current_loop_break: None,
             current_function_epilogue: None,
-            function_names: HashMap::new(),
+            strings: HashMap::new(),
         }
     }
 
@@ -77,7 +78,21 @@ impl Compiler {
     fn label_name(&self, label: &u128) -> String {
         return format!(".L{}", label);
     }
+
+    fn function_label_name(&self, function: &str) -> String {
+        return format!(".F_{}", function);
+    }
     //endregion
+
+    fn create_string_label(&mut self, string: String) -> u128 {
+        if self.strings.contains_key(&string) {
+            return self.strings[&string];
+        }
+
+        let label = self.label_create();
+        self.strings.insert(string, label);
+        label
+    }
 
     pub fn scratch_regs(&self) -> &u8 { &self.scratch_regs }
     pub fn label_count(&self) -> &u128 { &self.label_count }
@@ -104,6 +119,13 @@ impl Compiler {
         if node.node_type() == NodeType::Number {
             let reg = self.res_scratch();
             writeln!(w, "\tMOVQ    {}, {}", node.as_any().downcast_ref::<NumberNode>().unwrap().get_number(), self.scratch_name(reg));
+            return Some(reg);
+        }
+
+        if node.node_type() == NodeType::String {
+            let str_label = self.create_string_label(node.as_any().downcast_ref::<StringNode>().unwrap().get_string());
+            let reg = self.res_scratch();
+            writeln!(w, "\tMOVQ    ${}, {}", self.label_name(&str_label), self.scratch_name(reg));
             return Some(reg);
         }
 
@@ -136,7 +158,7 @@ impl Compiler {
 
         if node.node_type() == NodeType::Call {
             let call_node = node.as_any().downcast_ref::<CallNode>().unwrap();
-            let func_label = *self.function_names.get(call_node.func_to_call()).unwrap();
+            let func_label = self.function_label_name(call_node.func_to_call());
 
             let mut number_reg_index: usize = 0;
 
@@ -153,7 +175,7 @@ impl Compiler {
                 self.free_scratch(reg);
             }
 
-            writeln!(w, "\tCALL    {}", self.label_name(&func_label));
+            writeln!(w, "\tCALL    {}", func_label);
 
             let reg = self.res_scratch();
             writeln!(w, "\tMOVQ    %rax, {}", self.scratch_name(reg));
@@ -163,22 +185,21 @@ impl Compiler {
 
         if node.node_type() == NodeType::FunctionDef {
             let func_def_node = node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap();
-            let func_label = self.label_create();
             let func_epilogue_label = self.label_create();
 
-            writeln!(w, "{}", self.label_name(&func_label));
+            writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()));
             writeln!(w, "\tPUSHQ   %rbp");
             writeln!(w, "\tMOVQ    %rsp, %rbp");
 
             self.current_function_epilogue = Some(func_epilogue_label);
-            self.function_names.insert(func_def_node.var_name().to_string(), func_label);
 
             self.code_gen(func_def_node.body_node(), w);
 
-            writeln!(w, "{}", self.label_name(&func_epilogue_label));
+            writeln!(w, "{}:", self.label_name(&func_epilogue_label));
             writeln!(w, "\tMOVQ    %rbp, %rsp");
             writeln!(w, "\tPOPQ    %rbp");
             writeln!(w, "\tRET");
+            writeln!(w);
 
             return None
         }
@@ -202,14 +223,40 @@ impl Compiler {
             return None;
         }
 
+        if node.node_type() == NodeType::Break {
+            writeln!(w, "\tJMP     {}", self.label_name(self.current_loop_break.as_ref().unwrap()));
+            return None;
+        }
+
+        if node.node_type() == NodeType::Continue {
+            writeln!(w, "\tJMP     {}", self.label_name(self.current_loop_start.as_ref().unwrap()));
+            return None;
+        }
+
 
         None
     }
 
-
     pub fn compile_to_str(&mut self, node: &Box<dyn Node>) -> String {
         let mut res = String::new();
-        self.code_gen(node, &mut res);
+
+        let mut code = String::new();
+        writeln!(code, ".file   \"{}\"\n", "umber_compiler");
+
+        writeln!(code, ".text");
+        writeln!(code, ".global  F_main\n");
+
+        self.code_gen(node, &mut code);
+
+        writeln!(res, ".data");
+
+        for (str, label) in &self.strings {
+            writeln!(res, "{}:", self.label_name(&label));
+            writeln!(res, "\t.string \"{}\"", str);
+        }
+
+        writeln!(res, "\n{}", code);
+
         res
     }
 }
