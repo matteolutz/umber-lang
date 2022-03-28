@@ -10,6 +10,3 @@ pub mod results;
 pub mod semantics;
 pub mod values;
 pub mod compiler;
-
-#[cfg(test)]
-pub mod tests;

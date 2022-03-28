@@ -35,7 +35,7 @@ impl Validator {
         }
     }
 
-    pub fn has_symbol(&self, name: &str) -> bool {
+    fn has_symbol(&self, name: &str) -> bool {
         for s in self.type_stack.iter().rev() {
             if s.contains_key(name) {
                 return true;
@@ -45,7 +45,7 @@ impl Validator {
         false
     }
 
-    pub fn is_symbol_mut(&self, name: &str) -> bool {
+    fn is_symbol_mut(&self, name: &str) -> bool {
         let s = self.get_symbol(name);
 
         if s.is_some() {
@@ -55,7 +55,7 @@ impl Validator {
         false
     }
 
-    pub fn get_symbol(&self, name: &str) -> Option<&Symbol> {
+    fn get_symbol(&self, name: &str) -> Option<&Symbol> {
         for s in self.type_stack.iter().rev() {
             if s.contains_key(name) {
                 return s.get(name);
@@ -65,7 +65,7 @@ impl Validator {
         None
     }
 
-    pub fn declare_symbol(&mut self, name: &str, sym: Symbol) {
+    fn declare_symbol(&mut self, name: &str, sym: Symbol) {
         if self.type_stack.is_empty() {
             return;
         }
@@ -77,11 +77,11 @@ impl Validator {
         (self.type_stack.index_mut(self.type_stack.len() - 1)).insert(name.to_string(), sym);
     }
 
-    pub fn push_child_table(&mut self) {
+    fn push_child_table(&mut self) {
         self.type_stack.push(HashMap::new());
     }
 
-    pub fn pop_child_table(&mut self) {
+    fn pop_child_table(&mut self) {
         if self.type_stack.len() == 1 {
             panic!("Can't pop root table!");
         }
@@ -387,5 +387,32 @@ impl Validator {
         res.success_return(return_type.unwrap());
         res
     }
+}
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn semantics_symbol_stack() {
+        let mut v = Validator::new();
+
+        v.declare_symbol("a", Symbol::new(Box::new(VoidType::new()), false));
+
+        assert_eq!(v.has_symbol("a"), true);
+        assert_eq!(v.get_symbol("a").unwrap().value_type().value_type(), ValueTypes::Void);
+        assert_eq!(v.is_symbol_mut("a"), false);
+
+        v.push_child_table();
+
+        assert_eq!(v.has_symbol("a"), true);
+        assert_eq!(v.has_symbol("b"), false);
+        v.declare_symbol("b", Symbol::new(Box::new(VoidType::new()), false));
+        assert_eq!(v.has_symbol("b"), true);
+
+        v.pop_child_table();
+
+        assert_eq!(v.has_symbol("a"), true);
+        assert_eq!(v.has_symbol("b"), false);
+    }
 }

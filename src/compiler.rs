@@ -26,7 +26,7 @@ impl Compiler {
     }
 
     // region Register distribution
-    pub fn res_scratch(&mut self) -> u8 {
+    fn res_scratch(&mut self) -> u8 {
         if self.scratch_regs ^ 0b1111111 == 0 {
             panic!("No free general purpose registers were found!");
         }
@@ -43,25 +43,25 @@ impl Compiler {
         i
     }
 
-    pub fn scratch_name(&self, i: u8) -> &str { SCRATCH_REGS[i as usize] }
+    fn scratch_name(&self, i: u8) -> &str { SCRATCH_REGS[i as usize] }
 
-    pub fn free_scratch(&mut self, reg: u8) {
+    fn free_scratch(&mut self, reg: u8) {
         self.scratch_regs = !(!self.scratch_regs | (1 << reg));
     }
     // endregion
 
     // region Label creation
-    pub fn label_create(&mut self) -> u128 {
+    fn label_create(&mut self) -> u128 {
         self.label_count += 1;
         self.label_count
     }
 
-    pub fn label_name(&mut self, label: &u128) -> String {
+    fn label_name(&mut self, label: &u128) -> String {
         return format!(".L{}", label);
     }
     //endregion
 
-    pub fn scratch_regs(&self) -> &u8 { &self.scratch_regs }
+    fn scratch_regs(&self) -> &u8 { &self.scratch_regs }
 }
 
 impl Compiler {
@@ -129,5 +129,37 @@ impl Compiler {
         let mut res = String::new();
         self.code_gen(node, &mut res);
         res
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn compiler_register_distribution() {
+        let mut c = Compiler::new();
+
+        c.res_scratch();
+        assert_eq!(*c.scratch_regs(), 0b0000001);
+
+        c.res_scratch();
+        assert_eq!(*c.scratch_regs(), 0b0000011);
+
+        c.res_scratch();
+        assert_eq!(*c.scratch_regs(), 0b0000111);
+
+        c.free_scratch(1);
+        assert_eq!(*c.scratch_regs(), 0b0000101);
+
+        c.free_scratch(2);
+        assert_eq!(*c.scratch_regs(), 0b0000001);
+
+        c.free_scratch(0);
+        assert_eq!(*c.scratch_regs(), 0b0000000);
+
+        c.free_scratch(5);
+        assert_eq!(*c.scratch_regs(), 0b0000000);
+
     }
 }
