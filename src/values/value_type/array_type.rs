@@ -6,20 +6,20 @@ use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 #[derive(Clone)]
 pub struct ArrayType {
-    size: u64,
+    size: usize,
     children_type: Box<dyn ValueType>,
 }
 
 impl ArrayType {
 
-    pub fn new(size: u64, children_type: Box<dyn ValueType>) -> Self {
+    pub fn new(size: usize, children_type: Box<dyn ValueType>) -> Self {
         ArrayType {
             size,
             children_type
         }
     }
 
-    pub fn size(&self) -> &u64 { &self.size }
+    pub fn size(&self) -> &usize { &self.size }
     pub fn children_type(&self) -> &Box<dyn ValueType> { &self.children_type }
 
 }
@@ -32,7 +32,7 @@ impl ValueTypeAsAny for ArrayType {
 
 impl Display for ArrayType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<NumberType>[]")
+        write!(f, "<ArrayType>[Type: {}, Size: {}]", self.children_type, self.size)
     }
 }
 
@@ -58,6 +58,7 @@ impl ValueType for ArrayType {
     }
 
     fn get_size(&self) -> u64 {
-        return self.size * self.children_type.get_size();
+        // self.size as u64 * self.children_type.get_size()
+        self.children_type.get_size()
     }
 }

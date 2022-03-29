@@ -11,6 +11,7 @@ use crate::nodes::call_node::CallNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
+use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
@@ -118,7 +119,7 @@ impl Parser {
             }
 
             // TODO: error handling
-            let size: u64 = self.current_token().token_value().as_ref().unwrap().parse::<u64>().unwrap();
+            let size: usize = self.current_token().token_value().as_ref().unwrap().parse::<usize>().unwrap();
 
             self.advance();
 
@@ -158,8 +159,81 @@ impl Parser {
     }
 
     fn list_expr(&mut self) -> ParseResult {
-        let res = ParseResult::new();
+        let mut res = ParseResult::new();
+        let pos_start = self.current_token().pos_start().clone();
 
+        println!("found list expr");
+
+        if self.current_token().token_type() != TokenType::Lsquare {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '['!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        if self.current_token().token_type() != TokenType::Lt {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '<'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        let intrinsic_type_parse = self.parse_intrinsic_type();
+        if intrinsic_type_parse.1.is_some() {
+            res.failure(intrinsic_type_parse.1.unwrap());
+            return res;
+        }
+
+        let element_type = intrinsic_type_parse.0.unwrap();
+
+        res.register_advancement();
+        self.advance();
+
+        if self.current_token().token_type() != TokenType::Gt {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '>'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        if self.current_token().token_type() == TokenType::Rsquare {
+            res.register_advancement();
+            self.advance();
+
+            res.success(Box::new(ListNode::new(vec![], element_type, pos_start, self.current_token().pos_end().clone())));
+            return res;
+        }
+
+        let mut elements: Vec<Box<dyn Node>> = vec![];
+
+        loop {
+            let expr = res.register_res(self.expression());
+            if res.has_error() {
+                return res;
+            }
+
+            elements.push(expr.unwrap());
+
+            if self.current_token().token_type() != TokenType::Comma {
+                break;
+            } else {
+                res.register_advancement();
+                self.advance();
+            }
+        }
+
+        if self.current_token().token_type() != TokenType::Rsquare {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        res.success(Box::new(ListNode::new(elements, element_type, pos_start, self.current_token().pos_end().clone())));
         res
     }
 
@@ -536,41 +610,6 @@ impl Parser {
                 return res;
             }
 
-            if self.current_token().matches_keyword("syscall") {
-                res.register_advancement();
-                self.advance();
-
-                let mut exprs: Vec<Box<dyn Node>> = vec![];
-                exprs.reserve(4);
-
-                let new_expr = res.register_res(self.expression());
-                if res.has_error() {
-                    return res;
-                }
-
-                exprs.push(new_expr.unwrap());
-
-                for _ in 0..3 {
-                    if self.current_token().token_type() != TokenType::Comma {
-                        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ','!"));
-                        return res;
-                    }
-
-                    res.register_advancement();
-                    self.advance();
-
-                    let new_expr = res.register_res(self.expression());
-                    if res.has_error() {
-                        return res;
-                    }
-
-                    exprs.push(new_expr.unwrap());
-                }
-
-                res.success(Box::new(SyscallNode::new(exprs, pos_start, self.current_token().pos_end().clone())));
-                return res;
-            }
-
             if self.current_token().matches_keyword("asm__") {
                 res.register_advancement();
                 self.advance();
@@ -685,6 +724,57 @@ impl Parser {
             }
 
             res.success(Box::new(VarDeclarationNode::new(var_name, value_type, expr.unwrap(), is_mutable, pos_start)));
+            return res;
+        }
+
+        if self.current_token().matches_keyword("syscall") {
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Lsquare {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '['!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            let mut exprs: Vec<Box<dyn Node>> = vec![];
+            exprs.reserve(4);
+
+            let new_expr = res.register_res(self.expression());
+            if res.has_error() {
+                return res;
+            }
+
+            exprs.push(new_expr.unwrap());
+
+            for _ in 0..3 {
+                if self.current_token().token_type() != TokenType::Comma {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ','!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                let new_expr = res.register_res(self.expression());
+                if res.has_error() {
+                    return res;
+                }
+
+                exprs.push(new_expr.unwrap());
+            }
+
+            if self.current_token().token_type() != TokenType::Rsquare {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']'!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            res.success(Box::new(SyscallNode::new(exprs, pos_start, self.current_token().pos_end().clone())));
             return res;
         }
 
@@ -916,7 +1006,15 @@ impl Parser {
             return res;
         }
 
-        // TODO: list!
+        if token.token_type() == TokenType::Lsquare {
+            let list_expr = res.register_res(self.list_expr());
+            if res.has_error() {
+                return res;
+            }
+
+            res.success(list_expr.unwrap());
+            return res;
+        }
 
         // TODO: if, for, while
 

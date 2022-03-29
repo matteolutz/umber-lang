@@ -19,6 +19,7 @@ use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
 use crate::values::value_type::{ValueType, ValueTypes};
+use crate::values::value_type::array_type::ArrayType;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::function_type::FunctionType;
 use crate::values::value_type::number_type::NumberType;
@@ -135,6 +136,7 @@ impl Validator {
             NodeType::Break => self.validate_break_node(node.as_any().downcast_ref::<BreakNode>().unwrap()),
             NodeType::Continue => self.validate_continue_node(node.as_any().downcast_ref::<ContinueNode>().unwrap()),
             NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
+            NodeType::Syscall => self.validate_syscall_node(),
             _ => self.validate_empty()
         }
     }
@@ -181,36 +183,19 @@ impl Validator {
     fn validate_list_node(&mut self, node: &ListNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        /*if node.element_nodes().is_empty() {
-            res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "No given value type!"));
-            return res;
-        }
-
-        let mut begin_type: Option<Box<dyn ValueType>> = None;
         for el in node.element_nodes() {
-
-            let t = res.register_res(validate(el, context));
+            let t = res.register_res(self.validate(el));
             if res.has_error() {
                 return res;
             }
 
-            if begin_type.is_some() && !t.as_ref().unwrap().eq(begin_type.as_ref().unwrap()) {
-                res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), format!("Type {}, is incompatible with list type {}!", t.as_ref().unwrap(), begin_type.as_ref().unwrap()).as_str()));
-                return res;
-            } else if begin_type.is_none() {
-                begin_type = t;
-            }
-        }
-
-        res.success(Box::new(ListType::new(begin_type.unwrap())));*/
-        for el in node.element_nodes() {
-            res.register_res(self.validate(el));
-            if res.has_error() {
+            if !t.as_ref().unwrap().eq(node.element_type()) {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type {}, is incompatible with list type {}!", t.as_ref().unwrap(), node.element_type()).as_str()));
                 return res;
             }
         }
 
-        res.success(Box::new(BoolType::new()));
+        res.success(Box::new(ArrayType::new(node.size(), node.element_type().clone())));
         res
     }
 
@@ -349,7 +334,6 @@ impl Validator {
         self.push_child_scope(ScopeType::Function);
 
         for (name, value_type) in node.args() {
-            println!("declaring arg with name {}", &name);
             self.declare_symbol(name.clone(), Symbol::new(value_type.clone(), false));
         }
 
@@ -390,17 +374,11 @@ impl Validator {
             return res;
         }
 
-        for el in function_type.arg_types() {
-            println!("function arg: {}", el);
-        }
-
         for (i, arg) in node.arg_nodes().iter().enumerate() {
             let t = res.register_res(self.validate(arg));
             if res.has_error() {
                 return res;
             }
-
-            println!("got {} expected {} at index {}", t.as_ref().unwrap(), function_type.arg_types()[i], i);
 
             if !t.as_ref().unwrap().eq(&function_type.arg_types()[i]) {
                 res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Expected type '{}' as argument at index {}, got '{}'!", function_type.arg_types()[i], i, t.as_ref().unwrap()).as_str()));
@@ -466,6 +444,13 @@ impl Validator {
 
         self.declare_symbol(node.name().clone(), Symbol::new(Box::new(VoidType::new()), false));
 
+        res
+    }
+
+    fn validate_syscall_node(&mut self) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        res.success(Box::new(NumberType::new()));
         res
     }
 }

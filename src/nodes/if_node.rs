@@ -27,6 +27,10 @@ impl IfNode {
         }
     }
 
+    pub fn cases(&self) -> &Vec<IfCase> {
+        &self.cases
+    }
+
 }
 
 impl Display for IfNode {

@@ -14,7 +14,7 @@ pub fn string_with_arrows(text: &str, pos_start: &Position, pos_end: &Position) 
         let col_start = if i == 0 { *pos_start.col() } else { 0 };
         let col_end = if i == line_count - 1 { *pos_end.col() } else { line.len() - 1 };
 
-        result.push_str(line);
+        result.push_str(line.trim());
         result.push('\n');
 
         for _s in 0..col_start {

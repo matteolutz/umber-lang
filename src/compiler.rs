@@ -9,6 +9,8 @@ use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
+use crate::nodes::if_node::IfNode;
+use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
@@ -159,6 +161,11 @@ impl Compiler {
                 self.free_scratch(reg);
             }
             writeln!(w, "\tsyscall\n;; End injected syscall\n");
+
+            let result_reg = self.res_scratch();
+            writeln!(w, "\tmov     {}, rax", self.scratch_name(result_reg));
+
+            return Some(result_reg);
         }
 
         if node.node_type() == NodeType::Number {
@@ -172,6 +179,27 @@ impl Compiler {
             let reg = self.res_scratch();
             writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), str_label);
             return Some(reg);
+        }
+
+        if node.node_type() == NodeType::List {
+            let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
+
+            writeln!(w, "sub     rsp, {}", list_node.size() as u64 * list_node.element_type().get_size());
+
+            let first_element_offset = self.base_offset + list_node.element_type().get_size();
+
+            for element in list_node.element_nodes() {
+                self.base_offset += list_node.element_type().get_size();
+
+                let reg = self.code_gen(element, w).unwrap();
+                writeln!(w, "\tmov     [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
+                self.free_scratch(reg);
+            }
+
+            let first_elem_reg = self.res_scratch();
+            writeln!(w, "\tmov     {}, QWORD {}", self.scratch_name(first_elem_reg), first_element_offset);
+
+            return Some(first_elem_reg);
         }
 
         if node.node_type() == NodeType::BinOp {
@@ -192,7 +220,25 @@ impl Compiler {
                 res_reg = self.res_scratch();
                 writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
                 self.free_scratch(left_reg);
-            } else {
+            } else if bin_op_node.op_token().token_type() == TokenType::Ee {
+                writeln!(w, "\tcmp     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                let label_one = self.label_create();
+                let label_two = self.label_create();
+                let label_after = self.label_create();
+
+                writeln!(w, "\tje      {}", self.label_name(&label_one));
+
+                writeln!(w, "{}", self.label_name(&label_one));
+                writeln!(w, "\tmov     {}, 1", self.scratch_name(res_reg));
+                writeln!(w, "\tjmp     {}", self.label_name(&label_after));
+
+                writeln!(w, "{}", self.label_name(&label_two));
+                writeln!(w, "\tmov     {}, 0", self.scratch_name(res_reg));
+                writeln!(w, "\tjmp     {}", self.label_name(&label_after));
+
+                writeln!(w, "{}", self.label_name(&label_after));
+            }
+            else {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
             }
 
@@ -310,13 +356,14 @@ impl Compiler {
         if node.node_type() == NodeType::VarDeclaration {
             let var_declaration_node = node.as_any().downcast_ref::<VarDeclarationNode>().unwrap();
 
+            let result_reg = self.code_gen(var_declaration_node.value_node(), w).unwrap();
+            println!("base offset after var declaration: {}", self.base_offset);
+
             self.register_var(var_declaration_node.var_name().to_string(), var_declaration_node.var_type().get_size());
 
-            let reg = self.code_gen(var_declaration_node.value_node(), w).unwrap();
-            writeln!(w, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
-            self.free_scratch(reg);
+            writeln!(w, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(result_reg));
 
-            return None;
+            return Some(result_reg);
         }
 
         if node.node_type() == NodeType::VarAssign {
@@ -325,9 +372,8 @@ impl Compiler {
 
             let reg = self.code_gen(var_assign_node.value_node(), w).unwrap();
             writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
-            self.free_scratch(reg);
 
-            return None;
+            return Some(reg);
         }
 
         if node.node_type() == NodeType::VarAccess {
@@ -346,6 +392,29 @@ impl Compiler {
             self.add_extern(extern_node.name().clone());
 
             return None;
+        }
+
+        if node.node_type() == NodeType::If {
+            let if_node = node.as_any().downcast_ref::<IfNode>().unwrap();
+
+            let label_one = self.label_create();
+            let label_two = self.label_create();
+            let label_end = self.label_create();
+
+            let result_reg = self.code_gen(if_node.cases()[0].condition(), w).unwrap();
+            writeln!(w, "\tcmp     {}, 1", result_reg);
+            self.free_scratch(result_reg);
+
+            writeln!(w, "\tje      {}", self.label_name(&label_one));
+
+            writeln!(w, "{}", self.label_name(&label_one));
+            self.code_gen(if_node.cases()[0].statements(), w);
+
+            writeln!(w, "\tjmp     {}", self.label_name(&label_end));
+
+            writeln!(w, "{}", self.label_name(&label_two));
+            writeln!(w, "{}", self.label_name(&label_end));
+
         }
 
         None
