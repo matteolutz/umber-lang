@@ -133,17 +133,6 @@ impl Parser {
         self.reverse(1);
 
         (Some(base_type), None)
-        /*if s == "number" {
-            return Box::new(NumberType::new());
-        } else if s == "string" {
-            return Box::new(StringType::new());
-        } else if s == "bool" {
-            return Box::new(BoolType::new());
-        } else if s == "void" {
-            return Box::new(VoidType::new());
-        }
-
-        panic!("'{}' is not an intrinsic type!", s)*/
     }
 
     // endregion
@@ -210,7 +199,7 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        let mut args: HashMap<String, Box<dyn ValueType>> = HashMap::new();
+        let mut args: Vec<(String, Box<dyn ValueType>)> = vec![];
 
         if self.current_token().token_type() == TokenType::Identifier {
             if self.current_token().token_value().is_none() {
@@ -220,9 +209,11 @@ impl Parser {
 
             let arg_name = self.current_token().token_value().as_ref().unwrap().clone();
 
-            if args.contains_key(&arg_name) {
-                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
-                return res;
+            for (key, _) in &args {
+                if &arg_name == key {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
+                    return res;
+                }
             }
 
             res.register_advancement();
@@ -247,7 +238,7 @@ impl Parser {
                 return res;
             }
 
-            args.insert(arg_name, i_type.0.unwrap());
+            args.push((arg_name, i_type.0.unwrap()));
 
             res.register_advancement();
             self.advance();
@@ -263,9 +254,12 @@ impl Parser {
 
                 let arg_name = self.current_token().token_value().as_ref().unwrap().clone();
 
-                if args.contains_key(&arg_name) {
-                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
-                    return res;
+
+                for (key, _) in &args {
+                    if &arg_name == key {
+                        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
+                        return res;
+                    }
                 }
 
                 res.register_advancement();
@@ -290,7 +284,7 @@ impl Parser {
                     return res;
                 }
 
-                args.insert(arg_name, i_type.0.unwrap());
+                args.push((arg_name, i_type.0.unwrap()));
 
                 res.register_advancement();
                 self.advance();
@@ -492,6 +486,27 @@ impl Parser {
 
             res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected top level statement!"));
         } else {
+            if self.current_token().token_type() == TokenType::Lcurly {
+                res.register_advancement();
+                self.advance();
+
+                let block = res.register_res(self.statement(false));
+                if res.has_error() {
+                    return res;
+                }
+
+                if self.current_token().token_type() != TokenType::Rcurly {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '}'!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                res.success(block.unwrap());
+                return res;
+            }
+
             if self.current_token().matches_keyword("return") {
                 res.register_advancement();
                 self.advance();

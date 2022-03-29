@@ -1,6 +1,8 @@
 use std::env;
 use std::fs;
 use std::fs::remove_file;
+use std::path::Path;
+use std::process::Command;
 
 fn main() {
     let args = env::args().collect::<Vec<_>>();
@@ -11,7 +13,13 @@ fn main() {
     }
 
     let file_name = args[1].clone();
-    let file_contents = fs::read_to_string(file_name.clone()).expect("Failed to read file");
+    let file = Path::new(file_name.as_str());
+
+    let asm_path = file.parent().unwrap().join(format!("{}.asm", file.file_stem().unwrap().to_str().unwrap()));
+    let o_path = file.parent().unwrap().join(format!("{}.o", file.file_stem().unwrap().to_str().unwrap()));
+    let out_name = file.file_stem().unwrap().to_str().unwrap().to_string();
+
+    let file_contents = fs::read_to_string(&file).expect("Failed to read file");
 
     let mut lexer = umber_lang::lexer::Lexer::new(Box::new(file_name), Box::new(file_contents));
     let (tokens, error) = lexer.make_tokens();
@@ -42,6 +50,23 @@ fn main() {
     let mut compiler = umber_lang::compiler::Compiler::new();
     let asm = compiler.compile_to_str(ast_root);
 
-    println!("{}", asm);
+    fs::write(&asm_path, asm).expect("Failed to write file");
+
+    Command::new("nasm")
+        .arg("-f")
+        .arg("elf64")
+        .arg("-o")
+        .arg(&o_path)
+        .arg(&asm_path)
+        .status()
+        .expect("Failed to run nasm");
+
+    Command::new("ld")
+        .arg("-o")
+        .arg(&out_name)
+        .arg(&o_path)
+        .status()
+        .expect("Failed to run ld");
+
     println!("Done!");
 }

@@ -8,7 +8,7 @@ use crate::values::value_type::ValueType;
 
 pub struct FunctionDefinitionNode {
     var_name: String,
-    args: HashMap<String, Box<dyn ValueType>>,
+    args: Vec<(String, Box<dyn ValueType>)>,
     return_type: Box<dyn ValueType>,
     body_node: Box<dyn Node>,
     should_auto_return: bool,
@@ -16,7 +16,7 @@ pub struct FunctionDefinitionNode {
 }
 
 impl FunctionDefinitionNode {
-    pub fn new(var_name: String, args: HashMap<String, Box<dyn ValueType>>, return_type: Box<dyn ValueType>, body_node: Box<dyn Node>, should_auto_return: bool, pos_start: Position) -> Self {
+    pub fn new(var_name: String, args: Vec<(String, Box<dyn ValueType>)>, return_type: Box<dyn ValueType>, body_node: Box<dyn Node>, should_auto_return: bool, pos_start: Position) -> Self {
         FunctionDefinitionNode {
             var_name,
             args,
@@ -30,7 +30,7 @@ impl FunctionDefinitionNode {
     pub fn var_name(&self) -> &str {
         &self.var_name
     }
-    pub fn args(&self) -> &HashMap<String, Box<dyn ValueType>> {
+    pub fn args(&self) -> &Vec<(String, Box<dyn ValueType>)> {
         &self.args
     }
     pub fn return_type(&self) -> &Box<dyn ValueType> { &self.return_type }
@@ -45,7 +45,7 @@ impl FunctionDefinitionNode {
 
 impl Display for FunctionDefinitionNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<FunctionDefinitionNode>[Name: {}, Args: <HashMap: {}>, Body: {}, AutoReturn?: {}]", self.var_name, self.args.len(), self.body_node, self.should_auto_return)
+        write!(f, "<FunctionDefinitionNode>[Name: {}, Args: {}, Body: {}, AutoReturn?: {}]", self.var_name, self.args.len(), self.body_node, self.should_auto_return)
     }
 }
 

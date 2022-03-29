@@ -300,7 +300,7 @@ impl Validator {
 
         let symbol_type = assign_type.unwrap();
 
-        if self.get_symbol(node.var_name()).unwrap().value_type().eq(&symbol_type) {
+        if !self.get_symbol(node.var_name()).unwrap().value_type().eq(&symbol_type) {
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable type {} does not match assign type {}!", self.get_symbol(node.var_name()).unwrap().value_type(), &symbol_type).as_str()));
             return res;
         }

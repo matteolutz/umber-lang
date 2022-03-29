@@ -41,7 +41,6 @@ pub fn is_alpha(c: &char) -> bool {
 
 // TODO: check how or if you need escaped characters
 pub fn should_escape_char(c: &char) -> Option<char> {
-    return None;
 
     match c {
         'n' => Some('\n'),

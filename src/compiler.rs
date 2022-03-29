@@ -257,7 +257,7 @@ impl Compiler {
                 }
             }
 
-            //writeln!(&mut function_body, "\tpush    {}", self.scratch_name(temp_rbp_reg));
+            // writeln!(&mut function_body, "\tpush    {}", self.scratch_name(temp_rbp_reg));
             // self.free_scratch(temp_rbp_reg);
 
             self.current_function_epilogue = Some(func_epilogue_label);
@@ -358,8 +358,8 @@ impl Compiler {
 
         writeln!(code, "main:");
         writeln!(code, "\tcall    {}", self.function_label_name("main"));
+        writeln!(code, "\tmov     rdi, rax");
         writeln!(code, "\tmov     rax, 60");
-        writeln!(code, "\tmov     rdi, 0");
         writeln!(code, "\tsyscall");
         writeln!(code, "\tret\n");
 
@@ -371,7 +371,6 @@ impl Compiler {
         if self.externs.len() > 0 {
             writeln!(res, "\textern {}", self.externs.join(","));
         }
-
 
         writeln!(res, "\tglobal  main\n");
 
