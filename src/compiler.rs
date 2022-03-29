@@ -19,6 +19,7 @@ use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
+use crate::nodes::while_node::WhileNode;
 use crate::token::TokenType;
 
 
@@ -226,17 +227,17 @@ impl Compiler {
                 let label_two = self.label_create();
                 let label_after = self.label_create();
 
-                writeln!(w, "\tje      {}", self.label_name(&label_one));
+                writeln!(w, "\tje      {}", self.label_name(&label_two));
 
-                writeln!(w, "{}", self.label_name(&label_one));
-                writeln!(w, "\tmov     {}, 1", self.scratch_name(res_reg));
-                writeln!(w, "\tjmp     {}", self.label_name(&label_after));
-
-                writeln!(w, "{}", self.label_name(&label_two));
+                writeln!(w, "{}:", self.label_name(&label_one));
                 writeln!(w, "\tmov     {}, 0", self.scratch_name(res_reg));
                 writeln!(w, "\tjmp     {}", self.label_name(&label_after));
 
-                writeln!(w, "{}", self.label_name(&label_after));
+                writeln!(w, "{}:", self.label_name(&label_two));
+                writeln!(w, "\tmov     {}, 1", self.scratch_name(res_reg));
+                writeln!(w, "\tjmp     {}", self.label_name(&label_after));
+
+                writeln!(w, "{}:", self.label_name(&label_after));
             }
             else {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
@@ -394,6 +395,29 @@ impl Compiler {
             return None;
         }
 
+        if node.node_type() == NodeType::While {
+            let while_node = node.as_any().downcast_ref::<WhileNode>().unwrap();
+
+            let label_start = self.label_create();
+            let label_end = self.label_create();
+
+            self.current_loop_start = Some(label_start);
+            self.current_loop_break = Some(label_end);
+
+            writeln!(w, "{}:", self.label_name(&label_start));
+
+            let condition_reg = self.code_gen(while_node.condition_node(), w).unwrap();
+            writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg));
+            writeln!(w, "\tje      {}", self.label_name(&label_end));
+
+            self.code_gen(while_node.body_node(), w);
+            writeln!(w, "\tjmp     {}", self.label_name(&label_start));
+
+            writeln!(w, "{}:", self.label_name(&label_end));
+
+            return None;
+        }
+
         if node.node_type() == NodeType::If {
             let if_node = node.as_any().downcast_ref::<IfNode>().unwrap();
 
@@ -402,18 +426,18 @@ impl Compiler {
             let label_end = self.label_create();
 
             let result_reg = self.code_gen(if_node.cases()[0].condition(), w).unwrap();
-            writeln!(w, "\tcmp     {}, 1", result_reg);
+            writeln!(w, "\tcmp     {}, 0", result_reg);
             self.free_scratch(result_reg);
 
-            writeln!(w, "\tje      {}", self.label_name(&label_one));
+            writeln!(w, "\tjne     {}", self.label_name(&label_one));
 
-            writeln!(w, "{}", self.label_name(&label_one));
+            writeln!(w, "{}:", self.label_name(&label_one));
             self.code_gen(if_node.cases()[0].statements(), w);
 
             writeln!(w, "\tjmp     {}", self.label_name(&label_end));
 
-            writeln!(w, "{}", self.label_name(&label_two));
-            writeln!(w, "{}", self.label_name(&label_end));
+            writeln!(w, "{}:", self.label_name(&label_two));
+            writeln!(w, "{}:", self.label_name(&label_end));
 
         }
 
@@ -448,7 +472,7 @@ impl Compiler {
         writeln!(res, "section .data");
 
         for (str, uuid) in &self.strings {
-            writeln!(res, "\t{}  db \"{}\"", uuid, str);
+            writeln!(res, "\t{}  db `{}`", uuid, str);
         }
 
         res

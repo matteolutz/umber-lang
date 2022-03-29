@@ -195,23 +195,13 @@ impl Lexer {
     fn make_string(&mut self) -> Token {
         let mut new_string = String::new();
         let pos_start = self.pos.clone();
-        let mut escape_character = false;
 
         self.advance();
 
-        while self.current_char.is_some() && (self.current_char.unwrap() != '\"' || escape_character) {
+        while self.current_char.is_some() && self.current_char.unwrap() != '\"' {
             let current = self.current_char.unwrap();
 
-            if escape_character {
-                new_string.push(utils::should_escape_char(&current).unwrap_or(current));
-                escape_character = false;
-            } else {
-                if current == '\\' {
-                    escape_character = true;
-                } else {
-                    new_string.push(current);
-                }
-            }
+            new_string.push(current);
 
             self.advance();
         }

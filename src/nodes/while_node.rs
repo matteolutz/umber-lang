@@ -7,24 +7,30 @@ use crate::position::Position;
 pub struct WhileNode {
     condition_node: Box<dyn Node>,
     body_node: Box<dyn Node>,
-    should_return_null: bool
 }
 
 impl WhileNode {
 
-    pub fn new(condition_node: Box<dyn Node>, body_node: Box<dyn Node>, should_return_null: bool) -> Self {
+    pub fn new(condition_node: Box<dyn Node>, body_node: Box<dyn Node>) -> Self {
         WhileNode {
             condition_node,
-            body_node,
-            should_return_null,
+            body_node
         }
+    }
+
+    pub fn condition_node(&self) -> &Box<dyn Node> {
+        &self.condition_node
+    }
+
+    pub fn body_node(&self) -> &Box<dyn Node> {
+        &self.body_node
     }
 
 }
 
 impl Display for WhileNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<WhileNode>[Cond.: {}, Body: {}, ReturnNull?: {}]", self.condition_node, self.body_node, self.should_return_null)
+        write!(f, "<WhileNode>[Cond.: {}, Body: {}]", self.condition_node, self.body_node)
     }
 }
 

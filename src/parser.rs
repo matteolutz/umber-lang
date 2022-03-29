@@ -21,6 +21,7 @@ use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
+use crate::nodes::while_node::WhileNode;
 use crate::results::parse::ParseResult;
 use crate::token::{Token, TokenType};
 use crate::values::value_type::array_type::ArrayType;
@@ -153,8 +154,43 @@ impl Parser {
     }
 
     fn while_expr(&mut self) -> ParseResult {
-        let res = ParseResult::new();
+        let mut res = ParseResult::new();
 
+        if !self.current_token().matches_keyword("while") {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected 'while'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        let condition = res.register_res(self.expression());
+        if res.has_error() {
+            return res;
+        }
+
+        if self.current_token().token_type() != TokenType::Lcurly {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '{'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        let stmts = res.register_res(self.statements(false));
+        if res.has_error() {
+            return res;
+        }
+
+        if self.current_token().token_type() != TokenType::Rcurly {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '}'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        res.success(Box::new(WhileNode::new(condition.unwrap(), stmts.unwrap())));
         res
     }
 
@@ -1016,7 +1052,15 @@ impl Parser {
             return res;
         }
 
-        // TODO: if, for, while
+        if token.matches_keyword("while") {
+            let while_expr = res.register_res(self.while_expr());
+            if res.has_error() {
+                return res;
+            }
+
+            res.success(while_expr.unwrap());
+            return res;
+        }
 
         res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
         res

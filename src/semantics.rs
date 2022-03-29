@@ -16,6 +16,7 @@ use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
+use crate::nodes::while_node::WhileNode;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
 use crate::values::value_type::{ValueType, ValueTypes};
@@ -137,6 +138,7 @@ impl Validator {
             NodeType::Continue => self.validate_continue_node(node.as_any().downcast_ref::<ContinueNode>().unwrap()),
             NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
             NodeType::Syscall => self.validate_syscall_node(),
+            NodeType::While => self.validate_while_node(node.as_any().downcast_ref::<WhileNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -451,6 +453,22 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         res.success(Box::new(NumberType::new()));
+        res
+    }
+
+    fn validate_while_node(&mut self, node: &WhileNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let condition_type = res.register_res(self.validate(node.condition_node()));
+        if res.has_error() {
+            return res;
+        }
+
+        if condition_type.as_ref().unwrap().value_type() != ValueTypes::Bool {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Condition must be of type bool!"));
+            return res;
+        }
+
         res
     }
 }
