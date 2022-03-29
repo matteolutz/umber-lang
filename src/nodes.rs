@@ -18,6 +18,8 @@ pub mod unaryop_node;
 pub mod while_node;
 pub mod statements_node;
 pub mod asm_node;
+pub mod syscall_node;
+pub mod extern_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -37,7 +39,9 @@ pub enum NodeType {
     VarAssign,
     VarDeclaration,
     Statements,
-    Assembly
+    Assembly,
+    Syscall,
+    Extern
 }
 
 pub trait NodeToAny: 'static {

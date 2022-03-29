@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use crate::error;
 use crate::error::Error;
@@ -8,11 +9,13 @@ use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::continue_node::ContinueNode;
+use crate::nodes::extern_node::ExternNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::string_node::StringNode;
+use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
@@ -66,7 +69,7 @@ impl Parser {
         let mut res = ParseResult::new();
 
         if self.current_token().token_type() == TokenType::Bof {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected BOF!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected BOF!"));
             return res;
         }
 
@@ -79,7 +82,7 @@ impl Parser {
         }
 
         if !res.has_error() && self.current_token().token_type() != TokenType::Eof {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected statements!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected statements!"));
             return res;
         }
 
@@ -101,7 +104,7 @@ impl Parser {
             "string" => Box::new(StringType::new()),
             "bool" => Box::new(BoolType::new()),
             "void" => Box::new(VoidType::new()),
-            _ => return (None, Some(Error::new(*self.current_token().pos_start(), *self.current_token().pos_end(), "NotAnIntrinsicType".to_string(), format!("'{}' is not an intrinsic type!", self.current_token().token_value().as_ref().unwrap()))))
+            _ => return (None, Some(Error::new(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "NotAnIntrinsicType".to_string(), format!("'{}' is not an intrinsic type!", self.current_token().token_value().as_ref().unwrap()))))
         };
 
         self.advance();
@@ -111,7 +114,7 @@ impl Parser {
 
             if self.current_token().token_type() != TokenType::Int {
                 self.reverse(2);
-                return (None, Some(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected integer after '[' on an array type!")));
+                return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected integer after '[' on an array type!")));
             }
 
             // TODO: error handling
@@ -121,7 +124,7 @@ impl Parser {
 
             if self.current_token().token_type() != TokenType::Rsquare {
                 self.reverse(3);
-                return (None, Some(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ']' after integer on an array type!")));
+                return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after integer on an array type!")));
             }
 
             return (Some(Box::new(ArrayType::new(size, base_type))), None)
@@ -179,10 +182,10 @@ impl Parser {
 
     fn function_def(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
-        let pos_start = *self.current_token().pos_start();
+        let pos_start = self.current_token().pos_start().clone();
 
         if !self.current_token().matches_keyword("fun") {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected 'fun'!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(),  self.current_token().pos_end().clone(), "Expected 'fun'!"));
             return res;
         }
 
@@ -190,7 +193,7 @@ impl Parser {
         self.advance();
 
         if self.current_token().token_type() != TokenType::Identifier {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected identifier!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
             return res;
         }
 
@@ -200,7 +203,7 @@ impl Parser {
         self.advance();
 
         if self.current_token().token_type() != TokenType::Lparen {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '('!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '('!"));
             return res;
         }
 
@@ -211,14 +214,14 @@ impl Parser {
 
         if self.current_token().token_type() == TokenType::Identifier {
             if self.current_token().token_value().is_none() {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Identifier malformed!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Identifier malformed!"));
                 return res;
             }
 
             let arg_name = self.current_token().token_value().as_ref().unwrap().clone();
 
             if args.contains_key(&arg_name) {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
                 return res;
             }
 
@@ -226,7 +229,7 @@ impl Parser {
             self.advance();
 
             if self.current_token().token_type() != TokenType::Colon {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ':'!"));
                 return res;
             }
 
@@ -234,7 +237,7 @@ impl Parser {
             self.advance();
 
             if self.current_token().token_type() != TokenType::Keyword {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type keyword!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected type keyword!"));
                 return res;
             }
 
@@ -254,14 +257,14 @@ impl Parser {
                 self.advance();
 
                 if self.current_token().token_value().is_none() {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Identifier malformed!"));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Identifier malformed!"));
                     return res;
                 }
 
                 let arg_name = self.current_token().token_value().as_ref().unwrap().clone();
 
                 if args.contains_key(&arg_name) {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
                     return res;
                 }
 
@@ -269,7 +272,7 @@ impl Parser {
                 self.advance();
 
                 if self.current_token().token_type() != TokenType::Colon {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ':'!"));
                     return res;
                 }
 
@@ -277,7 +280,7 @@ impl Parser {
                 self.advance();
 
                 if self.current_token().token_type() != TokenType::Keyword {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type keyword!"));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected type keyword!"));
                     return res;
                 }
 
@@ -295,7 +298,7 @@ impl Parser {
         }
 
         if self.current_token().token_type() != TokenType::Rparen {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ')'!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ')'!"));
             return res;
         }
 
@@ -303,7 +306,7 @@ impl Parser {
         self.advance();
 
         if self.current_token().token_type() != TokenType::Colon {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ':'!"));
             return res;
         }
 
@@ -311,7 +314,7 @@ impl Parser {
         self.advance();
 
         if self.current_token().token_type() != TokenType::Keyword {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type keyword!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected type keyword!"));
             return res;
         }
 
@@ -340,7 +343,7 @@ impl Parser {
         }
 
         if self.current_token().token_type() != TokenType::Lcurly {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '{'!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '{'!"));
             return res;
         }
 
@@ -353,7 +356,7 @@ impl Parser {
         }
 
         if self.current_token().token_type() != TokenType::Rcurly {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '}'!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '}'!"));
             return res;
         }
 
@@ -403,7 +406,7 @@ impl Parser {
         let mut res = ParseResult::new();
 
         let mut statements: Vec<Box<dyn Node>> = vec![];
-        let pos_start = *self.current_token().pos_start();
+        let pos_start = self.current_token().pos_start().clone();
 
         while self.current_token().token_type() == TokenType::Newline {
             res.register_advancement();
@@ -445,17 +448,35 @@ impl Parser {
             statements.push(statement.unwrap());
         }
 
-        res.success(Box::new(StatementsNode::new(statements, pos_start, *self.current_token().pos_start())));
+        res.success(Box::new(StatementsNode::new(statements, pos_start, self.current_token().pos_end().clone())));
         res
     }
 
     fn statement(&mut self, is_top_level: bool) -> ParseResult {
         let mut res = ParseResult::new();
-        let pos_start = *self.current_token().pos_start();
+        let pos_start = self.current_token().pos_start().clone();
 
         if is_top_level {
             if self.current_token().matches_keyword("import") {
                 todo!("import");
+            }
+
+            if self.current_token().matches_keyword("extern") {
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Identifier {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
+                    return res;
+                }
+
+                let name = self.current_token().token_value().as_ref().unwrap().clone();
+
+                res.register_advancement();
+                self.advance();
+
+                res.success(Box::new(ExternNode::new(name, pos_start, self.current_token().pos_start().clone())));
+                return res;
             }
 
             if self.current_token().matches_keyword("fun") {
@@ -469,7 +490,7 @@ impl Parser {
                 return res;
             }
 
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected top level statement!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected top level statement!"));
         } else {
             if self.current_token().matches_keyword("return") {
                 res.register_advancement();
@@ -480,7 +501,7 @@ impl Parser {
                     self.reverse(res.to_reverse_count());
                 }
 
-                res.success(Box::new(ReturnNode::new(expr, pos_start, *self.current_token().pos_end())));
+                res.success(Box::new(ReturnNode::new(expr, pos_start, self.current_token().pos_end().clone())));
                 return res;
             }
 
@@ -488,7 +509,7 @@ impl Parser {
                 res.register_advancement();
                 self.advance();
 
-                res.success(Box::new(ContinueNode::new(pos_start, *self.current_token().pos_end())));
+                res.success(Box::new(ContinueNode::new(pos_start, self.current_token().pos_end().clone())));
                 return res;
             }
 
@@ -496,18 +517,51 @@ impl Parser {
                 res.register_advancement();
                 self.advance();
 
-                res.success(Box::new(BreakNode::new(pos_start, *self.current_token().pos_end())));
+                res.success(Box::new(BreakNode::new(pos_start, self.current_token().pos_end().clone())));
+                return res;
+            }
+
+            if self.current_token().matches_keyword("syscall") {
+                res.register_advancement();
+                self.advance();
+
+                let mut exprs: Vec<Box<dyn Node>> = vec![];
+                exprs.reserve(4);
+
+                let new_expr = res.register_res(self.expression());
+                if res.has_error() {
+                    return res;
+                }
+
+                exprs.push(new_expr.unwrap());
+
+                for _ in 0..3 {
+                    if self.current_token().token_type() != TokenType::Comma {
+                        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ','!"));
+                        return res;
+                    }
+
+                    res.register_advancement();
+                    self.advance();
+
+                    let new_expr = res.register_res(self.expression());
+                    if res.has_error() {
+                        return res;
+                    }
+
+                    exprs.push(new_expr.unwrap());
+                }
+
+                res.success(Box::new(SyscallNode::new(exprs, pos_start, self.current_token().pos_end().clone())));
                 return res;
             }
 
             if self.current_token().matches_keyword("asm__") {
-                let pos_start = *self.current_token().pos_start();
-
                 res.register_advancement();
                 self.advance();
 
                 if self.current_token().token_type() != TokenType::Lparen {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '('!"));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '('!"));
                     return res;
                 }
 
@@ -515,7 +569,7 @@ impl Parser {
                 self.advance();
 
                 if self.current_token().token_type() != TokenType::String {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected string!"));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected string!"));
                     return res;
                 }
 
@@ -525,20 +579,20 @@ impl Parser {
                 self.advance();
 
                 if self.current_token().token_type() != TokenType::Rparen {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ')'!"));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ')'!"));
                     return res;
                 }
 
                 res.register_advancement();
                 self.advance();
 
-                res.success(Box::new(AssemblyNode::new(asm_str, pos_start, *self.current_token().pos_end())));
+                res.success(Box::new(AssemblyNode::new(asm_str, pos_start, self.current_token().pos_end().clone())));
                 return res;
             }
 
             let expr = res.register_res(self.expression());
             if res.has_error() {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected non top level statement or expression!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected non top level statement or expression!"));
                 return res;
             }
 
@@ -550,7 +604,7 @@ impl Parser {
 
     fn expression(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
-        let pos_start = *self.current_token().pos_start();
+        let pos_start = self.current_token().pos_start().clone();
 
         if self.current_token().matches_keyword("let") {
             res.register_advancement();
@@ -564,12 +618,12 @@ impl Parser {
             }
 
             if self.current_token().token_type() != TokenType::Identifier {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), if is_mutable { "Expected identifier!" } else { "Expected 'mut' or identifier!" }));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), if is_mutable { "Expected identifier!" } else { "Expected 'mut' or identifier!" }));
                 return res;
             }
 
             if self.current_token().token_value().is_none() {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Identifier malformed!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Identifier malformed!"));
                 return res;
             }
 
@@ -579,7 +633,7 @@ impl Parser {
             self.advance();
 
             if self.current_token().token_type() != TokenType::Colon {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ':'!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ':'!"));
                 return res;
             }
 
@@ -587,7 +641,7 @@ impl Parser {
             self.advance();
 
             if self.current_token().token_type() != TokenType::Keyword {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected type keyword!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected type keyword!"));
                 return res;
             }
 
@@ -603,7 +657,7 @@ impl Parser {
             self.advance();
 
             if self.current_token().token_type() != TokenType::Eq {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected '='!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '='!"));
                 return res;
             }
 
@@ -621,7 +675,7 @@ impl Parser {
 
         let node = res.register_res(self.bin_operation(BinOpFunction::Comp, vec![TokenType::And, TokenType::Or], BinOpFunction::Comp));
         if res.has_error() {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected comparison expression!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected comparison expression!"));
             return res;
         }
 
@@ -660,7 +714,7 @@ impl Parser {
             BinOpFunction::Arith,
         ));
         if res.has_error() {
-            res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected arithmetic expression!"));
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected arithmetic expression!"));
             return res;
         }
 
@@ -741,7 +795,7 @@ impl Parser {
             } else {
                 let new_arg = res.register_res(self.expression());
                 if res.has_error() {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected expression!"));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected expression!"));
                     return res;
                 }
 
@@ -754,7 +808,7 @@ impl Parser {
 
                     let new_arg = res.register_res(self.expression());
                     if res.has_error() {
-                        res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected expression!"));
+                        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected expression!"));
                         return res;
                     }
 
@@ -762,7 +816,7 @@ impl Parser {
                 }
 
                 if self.current_token().token_type() != TokenType::Rparen {
-                    res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Expected ')'!"));
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ')'!"));
                     return res;
                 }
 
@@ -772,10 +826,10 @@ impl Parser {
 
             //res.success(Box::new(CallNode::new(atom.unwrap(), arg_nodes)));
             if atom.as_ref().unwrap().node_type() != NodeType::VarAccess {
-                res.failure(error::invalid_syntax_error(*self.current_token().pos_start(), *self.current_token().pos_end(), "Dynamic calls aren't implemented yet!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Dynamic calls aren't implemented yet!"));
             }
 
-            res.success(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().to_string(), arg_nodes, *atom.as_ref().unwrap().pos_start())));
+            res.success(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().to_string(), arg_nodes, atom.as_ref().unwrap().pos_start().clone())));
             return res;
         }
 
@@ -818,11 +872,11 @@ impl Parser {
                     return res;
                 }
 
-                res.success(Box::new(VarAssignNode::new(var_name, expr.unwrap(), *token.pos_start())));
+                res.success(Box::new(VarAssignNode::new(var_name, expr.unwrap(), token.pos_start().clone())));
                 return res;
             }
 
-            res.success(Box::new(VarAccessNode::new(var_name, *token.pos_start(), *token.pos_end())));
+            res.success(Box::new(VarAccessNode::new(var_name, token.pos_start().clone(), token.pos_end().clone())));
             return res;
         }
 
@@ -836,7 +890,7 @@ impl Parser {
             }
 
             if self.current_token().token_type() != TokenType::Rparen {
-                res.failure(error::invalid_syntax_error(*token.pos_start(), *self.current_token().pos_end(), "Expected ')'!"));
+                res.failure(error::invalid_syntax_error(token.pos_start().clone(), self.current_token().pos_end().clone(), "Expected ')'!"));
                 return res;
             }
 
@@ -851,7 +905,7 @@ impl Parser {
 
         // TODO: if, for, while
 
-        res.failure(error::invalid_syntax_error(*token.pos_start(), *token.pos_end(), "Expected atom!"));
+        res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
         res
     }
 

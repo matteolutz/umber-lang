@@ -4,19 +4,19 @@ use crate::position::Position;
 use crate::token::{KEYWORDS, Token, TokenType};
 
 pub struct Lexer {
-    file_name: &'static str,
-    file_text: &'static str,
+    file_name: Box<String>,
+    file_text: Box<String>,
     pos: Position,
     current_char: Option<char>,
 }
 
 impl Lexer {
 
-    pub fn new(file_name: &'static str, file_text: &'static str) -> Lexer {
+    pub fn new(file_name: Box<String>, file_text: Box<String>) -> Lexer {
         return Lexer {
-            file_name,
-            file_text,
-            pos: Position::new(file_name, file_text),
+            file_name: file_name.clone(),
+            file_text: file_text.clone(),
+            pos: Position::new(file_name.clone(), file_text.clone()),
             current_char: if file_text.len() > 0 { file_text.chars().nth(0) } else { None },
         };
     }
@@ -34,7 +34,7 @@ impl Lexer {
     }
 
     pub fn make_tokens(&mut self) -> (Vec<Token>, Option<Error>) {
-        let mut tokens: Vec<Token> = vec![Token::new_without_value(TokenType::Eof, self.pos, self.pos)];
+        let mut tokens: Vec<Token> = vec![Token::new_without_value(TokenType::Eof, self.pos.clone(), self.pos.clone())];
 
         while self.current_char.is_some() {
             let current = self.current_char.unwrap();
@@ -44,7 +44,7 @@ impl Lexer {
             } else if current == '#' {
                 self.skip_comment();
             } else if current == ';' {
-                tokens.push(Token::new_without_value(TokenType::Newline, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Newline, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if utils::is_digit(&current) {
                 tokens.push(self.make_number());
@@ -53,42 +53,42 @@ impl Lexer {
             } else if current == '\"' {
                 tokens.push(self.make_string());
             } else if current == '+' {
-                tokens.push(Token::new_without_value(TokenType::Plus, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Plus, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '-' {
                 tokens.push(self.make_minus_or_arrow());
             } else if current == '*' {
-                tokens.push(Token::new_without_value(TokenType::Mul, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Mul, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '/' {
-                tokens.push(Token::new_without_value(TokenType::Div, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Div, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '%' {
-                tokens.push(Token::new_without_value(TokenType::Modulo, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Modulo, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '^' {
-                tokens.push(Token::new_without_value(TokenType::Pow, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Pow, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == ':' {
-                tokens.push(Token::new_without_value(TokenType::Colon, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Colon, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '(' {
-                tokens.push(Token::new_without_value(TokenType::Lparen, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Lparen, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == ')' {
-                tokens.push(Token::new_without_value(TokenType::Rparen, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Rparen, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '[' {
-                tokens.push(Token::new_without_value(TokenType::Lsquare, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Lsquare, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == ']' {
-                tokens.push(Token::new_without_value(TokenType::Rsquare, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Rsquare, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '{' {
-                tokens.push(Token::new_without_value(TokenType::Lcurly, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Lcurly, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '}' {
-                tokens.push(Token::new_without_value(TokenType::Rcurly, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Rcurly, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '!' {
                 tokens.push(self.make_not_equals());
@@ -103,17 +103,17 @@ impl Lexer {
             } else if current == '|' {
                 tokens.push(self.make_or());
             } else if current == ',' {
-                tokens.push(Token::new_without_value(TokenType::Comma, self.pos, self.pos));
+                tokens.push(Token::new_without_value(TokenType::Comma, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else {
-                let pos_start = self.pos;
+                let pos_start = self.pos.clone();
                 self.advance();
 
-                return (vec![], Some(error::illegal_character_error(pos_start, self.pos, format!("'{}'", current).as_str())));
+                return (vec![], Some(error::illegal_character_error(pos_start, self.pos.clone(), format!("'{}'", current).as_str())));
             }
         }
 
-        tokens.push(Token::new_without_value(TokenType::Eof, self.pos, self.pos));
+        tokens.push(Token::new_without_value(TokenType::Eof, self.pos.clone(), self.pos.clone()));
         (tokens, None)
     }
 
@@ -150,7 +150,7 @@ impl Lexer {
     fn make_number(&mut self) -> Token {
         let mut num_str = String::new();
         let mut dot_count: u8 = 0;
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         while self.current_char.is_some() && (utils::is_digit(self.current_char.as_ref().unwrap()) || self.current_char.unwrap() == '.') {
             let current = self.current_char.unwrap();
@@ -169,7 +169,7 @@ impl Lexer {
         }
 
         if dot_count == 0 {
-            Token::new_with_value(TokenType::Int, num_str, pos_start, self.pos)
+            Token::new_with_value(TokenType::Int, num_str, pos_start, self.pos.clone())
         } else {
             panic!("Floats are not supported for now!");
         }
@@ -177,7 +177,7 @@ impl Lexer {
 
     fn make_identifier(&mut self) -> Token {
         let mut id_str = String::new();
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         while self.current_char.is_some() && (utils::is_digit(self.current_char.as_ref().unwrap()) || utils::is_alpha(self.current_char.as_ref().unwrap()) || self.current_char.unwrap() == '_') {
             id_str.push(self.current_char.unwrap());
@@ -189,12 +189,12 @@ impl Lexer {
         } else {
             TokenType::Identifier
         };
-        Token::new_with_value(token_type, id_str, pos_start, self.pos)
+        Token::new_with_value(token_type, id_str, pos_start, self.pos.clone())
     }
 
     fn make_string(&mut self) -> Token {
         let mut new_string = String::new();
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
         let mut escape_character = false;
 
         self.advance();
@@ -218,12 +218,12 @@ impl Lexer {
 
         self.advance();
 
-        Token::new_with_value(TokenType::String, new_string, pos_start, self.pos)
+        Token::new_with_value(TokenType::String, new_string, pos_start, self.pos.clone())
     }
 
     fn make_minus_or_arrow(&mut self) -> Token {
         let mut token_type = TokenType::Minus;
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         self.advance();
 
@@ -232,12 +232,12 @@ impl Lexer {
             token_type = TokenType::Arrow;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos)
+        Token::new_without_value(token_type, pos_start, self.pos.clone())
     }
 
     fn make_not_equals(&mut self) -> Token {
         let mut token_type = TokenType::Not;
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         self.advance();
 
@@ -246,12 +246,12 @@ impl Lexer {
             token_type = TokenType::Ne;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos)
+        Token::new_without_value(token_type, pos_start, self.pos.clone())
     }
 
     fn make_equals(&mut self) -> Token {
         let mut token_type = TokenType::Eq;
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         self.advance();
 
@@ -260,12 +260,12 @@ impl Lexer {
             token_type = TokenType::Ee;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos)
+        Token::new_without_value(token_type, pos_start, self.pos.clone())
     }
 
     fn make_less_than(&mut self) -> Token {
         let mut token_type = TokenType::Lt;
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         self.advance();
 
@@ -274,12 +274,12 @@ impl Lexer {
             token_type = TokenType::Lte;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos)
+        Token::new_without_value(token_type, pos_start, self.pos.clone())
     }
 
     fn make_greater_than(&mut self) -> Token {
         let mut token_type = TokenType::Gt;
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         self.advance();
 
@@ -288,12 +288,12 @@ impl Lexer {
             token_type = TokenType::Gte;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos)
+        Token::new_without_value(token_type, pos_start, self.pos.clone())
     }
 
     fn make_and(&mut self) -> Token {
         let mut token_type = TokenType::BitAnd;
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         self.advance();
 
@@ -302,12 +302,12 @@ impl Lexer {
             token_type = TokenType::And;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos)
+        Token::new_without_value(token_type, pos_start, self.pos.clone())
     }
 
     fn make_or(&mut self) -> Token {
         let mut token_type = TokenType::BitOr;
-        let pos_start = self.pos;
+        let pos_start = self.pos.clone();
 
         self.advance();
 
@@ -316,7 +316,7 @@ impl Lexer {
             token_type = TokenType::Or;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos)
+        Token::new_without_value(token_type, pos_start, self.pos.clone())
     }
 
 }

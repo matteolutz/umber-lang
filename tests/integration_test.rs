@@ -8,20 +8,17 @@ use umber_lang::semantics::Validator;
 
 static TEXT_TO_LEX: &'static str = "\
 
-fun add(a: number, b: number): number {
-    return a + b;
+fun print_str(str: string, len: number): void {
+    syscall 1, 0, str, len;
+    return;
 };
 
 fun main(): number {
-    let some_var: string = \"Hello, World!\";
 
-    asm__(\"\
-    mov rax, 1
-    mov rdi, 0
-    mov rsi, S0
-    mov rdx, 13
-    syscall
-    \");
+    let hello: string = \"Hello, World!\";
+    let hello_len: number = 13;
+
+    print_str(hello, hello_len);
 
     return 0;
 };
@@ -32,7 +29,7 @@ fun main(): number {
 pub fn test_complete() {
     println!("starting!");
 
-    let mut l = Lexer::new("Test", TEXT_TO_LEX);
+    let mut l = Lexer::new(Box::new("Test".to_string()), Box::new(TEXT_TO_LEX.to_string()));
 
     let start_time = Instant::now();
 
@@ -52,6 +49,7 @@ pub fn test_complete() {
 
     let validation_res = validator.validate(parse_res.node().as_ref().unwrap());
 
+    // println!("{}", validation_res.error().as_ref().unwrap());
     assert!(!validation_res.has_error());
 
     println!("semantics ok!");

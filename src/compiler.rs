@@ -7,11 +7,13 @@ use crate::nodes::{Node, NodeType};
 use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::call_node::CallNode;
+use crate::nodes::extern_node::ExternNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::string_node::StringNode;
+use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
@@ -23,6 +25,8 @@ const SCRATCH_REGS: [&str; 7] = [
 ];
 
 const NUMBER_ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+
+const SYSCALL_REGS: [&str; 4] = ["rax", "rdi", "rsi", "rdx"];
 
 pub struct Compiler {
     scratch_regs: u8,
@@ -36,6 +40,8 @@ pub struct Compiler {
 
     base_offset: u64,
     offset_table: HashMap<String, i64>,
+
+    externs: Vec<String>,
 }
 
 impl Compiler {
@@ -49,6 +55,7 @@ impl Compiler {
             strings: HashMap::new(),
             base_offset: 0,
             offset_table: HashMap::new(),
+            externs: vec![]
         }
     }
 
@@ -117,6 +124,10 @@ impl Compiler {
         self.offset_table.clear();
     }
 
+    fn add_extern(&mut self, s: String) {
+        self.externs.push(s);
+    }
+
     pub fn scratch_regs(&self) -> &u8 { &self.scratch_regs }
     pub fn label_count(&self) -> &u128 { &self.label_count }
     pub fn current_function_epilogue(&self) -> &Option<u128> { &self.current_function_epilogue }
@@ -137,6 +148,17 @@ impl Compiler {
         if node.node_type() == NodeType::Assembly {
             let assembly_node = node.as_any().downcast_ref::<AssemblyNode>().unwrap();
             writeln!(w, "\n;; Assembly injected im asm__(...)\n\t{}\n;; End\n", assembly_node.content());
+        }
+
+        if node.node_type() == NodeType::Syscall {
+            let syscall_node = node.as_any().downcast_ref::<SyscallNode>().unwrap();
+            writeln!(w, "\n;; Syscall injected");
+            for i in 0..4 {
+                let reg = self.code_gen(&syscall_node.args()[i], w).unwrap();
+                writeln!(w, "\tmov     {}, {}", SYSCALL_REGS[i], self.scratch_name(reg));
+                self.free_scratch(reg);
+            }
+            writeln!(w, "\tsyscall\n;; End injected syscall\n");
         }
 
         if node.node_type() == NodeType::Number {
@@ -190,7 +212,7 @@ impl Compiler {
                 if number_reg_index >= NUMBER_ARG_REGS.len() {
                     writeln!(w, "\tpush    {}", self.scratch_name(reg));
                 } else {
-                    writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), NUMBER_ARG_REGS[number_reg_index]);
+                    writeln!(w, "\tmov     {}, {}", NUMBER_ARG_REGS[number_reg_index], self.scratch_name(reg));
                     number_reg_index += 1;
                 }
 
@@ -211,9 +233,14 @@ impl Compiler {
 
             self.clear_vars();
 
+            // let temp_rbp_reg = self.res_scratch();
+
             writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()));
+            // writeln!(w, "\tmov     {}, rbp", self.scratch_name(temp_rbp_reg));
             writeln!(w, "\tpush    rbp");
             writeln!(w, "\tmov     rbp, rsp");
+
+            let mut function_body = String::new();
 
             let mut number_reg_index: usize = 0;
             for (key, arg_type) in func_def_node.args() {
@@ -221,18 +248,27 @@ impl Compiler {
 
                 if number_reg_index >= NUMBER_ARG_REGS.len() {
                     let reg = self.res_scratch();
-                    writeln!(w, "\tpop     {}", self.scratch_name(reg));
-                    writeln!(w, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
+                    writeln!(&mut function_body, "\tpop     {}", self.scratch_name(reg));
+                    writeln!(&mut function_body, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
                     self.free_scratch(reg);
                 } else {
-                    writeln!(w, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, NUMBER_ARG_REGS[number_reg_index]);
+                    writeln!(&mut function_body, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, NUMBER_ARG_REGS[number_reg_index]);
                     number_reg_index += 1;
                 }
             }
 
+            //writeln!(&mut function_body, "\tpush    {}", self.scratch_name(temp_rbp_reg));
+            // self.free_scratch(temp_rbp_reg);
+
             self.current_function_epilogue = Some(func_epilogue_label);
 
-            self.code_gen(func_def_node.body_node(), w);
+            self.code_gen(func_def_node.body_node(), &mut function_body);
+
+            if self.base_offset > 0 {
+                writeln!(w, "\tsub     rsp, {}", self.base_offset);
+            }
+
+            writeln!(w, "{}", function_body);
 
             writeln!(w, "{}:", self.label_name(&func_epilogue_label));
             writeln!(w, "\tmov     rsp, rbp");
@@ -304,6 +340,14 @@ impl Compiler {
             return Some(reg);
         }
 
+        if node.node_type() == NodeType::Extern {
+            let extern_node = node.as_any().downcast_ref::<ExternNode>().unwrap();
+
+            self.add_extern(extern_node.name().clone());
+
+            return None;
+        }
+
         None
     }
 
@@ -312,10 +356,7 @@ impl Compiler {
 
         let mut code = String::new();
 
-        writeln!(code, "section .text\n");
-        writeln!(code, "global  _start\n");
-
-        writeln!(code, "_start:");
+        writeln!(code, "main:");
         writeln!(code, "\tcall    {}", self.function_label_name("main"));
         writeln!(code, "\tmov     rax, 60");
         writeln!(code, "\tmov     rdi, 0");
@@ -324,13 +365,23 @@ impl Compiler {
 
         self.code_gen(node, &mut code);
 
+        writeln!(res, "section .text");
+        writeln!(res, "\tdefault rel");
+
+        if self.externs.len() > 0 {
+            writeln!(res, "\textern {}", self.externs.join(","));
+        }
+
+
+        writeln!(res, "\tglobal  main\n");
+
+        writeln!(res, "\n{}\n", code);
+
         writeln!(res, "section .data");
 
         for (str, uuid) in &self.strings {
             writeln!(res, "\t{}  db \"{}\"", uuid, str);
         }
-
-        writeln!(res, "\n{}", code);
 
         res
     }

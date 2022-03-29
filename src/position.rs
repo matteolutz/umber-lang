@@ -1,15 +1,15 @@
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Position {
     index: usize,
     line: usize,
     col: usize,
-    file_name: &'static str,
-    file_text: &'static str,
+    file_name: Box<String>,
+    file_text: Box<String>,
 }
 
 impl Position {
 
-    pub fn new(file_name: &'static str, file_text: &'static str) -> Self {
+    pub fn new(file_name: Box<String>, file_text: Box<String>) -> Self {
         Position {
             line: 0,
             col: 0,
@@ -41,11 +41,11 @@ impl Position {
         &self.col
     }
 
-    pub fn file_name(&self) -> &&'static str {
+    pub fn file_name(&self) -> &Box<String> {
         &self.file_name
     }
 
-    pub fn file_text(&self) -> &&'static str {
+    pub fn file_text(&self) -> &Box<String> {
         &self.file_text
     }
 
