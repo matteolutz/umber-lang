@@ -309,17 +309,19 @@ impl Compiler {
             return Some(reg);
         }
 
+        // TODO: handle ignorance of 7th+ parameters! (push of rbp and then pop it right after -> should pop actual parameters before pushing rbp)
         if node.node_type() == NodeType::FunctionDef {
             let func_def_node = node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap();
             let func_epilogue_label = self.label_create();
 
             self.clear_vars();
 
-            // let temp_rbp_reg = self.res_scratch();
-
             writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()));
+
+            // let temp_rbp_reg = self.res_scratch();
             // writeln!(w, "\tmov     {}, rbp", self.scratch_name(temp_rbp_reg));
             writeln!(w, "\tpush    rbp");
+
             writeln!(w, "\tmov     rbp, rsp");
 
             let mut function_body = String::new();
@@ -393,7 +395,6 @@ impl Compiler {
             let var_declaration_node = node.as_any().downcast_ref::<VarDeclarationNode>().unwrap();
 
             let result_reg = self.code_gen(var_declaration_node.value_node(), w).unwrap();
-            println!("base offset after var declaration: {}", self.base_offset);
 
             self.register_var(var_declaration_node.var_name().to_string(), var_declaration_node.var_type().get_size());
 

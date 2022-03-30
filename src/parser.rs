@@ -821,8 +821,6 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            println!("var declaration, current token: {}", self.current_token());
-
             let expr = res.register_res(self.expression());
             if res.has_error() {
                 return res;
