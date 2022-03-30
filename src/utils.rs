@@ -17,9 +17,12 @@ pub fn string_with_arrows(text: &str, pos_start: &Position, pos_end: &Position) 
         result.push_str(line.trim());
         result.push('\n');
 
-        for _s in 0..col_start {
-            result.push(' ');
+        if col_start > 1 {
+            for _s in 0..col_start-1 {
+                result.push(' ');
+            }
         }
+
         for _s in col_start..col_end {
             result.push('^');
         }

@@ -137,7 +137,14 @@ impl Parser {
         }
 
         if self.current_token().token_type() == TokenType::Mul {
-            return (Some(Box::new(PointerType::new(base_type))), None);
+            self.advance();
+
+            if self.current_token().matches_keyword("mut") {
+                return (Some(Box::new(PointerType::new(base_type, true))), None);
+            }
+
+            self.reverse(1);
+            return (Some(Box::new(PointerType::new(base_type, false))), None);
         }
 
         self.reverse(1);
@@ -1123,11 +1130,19 @@ impl Parser {
                 res.register_advancement();
                 self.advance();
 
-                res.success(Box::new(VarAccessNode::new(var_name, true,token.pos_start().clone(), token.pos_end().clone())));
+                if self.current_token().matches_keyword("mut") {
+                    res.register_advancement();
+                    self.advance();
+
+                    res.success(Box::new(VarAccessNode::new(var_name, true, true,token.pos_start().clone(), token.pos_end().clone())));
+                    return res;
+                }
+
+                res.success(Box::new(VarAccessNode::new(var_name, true, false,token.pos_start().clone(), token.pos_end().clone())));
                 return res;
             }
 
-            res.success(Box::new(VarAccessNode::new(var_name, false,token.pos_start().clone(), token.pos_end().clone())));
+            res.success(Box::new(VarAccessNode::new(var_name, false, false,token.pos_start().clone(), token.pos_end().clone())));
             return res;
         }
 

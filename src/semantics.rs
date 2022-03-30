@@ -295,6 +295,11 @@ impl Validator {
                 return res;
             }
 
+            if !self.get_symbol(node.var_name()).unwrap().value_type().as_any().downcast_ref::<PointerType>().unwrap().is_mutable() {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Pointer '{}' is not mutable, so you can't use '&=' to assign a value to the pointee!", node.var_name()).as_str()));
+                return res;
+            }
+
             res.success(self.get_symbol(node.var_name()).unwrap().value_type().clone());
             return res;
         }
@@ -323,7 +328,17 @@ impl Validator {
 
         let base_type = self.get_symbol(node.var_name()).unwrap().value_type().clone();
 
-        res.success(if *node.reference() { Box::new(PointerType::new(base_type)) } else { base_type });
+        if *node.reference() {
+            if *node.mutable_reference() && !self.is_symbol_mut(node.var_name()) {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' is not mutable, so you cant get a mutable pointer to it!", node.var_name()).as_str()));
+                return res;
+            }
+
+            res.success(Box::new(PointerType::new(base_type, *node.mutable_reference())));
+            return res;
+        }
+
+        res.success(base_type);
         res
     }
 
@@ -407,7 +422,7 @@ impl Validator {
             }
 
             if !t.as_ref().unwrap().eq(&function_type.arg_types()[i]) {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Expected type '{}' as argument at index {}, got '{}'!", function_type.arg_types()[i], i, t.as_ref().unwrap()).as_str()));
+                res.failure(error::semantic_error(arg.pos_start().clone(), arg.pos_end().clone(), format!("Expected type '{}' as argument at index {}, got '{}'!", function_type.arg_types()[i], i, t.as_ref().unwrap()).as_str()));
                 return res;
             }
         }
