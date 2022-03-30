@@ -399,13 +399,18 @@ impl Validator {
     fn validate_call_node(&mut self, node: &CallNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        if !self.has_symbol(node.func_to_call()) || self.get_symbol(node.func_to_call()).unwrap().value_type().value_type() != ValueTypes::Function {
+        if !self.has_symbol(node.func_to_call()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("'{}' is not defined in this scope!", node.func_to_call()).as_str()));
+            return res;
+        }
+
+        if self.get_symbol(node.func_to_call()).unwrap().value_type().value_type() != ValueTypes::Function {
             if self.get_symbol(node.func_to_call()).unwrap().value_type().value_type() == ValueTypes::Extern {
                 res.success(Box::new(VoidType::new()));
                 return res;
             }
 
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Expected function!"));
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("'{}' is not a function!", node.func_to_call()).as_str()));
             return res;
         }
 
