@@ -47,7 +47,11 @@ impl ValueType for PointerType {
         self.value_type() == other.value_type() && self.pointee_type.eq(other.as_any().downcast_ref::<Self>().unwrap().pointee_type()) && self.is_mutable == other.as_any().downcast_ref::<Self>().unwrap().is_mutable
     }
 
-    fn is_valid_bin_op(&self, _op: &Token, _t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
+    fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
+        if t.value_type() == ValueTypes::Number && (op.token_type() == TokenType::Plus || op.token_type() == TokenType::Minus) {
+            return Some(self.box_clone());
+        }
+
         None
     }
 

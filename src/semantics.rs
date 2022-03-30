@@ -9,6 +9,7 @@ use crate::nodes::call_node::CallNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
+use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
@@ -140,6 +141,7 @@ impl Validator {
             NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
             NodeType::Syscall => self.validate_syscall_node(),
             NodeType::While => self.validate_while_node(node.as_any().downcast_ref::<WhileNode>().unwrap()),
+            NodeType::If => self.validate_if_node(node.as_any().downcast_ref::<IfNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -505,6 +507,26 @@ impl Validator {
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Condition must be of type bool!"));
             return res;
         }
+
+        res
+    }
+
+    fn validate_if_node(&mut self, node: &IfNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        for case in node.cases() {
+            let condition_type = res.register_res(self.validate(case.condition()));
+            if res.has_error() {
+                return res;
+            }
+
+            if condition_type.unwrap().value_type() != ValueTypes::Bool {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Condition must be of type bool!"));
+                return res;
+            }
+        }
+
+        // TODO: check if all code paths return a value
 
         res
     }

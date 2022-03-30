@@ -43,7 +43,7 @@ pub struct Compiler {
     strings: HashMap<String, String>,
 
     base_offset: u64,
-    offset_table: HashMap<String, i64>,
+    offset_table: HashMap<String, (u64, u64)>,
 
     externs: Vec<String>,
 }
@@ -116,10 +116,10 @@ impl Compiler {
 
     fn register_var(&mut self, name: String, size: u64) {
         self.base_offset += size;
-        self.offset_table.insert(name, self.base_offset as i64);
+        self.offset_table.insert(name, (self.base_offset, size));
     }
 
-    fn get_var(&self, name: &str) -> i64 {
+    fn get_var(&self, name: &str) -> (u64, u64) {
         self.offset_table[name]
     }
 
@@ -249,12 +249,11 @@ impl Compiler {
                 }
 
                 writeln!(w, "{}:", self.label_name(&label_one));
-                writeln!(w, "\tmov     {}, 0", self.scratch_name(res_reg));
+                writeln!(w, "\tmov     {}, QWORD 0", self.scratch_name(res_reg));
                 writeln!(w, "\tjmp     {}", self.label_name(&label_after));
 
                 writeln!(w, "{}:", self.label_name(&label_two));
-                writeln!(w, "\tmov     {}, 1", self.scratch_name(res_reg));
-                writeln!(w, "\tjmp     {}", self.label_name(&label_after));
+                writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
 
                 writeln!(w, "{}:", self.label_name(&label_after));
             } else {
@@ -328,6 +327,7 @@ impl Compiler {
 
             let mut number_reg_index: usize = 0;
             for (key, arg_type) in func_def_node.args() {
+
                 self.register_var(key.clone(), arg_type.get_size());
 
                 if number_reg_index >= NUMBER_ARG_REGS.len() {
@@ -405,7 +405,8 @@ impl Compiler {
 
         if node.node_type() == NodeType::VarAssign {
             let var_assign_node = node.as_any().downcast_ref::<VarAssignNode>().unwrap();
-            let var_offset = self.get_var(var_assign_node.var_name());
+
+            let (var_offset, _) = self.get_var(var_assign_node.var_name());
 
             let reg = self.code_gen(var_assign_node.value_node(), w).unwrap();
 
@@ -414,6 +415,7 @@ impl Compiler {
                 writeln!(w, "\tmov     {}, [rbp - ({})]", self.scratch_name(temp_reg), var_offset);
                 writeln!(w, "\tmov     [{}], {}", self.scratch_name(temp_reg), self.scratch_name(reg));
             } else {
+                // TODO add size specifier
                 writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
             }
 
@@ -423,7 +425,7 @@ impl Compiler {
         if node.node_type() == NodeType::VarAccess {
             let var_access_node = node.as_any().downcast_ref::<VarAccessNode>().unwrap();
 
-            let var_offset = self.get_var(var_access_node.var_name());
+            let (var_offset, _) = self.get_var(var_access_node.var_name());
             let reg = self.res_scratch();
 
             if *var_access_node.reference() {

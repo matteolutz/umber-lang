@@ -49,7 +49,6 @@ impl ValueType for BoolType {
     }
 
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
-
         if op.token_type() == TokenType::Not {
             return Some(Box::new(BoolType::new()));
         }
@@ -62,6 +61,6 @@ impl ValueType for BoolType {
     }
 
     fn get_size(&self) -> u64 {
-        1
+        8
     }
 }
