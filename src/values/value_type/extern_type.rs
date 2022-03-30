@@ -1,36 +1,35 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
 
-use crate::token::{Token, TokenType};
+use crate::token::Token;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
-use crate::values::value_type::pointer_type::PointerType;
 
 #[derive(Clone)]
-pub struct StringType {}
+pub struct ExternType {}
 
-impl StringType {
+impl ExternType {
 
     pub fn new() -> Self {
-        StringType {}
+        ExternType {}
     }
 
 }
 
-impl ValueTypeAsAny for StringType {
+impl ValueTypeAsAny for ExternType {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Display for StringType {
+impl Display for ExternType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<StringType>[]")
+        write!(f, "<ExternType>[]")
     }
 }
 
-impl ValueType for StringType {
+impl ValueType for ExternType {
     fn value_type(&self) -> ValueTypes {
-        ValueTypes::String
+        ValueTypes::Extern
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
@@ -50,6 +49,6 @@ impl ValueType for StringType {
     }
 
     fn get_size(&self) -> u64 {
-        8
+        0
     }
 }

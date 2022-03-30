@@ -111,11 +111,13 @@ pub enum TokenType {
     Comma,
     Arrow,
     Newline,
+    Reference,
+    Dereference,
     Bof,
     Eof,
 }
 
-pub static KEYWORDS: [&'static str; 22] = [
+pub static KEYWORDS: [&'static str; 24] = [
     "let",
     "mut",
     "if",
@@ -137,5 +139,7 @@ pub static KEYWORDS: [&'static str; 22] = [
     "number",
     "string",
     "bool",
-    "void"
+    "void",
+    "deref",
+    "ref"
 ];

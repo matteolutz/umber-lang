@@ -11,6 +11,9 @@ use crate::nodes::call_node::CallNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
+use crate::nodes::if_node::case::IfCase;
+use crate::nodes::if_node::elsecase::ElseCase;
+use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::return_node::ReturnNode;
@@ -27,6 +30,7 @@ use crate::token::{Token, TokenType};
 use crate::values::value_type::array_type::ArrayType;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::number_type::NumberType;
+use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::ValueType;
 use crate::values::value_type::void_type::VoidType;
@@ -129,7 +133,11 @@ impl Parser {
                 return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after integer on an array type!")));
             }
 
-            return (Some(Box::new(ArrayType::new(size, base_type))), None)
+            return (Some(Box::new(ArrayType::new(size, base_type))), None);
+        }
+
+        if self.current_token().token_type() == TokenType::Mul {
+            return (Some(Box::new(PointerType::new(base_type))), None);
         }
 
         self.reverse(1);
@@ -142,8 +150,82 @@ impl Parser {
     // region Parsing functions
 
     fn if_expr(&mut self) -> ParseResult {
-        let res = ParseResult::new();
+        let mut res = ParseResult::new();
 
+        if !self.current_token().matches_keyword("if") {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected 'if'!"));
+            return res;
+        }
+
+        let mut cases: Vec<IfCase> = vec![];
+        let mut else_case: Option<ElseCase> = None;
+
+        while self.current_token().matches_keyword("if") {
+            res.register_advancement();
+            self.advance();
+
+            let condition = res.register_res(self.expression());
+            if res.has_error() {
+                return res;
+            }
+
+            if self.current_token().token_type() != TokenType::Lcurly {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '{'!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            let statements = res.register_res(self.statements(false));
+            if res.has_error() {
+                return res;
+            }
+
+            if self.current_token().token_type() != TokenType::Rcurly {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '}'!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            cases.push(IfCase::new(condition.unwrap(), statements.unwrap()));
+
+            if self.current_token().matches_keyword("else") {
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().matches_keyword("if") {
+                    continue;
+                }
+
+                if self.current_token().token_type() != TokenType::Lcurly {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '{'!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                let statements = res.register_res(self.statements(false));
+                if res.has_error() {
+                    return res;
+                }
+
+                if self.current_token().token_type() != TokenType::Rcurly {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '}'!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                else_case = Some(ElseCase::new(statements.unwrap()));
+            }
+        }
+
+        res.success(Box::new(IfNode::new(cases, else_case)));
         res
     }
 
@@ -197,8 +279,6 @@ impl Parser {
     fn list_expr(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
         let pos_start = self.current_token().pos_start().clone();
-
-        println!("found list expr");
 
         if self.current_token().token_type() != TokenType::Lsquare {
             res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '['!"));
@@ -433,19 +513,6 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        if self.current_token().token_type() == TokenType::Arrow {
-            res.register_advancement();
-            self.advance();
-
-            let node_to_return = res.register_res(self.expression());
-            if res.has_error() {
-                return res;
-            }
-
-            res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, node_to_return.unwrap(), true, pos_start)));
-            return res;
-        }
-
         if self.current_token().token_type() != TokenType::Lcurly {
             res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '{'!"));
             return res;
@@ -467,7 +534,7 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, func_body.unwrap(), false, pos_start)));
+        res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, func_body.unwrap(), pos_start)));
         res
     }
 
@@ -754,6 +821,8 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
+            println!("var declaration, current token: {}", self.current_token());
+
             let expr = res.register_res(self.expression());
             if res.has_error() {
                 return res;
@@ -919,7 +988,22 @@ impl Parser {
     fn call(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
 
-        let atom = res.register_res(self.atom());
+        if self.current_token().token_type() == TokenType::Mul {
+            let op_token = Token::new_without_value(TokenType::Dereference, self.current_token().pos_start().clone(), self.current_token().pos_end().clone());
+
+            res.register_advancement();
+            self.advance();
+
+            let node = res.register_res(self.call());
+            if res.has_error() {
+                return res;
+            }
+
+            res.success(Box::new(UnaryOpNode::new(op_token, node.unwrap())));
+            return res;
+        }
+
+        let mut atom = res.register_res(self.atom());
         if res.has_error() {
             return res;
         }
@@ -1013,11 +1097,39 @@ impl Parser {
                     return res;
                 }
 
-                res.success(Box::new(VarAssignNode::new(var_name, expr.unwrap(), token.pos_start().clone())));
+                res.success(Box::new(VarAssignNode::new(var_name, false, expr.unwrap(), token.pos_start().clone())));
                 return res;
             }
 
-            res.success(Box::new(VarAccessNode::new(var_name, token.pos_start().clone(), token.pos_end().clone())));
+            if self.current_token().token_type() == TokenType::BitAnd {
+                self.advance();
+
+                if self.current_token().token_type() == TokenType::Eq {
+                    res.register_advancement();
+                    res.register_advancement();
+                    self.advance();
+
+                    let expr = res.register_res(self.expression());
+                    if res.has_error() {
+                        return res;
+                    }
+
+                    res.success(Box::new(VarAssignNode::new(var_name, true, expr.unwrap(), token.pos_start().clone())));
+                    return res;
+                }
+
+                self.reverse(1);
+            }
+
+            if self.current_token().token_type() == TokenType::Mul {
+                res.register_advancement();
+                self.advance();
+
+                res.success(Box::new(VarAccessNode::new(var_name, true,token.pos_start().clone(), token.pos_end().clone())));
+                return res;
+            }
+
+            res.success(Box::new(VarAccessNode::new(var_name, false,token.pos_start().clone(), token.pos_end().clone())));
             return res;
         }
 
@@ -1061,6 +1173,17 @@ impl Parser {
             res.success(while_expr.unwrap());
             return res;
         }
+
+        if token.matches_keyword("if") {
+            let if_expr = res.register_res(self.if_expr());
+            if res.has_error() {
+                return res;
+            }
+
+            res.success(if_expr.unwrap());
+            return res;
+        }
+
 
         res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
         res

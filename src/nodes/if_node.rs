@@ -30,6 +30,9 @@ impl IfNode {
     pub fn cases(&self) -> &Vec<IfCase> {
         &self.cases
     }
+    pub fn else_case(&self) -> &Option<ElseCase> {
+        &self.else_case
+    }
 
 }
 

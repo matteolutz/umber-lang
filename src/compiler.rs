@@ -16,6 +16,7 @@ use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::syscall_node::SyscallNode;
+use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
@@ -238,8 +239,7 @@ impl Compiler {
                 writeln!(w, "\tjmp     {}", self.label_name(&label_after));
 
                 writeln!(w, "{}:", self.label_name(&label_after));
-            }
-            else {
+            } else {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
             }
 
@@ -248,9 +248,26 @@ impl Compiler {
             return Some(res_reg);
         }
 
+        if node.node_type() == NodeType::UnaryOp {
+            let unary_op_node = node.as_any().downcast_ref::<UnaryOpNode>().unwrap();
+
+            let left = self.code_gen(unary_op_node.node(), w).unwrap();
+            let mut res_reg = left;
+
+            if unary_op_node.op_token().token_type() == TokenType::Dereference {
+                res_reg = self.res_scratch();
+                writeln!(w, "\tmov     {}, [{}]", self.scratch_name(res_reg), self.scratch_name(left));
+                self.free_scratch(left);
+            } else {
+                panic!("Token '{:?}' not supported as an unary operation yet!", unary_op_node.op_token().token_type());
+            }
+
+            return Some(res_reg);
+        }
+
         if node.node_type() == NodeType::Call {
             let call_node = node.as_any().downcast_ref::<CallNode>().unwrap();
-            let func_label = self.function_label_name(call_node.func_to_call());
+            let func_label = if self.externs.contains(&call_node.func_to_call().to_string()) { call_node.func_to_call().to_string() } else { self.function_label_name(call_node.func_to_call()) };
 
             let mut number_reg_index: usize = 0;
             for arg in call_node.arg_nodes() {
@@ -372,7 +389,14 @@ impl Compiler {
             let var_offset = self.get_var(var_assign_node.var_name());
 
             let reg = self.code_gen(var_assign_node.value_node(), w).unwrap();
-            writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
+
+            if *var_assign_node.reference_assign() {
+                let temp_reg = self.res_scratch();
+                writeln!(w, "\tmov     {}, [rbp - ({})]", self.scratch_name(temp_reg), var_offset);
+                writeln!(w, "\tmov     [{}], {}", self.scratch_name(temp_reg), self.scratch_name(reg));
+            } else {
+                writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
+            }
 
             return Some(reg);
         }
@@ -382,7 +406,12 @@ impl Compiler {
 
             let var_offset = self.get_var(var_access_node.var_name());
             let reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, QWORD [rbp - ({})]", self.scratch_name(reg), var_offset);
+
+            if *var_access_node.reference() {
+                writeln!(w, "\tlea     {}, QWORD [rbp - ({})]", self.scratch_name(reg), var_offset);
+            } else {
+                writeln!(w, "\tmov     {}, QWORD [rbp - ({})]", self.scratch_name(reg), var_offset);
+            }
 
             return Some(reg);
         }
@@ -421,23 +450,37 @@ impl Compiler {
         if node.node_type() == NodeType::If {
             let if_node = node.as_any().downcast_ref::<IfNode>().unwrap();
 
-            let label_one = self.label_create();
-            let label_two = self.label_create();
+            let label_else = self.label_create();
             let label_end = self.label_create();
 
-            let result_reg = self.code_gen(if_node.cases()[0].condition(), w).unwrap();
-            writeln!(w, "\tcmp     {}, 0", result_reg);
-            self.free_scratch(result_reg);
+            let mut case_labels: Vec<u128> = vec![];
+            case_labels.reserve(if_node.cases().len());
 
-            writeln!(w, "\tjne     {}", self.label_name(&label_one));
+            for _ in if_node.cases() {
+                case_labels.push(self.label_create());
+            }
 
-            writeln!(w, "{}:", self.label_name(&label_one));
-            self.code_gen(if_node.cases()[0].statements(), w);
+            writeln!(w, ";; Begin if");
+            for i in 0..if_node.cases().len() {
+                let case = &if_node.cases()[i];
 
-            writeln!(w, "\tjmp     {}", self.label_name(&label_end));
+                writeln!(w, "{}:", self.label_name(&case_labels[i]));
+                let condition_reg = self.code_gen(case.condition(), w).unwrap();
+                writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg));
+                self.free_scratch(condition_reg);
 
-            writeln!(w, "{}:", self.label_name(&label_two));
+                writeln!(w, "\tje      {}", if i == if_node.cases().len() - 1 { self.label_name(&label_else) } else { self.label_name(&case_labels[i + 1]) });
+                self.code_gen(case.statements(), w);
+                writeln!(w, "\tjmp     {}", self.label_name(&label_end));
+            }
+
+            writeln!(w, "{}:", self.label_name(&label_else));
+            if if_node.else_case().is_some() {
+                self.code_gen(if_node.else_case().as_ref().unwrap().statements(), w);
+            }
+
             writeln!(w, "{}:", self.label_name(&label_end));
+            writeln!(w, ";; End if");
 
         }
 

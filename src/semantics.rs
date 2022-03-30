@@ -22,8 +22,10 @@ use crate::symbol_table::Symbol;
 use crate::values::value_type::{ValueType, ValueTypes};
 use crate::values::value_type::array_type::ArrayType;
 use crate::values::value_type::bool_type::BoolType;
+use crate::values::value_type::extern_type::ExternType;
 use crate::values::value_type::function_type::FunctionType;
 use crate::values::value_type::number_type::NumberType;
+use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::void_type::VoidType;
 
@@ -275,11 +277,6 @@ impl Validator {
             return res;
         }
 
-        if !self.is_symbol_mut(node.var_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' is not mutable!", node.var_name()).as_str()));
-            return res;
-        }
-
         let assign_type = res.register_res(self.validate(node.value_node()));
         if res.has_error() {
             return res;
@@ -287,8 +284,28 @@ impl Validator {
 
         let symbol_type = assign_type.unwrap();
 
+        if *node.reference_assign() {
+            if self.get_symbol(node.var_name()).unwrap().value_type().value_type() != ValueTypes::Pointer {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' is not a pointer!", node.var_name()).as_str()));
+                return res;
+            }
+
+            if !symbol_type.eq(self.get_symbol(node.var_name()).unwrap().value_type().as_any().downcast_ref::<PointerType>().unwrap().pointee_type()) {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type '{}' can't be assigned to type '{}'!", &symbol_type, self.get_symbol(node.var_name()).unwrap().value_type().as_any().downcast_ref::<PointerType>().unwrap().pointee_type()).as_str()));
+                return res;
+            }
+
+            res.success(self.get_symbol(node.var_name()).unwrap().value_type().clone());
+            return res;
+        }
+
         if !self.get_symbol(node.var_name()).unwrap().value_type().eq(&symbol_type) {
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable type {} does not match assign type {}!", self.get_symbol(node.var_name()).unwrap().value_type(), &symbol_type).as_str()));
+            return res;
+        }
+
+        if !self.is_symbol_mut(node.var_name()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' is not mutable!", node.var_name()).as_str()));
             return res;
         }
 
@@ -304,7 +321,9 @@ impl Validator {
             return res;
         }
 
-        res.success(self.get_symbol(node.var_name()).unwrap().value_type().clone());
+        let base_type = self.get_symbol(node.var_name()).unwrap().value_type().clone();
+
+        res.success(if *node.reference() { Box::new(PointerType::new(base_type)) } else { base_type });
         res
     }
 
@@ -364,6 +383,11 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if !self.has_symbol(node.func_to_call()) || self.get_symbol(node.func_to_call()).unwrap().value_type().value_type() != ValueTypes::Function {
+            if self.get_symbol(node.func_to_call()).unwrap().value_type().value_type() == ValueTypes::Extern {
+                res.success(Box::new(VoidType::new()));
+                return res;
+            }
+
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Expected function!"));
             return res;
         }
@@ -444,7 +468,7 @@ impl Validator {
             return res;
         }
 
-        self.declare_symbol(node.name().clone(), Symbol::new(Box::new(VoidType::new()), false));
+        self.declare_symbol(node.name().clone(), Symbol::new(Box::new(ExternType::new()), false));
 
         res
     }

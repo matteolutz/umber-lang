@@ -41,7 +41,7 @@ pub enum NodeType {
     Statements,
     Assembly,
     Syscall,
-    Extern
+    Extern,
 }
 
 pub trait NodeToAny: 'static {

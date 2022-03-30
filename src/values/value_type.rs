@@ -9,6 +9,8 @@ pub mod string_type;
 pub mod function_type;
 pub mod void_type;
 pub mod array_type;
+pub mod extern_type;
+pub mod pointer_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
@@ -18,6 +20,8 @@ pub enum ValueTypes {
     Function,
     Void,
     Array,
+    Extern,
+    Pointer,
 }
 
 pub trait ValueTypeAsAny {

@@ -42,7 +42,7 @@ impl ValueType for ArrayType {
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
-        self.value_type() == other.value_type() && self.size == other.as_any().downcast_ref::<Self>().unwrap().size
+        self.value_type() == other.value_type() && self.size == other.as_any().downcast_ref::<Self>().unwrap().size && self.children_type.eq(other.as_any().downcast_ref::<Self>().unwrap().children_type())
     }
 
     fn is_valid_bin_op(&self, _op: &Token, _t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
