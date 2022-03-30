@@ -20,7 +20,6 @@ use crate::nodes::while_node::WhileNode;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
 use crate::values::value_type::{ValueType, ValueTypes};
-use crate::values::value_type::array_type::ArrayType;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::extern_type::ExternType;
 use crate::values::value_type::function_type::FunctionType;
@@ -159,7 +158,6 @@ impl Validator {
 
         self.pop_child_scope();
 
-        // res.failure(error::semantic_error(*node.pos_start(), *node.pos_end(), "Can't use statements as a type!"));
         res
     }
 
@@ -199,7 +197,7 @@ impl Validator {
             }
         }
 
-        res.success(Box::new(ArrayType::new(node.size(), node.element_type().clone())));
+        res.success(Box::new(PointerType::new(node.element_type().clone(), true)));
         res
     }
 
