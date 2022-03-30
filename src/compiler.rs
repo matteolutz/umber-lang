@@ -467,7 +467,7 @@ impl Compiler {
         }
 
         if node.node_type() == NodeType::If {
-            let if_node = node.as_any().downcast_ref::<IfNode>().unwrap();
+            let if_node = node.as_any().downcast_ref::<IfNode>().unwrap();n
 
             let label_else = self.label_create();
             let label_end = self.label_create();
