@@ -222,13 +222,31 @@ impl Compiler {
                 res_reg = self.res_scratch();
                 writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
                 self.free_scratch(left_reg);
-            } else if bin_op_node.op_token().token_type() == TokenType::Ee {
+            } else if bin_op_node.op_token().token_type() == TokenType::Ee
+                || bin_op_node.op_token().token_type() == TokenType::Gt
+                || bin_op_node.op_token().token_type() == TokenType::Lt
+                || bin_op_node.op_token().token_type() == TokenType::Gte
+                || bin_op_node.op_token().token_type() == TokenType::Lte
+                || bin_op_node.op_token().token_type() == TokenType::Ne
+            {
                 writeln!(w, "\tcmp     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
                 let label_one = self.label_create();
                 let label_two = self.label_create();
                 let label_after = self.label_create();
 
-                writeln!(w, "\tje      {}", self.label_name(&label_two));
+                if bin_op_node.op_token().token_type() == TokenType::Ee {
+                    writeln!(w, "\tje      {}", self.label_name(&label_two));
+                } else if bin_op_node.op_token().token_type() == TokenType::Lt {
+                    writeln!(w, "\tjl      {}", self.label_name(&label_two));
+                } else if bin_op_node.op_token().token_type() == TokenType::Gt {
+                    writeln!(w, "\tjg      {}", self.label_name(&label_two));
+                } else if bin_op_node.op_token().token_type() == TokenType::Lte {
+                    writeln!(w, "\tjle     {}", self.label_name(&label_two));
+                } else if bin_op_node.op_token().token_type() == TokenType::Gte {
+                    writeln!(w, "\tjge     {}", self.label_name(&label_two));
+                } else if bin_op_node.op_token().token_type() == TokenType::Ne {
+                    writeln!(w, "\tjne     {}", self.label_name(&label_two));
+                }
 
                 writeln!(w, "{}:", self.label_name(&label_one));
                 writeln!(w, "\tmov     {}, 0", self.scratch_name(res_reg));
