@@ -724,8 +724,8 @@ impl Parser {
                 res.register_advancement();
                 self.advance();
 
-                if self.current_token().token_type() != TokenType::Lparen {
-                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '('!"));
+                if self.current_token().token_type() != TokenType::Lsquare {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '['!"));
                     return res;
                 }
 
@@ -742,8 +742,8 @@ impl Parser {
                 res.register_advancement();
                 self.advance();
 
-                if self.current_token().token_type() != TokenType::Rparen {
-                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ')'!"));
+                if self.current_token().token_type() != TokenType::Rsquare {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']'!"));
                     return res;
                 }
 

@@ -151,7 +151,7 @@ impl Compiler {
 
         if node.node_type() == NodeType::Assembly {
             let assembly_node = node.as_any().downcast_ref::<AssemblyNode>().unwrap();
-            writeln!(w, "\n;; Assembly injected im asm__(...)\n\t{}\n;; End\n", assembly_node.content());
+            writeln!(w, "\n;; Assembly injected im asm__[\"...\"]\n\t{}\n;; End\n", assembly_node.content());
         }
 
         if node.node_type() == NodeType::Syscall {
