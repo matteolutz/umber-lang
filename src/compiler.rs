@@ -8,6 +8,7 @@ use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::extern_node::ExternNode;
+use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
@@ -230,29 +231,27 @@ impl Compiler {
                 || bin_op_node.op_token().token_type() == TokenType::Ne
             {
                 writeln!(w, "\tcmp     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
-                let label_one = self.label_create();
-                let label_two = self.label_create();
+                let label_true = self.label_create();
                 let label_after = self.label_create();
 
                 if bin_op_node.op_token().token_type() == TokenType::Ee {
-                    writeln!(w, "\tje      {}", self.label_name(&label_two));
+                    writeln!(w, "\tje      {}", self.label_name(&label_true));
                 } else if bin_op_node.op_token().token_type() == TokenType::Lt {
-                    writeln!(w, "\tjl      {}", self.label_name(&label_two));
+                    writeln!(w, "\tjl      {}", self.label_name(&label_true));
                 } else if bin_op_node.op_token().token_type() == TokenType::Gt {
-                    writeln!(w, "\tjg      {}", self.label_name(&label_two));
+                    writeln!(w, "\tjg      {}", self.label_name(&label_true));
                 } else if bin_op_node.op_token().token_type() == TokenType::Lte {
-                    writeln!(w, "\tjle     {}", self.label_name(&label_two));
+                    writeln!(w, "\tjle     {}", self.label_name(&label_true));
                 } else if bin_op_node.op_token().token_type() == TokenType::Gte {
-                    writeln!(w, "\tjge     {}", self.label_name(&label_two));
+                    writeln!(w, "\tjge     {}", self.label_name(&label_true));
                 } else if bin_op_node.op_token().token_type() == TokenType::Ne {
-                    writeln!(w, "\tjne     {}", self.label_name(&label_two));
+                    writeln!(w, "\tjne     {}", self.label_name(&label_true));
                 }
 
-                writeln!(w, "{}:", self.label_name(&label_one));
                 writeln!(w, "\tmov     {}, QWORD 0", self.scratch_name(res_reg));
                 writeln!(w, "\tjmp     {}", self.label_name(&label_after));
 
-                writeln!(w, "{}:", self.label_name(&label_two));
+                writeln!(w, "{}:", self.label_name(&label_true));
                 writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
 
                 writeln!(w, "{}:", self.label_name(&label_after));
@@ -463,6 +462,30 @@ impl Compiler {
             self.code_gen(while_node.body_node(), w);
             writeln!(w, "\tjmp     {}", self.label_name(&label_start));
 
+            writeln!(w, "{}:", self.label_name(&label_end));
+
+            return None;
+        }
+
+        if node.node_type() == NodeType::For {
+            let for_node = node.as_any().downcast_ref::<ForNode>().unwrap();
+
+            let label_start = self.label_create();
+            let label_end = self.label_create();
+
+            self.current_loop_start = Some(label_start);
+            self.current_loop_break = Some(label_end);
+
+            self.code_gen(for_node.init_stmt(), w);
+
+            writeln!(w, "{}:", self.label_name(&label_start));
+            let condition_reg = self.code_gen(for_node.condition(), w).unwrap();
+            writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg));
+            self.free_scratch(condition_reg);
+            writeln!(w, "\tje      {}", self.label_name(&label_end));
+            self.code_gen(for_node.body(), w);
+            self.code_gen(for_node.next_expr(), w);
+            writeln!(w, "\tjmp     {}", self.label_name(&label_start));
             writeln!(w, "{}:", self.label_name(&label_end));
 
             return None;

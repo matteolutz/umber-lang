@@ -8,6 +8,7 @@ use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::extern_node::ExternNode;
+use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
@@ -141,6 +142,7 @@ impl Validator {
             NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
             NodeType::Syscall => self.validate_syscall_node(),
             NodeType::While => self.validate_while_node(node.as_any().downcast_ref::<WhileNode>().unwrap()),
+            NodeType::For => self.validate_for_node(node.as_any().downcast_ref::<ForNode>().unwrap()),
             NodeType::If => self.validate_if_node(node.as_any().downcast_ref::<IfNode>().unwrap()),
             _ => self.validate_empty()
         }
@@ -508,6 +510,57 @@ impl Validator {
             return res;
         }
 
+        self.push_child_scope(ScopeType::Loop);
+        res.register_res(self.validate(node.body_node()));
+        self.pop_child_scope();
+
+        if res.has_error() {
+            return res;
+        }
+
+        res
+    }
+
+    fn validate_for_node(&mut self, node: &ForNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        self.push_child_scope(ScopeType::Block);
+
+        res.register_res(self.validate(node.init_stmt()));
+        if res.has_error() {
+            self.pop_child_scope();
+            return res;
+        }
+
+        let condition_type = res.register_res(self.validate(node.condition()));
+        if res.has_error() {
+            self.pop_child_scope();
+            return res;
+        }
+
+        if condition_type.unwrap().value_type() != ValueTypes::Bool {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Condition must be of type bool!"));
+            self.pop_child_scope();
+            return res;
+        }
+
+        res.register_res(self.validate(node.next_expr()));
+        if res.has_error() {
+            self.pop_child_scope();
+            return res;
+        }
+
+        self.push_child_scope(ScopeType::Loop);
+
+        res.register_res(self.validate(node.body()));
+
+        self.pop_child_scope();
+        self.pop_child_scope();
+
+        if res.has_error() {
+            return res;
+        }
+
         res
     }
 
@@ -522,6 +575,24 @@ impl Validator {
 
             if condition_type.unwrap().value_type() != ValueTypes::Bool {
                 res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Condition must be of type bool!"));
+                return res;
+            }
+
+            self.push_child_scope(ScopeType::Block);
+            res.register_res(self.validate(case.statements()));
+            self.pop_child_scope();
+
+            if res.has_error() {
+                return res;
+            }
+        }
+
+        if node.else_case().is_some() {
+            self.push_child_scope(ScopeType::Block);
+            res.register_res(self.validate(node.else_case().as_ref().unwrap().statements()));
+            self.pop_child_scope();
+
+            if res.has_error() {
                 return res;
             }
         }

@@ -10,6 +10,7 @@ use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::extern_node::ExternNode;
+use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::case::IfCase;
 use crate::nodes::if_node::elsecase::ElseCase;
@@ -237,8 +238,69 @@ impl Parser {
     }
 
     fn for_expr(&mut self) -> ParseResult {
-        let res = ParseResult::new();
+        let mut res = ParseResult::new();
 
+        if !self.current_token().matches_keyword("for") {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected 'for'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        let init_expr = res.register_res(self.statement(false));
+        if res.has_error() {
+            return res;
+        }
+
+        if self.current_token().token_type() != TokenType::Newline {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ';'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        let condition = res.register_res(self.expression());
+        if res.has_error() {
+            return res;
+        }
+
+        if self.current_token().token_type() != TokenType::Newline {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ';'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        let next_expr = res.register_res(self.expression());
+        if res.has_error() {
+            return res;
+        }
+
+        if self.current_token().token_type() != TokenType::Lcurly {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '{'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        let statements = res.register_res(self.statements(false));
+        if res.has_error() {
+            return res;
+        }
+
+        if self.current_token().token_type() != TokenType::Rcurly {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '}'!"));
+            return res;
+        }
+
+        res.register_advancement();
+        self.advance();
+
+        res.success(Box::new(ForNode::new(init_expr.unwrap(), condition.unwrap(), next_expr.unwrap(), statements.unwrap())));
         res
     }
 
@@ -635,10 +697,6 @@ impl Parser {
         let pos_start = self.current_token().pos_start().clone();
 
         if is_top_level {
-            if self.current_token().matches_keyword("import") {
-                todo!("import");
-            }
-
             if self.current_token().matches_keyword("extern") {
                 res.register_advancement();
                 self.advance();
@@ -1184,6 +1242,16 @@ impl Parser {
             }
 
             res.success(while_expr.unwrap());
+            return res;
+        }
+
+        if token.matches_keyword("for") {
+            let for_expr = res.register_res(self.for_expr());
+            if res.has_error() {
+                return res;
+            }
+
+            res.success(for_expr.unwrap());
             return res;
         }
 

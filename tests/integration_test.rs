@@ -5,6 +5,7 @@ use umber_lang;
 use umber_lang::compiler::Compiler;
 use umber_lang::lexer::Lexer;
 use umber_lang::parser::Parser;
+use umber_lang::preprocessor;
 use umber_lang::semantics::Validator;
 
 #[test]
@@ -15,7 +16,15 @@ pub fn test_file() {
 
     let file_contents = fs::read_to_string(&file).expect("Failed to read file");
 
-    let mut lexer = umber_lang::lexer::Lexer::new(Box::new("umber_lang test!".to_string()), Box::new(file_contents));
+    let (preprocessed, preprocess_error) = preprocessor::preprocess(file_contents, &vec![
+        "E:\\Coding\\Umber\\include\\"
+    ], &vec![]);
+
+    if let Some(error) = preprocess_error {
+        panic!("{}", error);
+    }
+
+    let mut lexer = umber_lang::lexer::Lexer::new(Box::new("umber_lang test!".to_string()), Box::new(preprocessed.unwrap()));
     let (tokens, error) = lexer.make_tokens();
 
     if let Some(error) = error {
