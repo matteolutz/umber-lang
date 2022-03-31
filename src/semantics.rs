@@ -321,7 +321,7 @@ impl Validator {
             }
 
             if !self.get_symbol(node.var_name()).unwrap().value_type().as_any().downcast_ref::<PointerType>().unwrap().is_mutable() {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Pointer '{}' is not mutable, so you can't use '&=' to assign a value to the pointee!", node.var_name()).as_str()));
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Pointer '{}' was not defined as mutable pointer, so you can't use '&=' to assign a value to the pointee!", node.var_name()).as_str()));
                 return res;
             }
 

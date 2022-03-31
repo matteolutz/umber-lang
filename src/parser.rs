@@ -1005,7 +1005,7 @@ impl Parser {
             BinOpFunction::Arith,
             vec![
                 TokenType::Ee,
-                TokenType::Ee,
+                TokenType::Ne,
                 TokenType::Gt,
                 TokenType::Lt,
                 TokenType::Gte,
