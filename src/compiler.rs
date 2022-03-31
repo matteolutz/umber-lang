@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env::var;
 use std::fmt::Write;
 
 
@@ -8,7 +9,7 @@ use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::cast_node::CastNode;
 use crate::nodes::char_node::CharNode;
-use crate::nodes::extern_node::ExternNode;
+use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
@@ -45,6 +46,7 @@ pub struct Compiler {
     current_loop_break: Option<u128>,
 
     strings: HashMap<String, String>,
+    constants: HashMap<String, String>,
 
     base_offset: u64,
     offset_table: HashMap<String, (u64, u64)>,
@@ -61,6 +63,7 @@ impl Compiler {
             current_loop_break: None,
             current_function_epilogue: None,
             strings: HashMap::new(),
+            constants: HashMap::new(),
             base_offset: 0,
             offset_table: HashMap::new(),
             externs: vec![]
@@ -134,6 +137,21 @@ impl Compiler {
 
     fn add_extern(&mut self, s: String) {
         self.externs.push(s);
+    }
+
+    fn create_constant_label(&mut self, name: String) -> String {
+        let uuid = format!("C{}", self.constants.len());
+
+        self.constants.insert(name.clone(), uuid);
+        self.constants[&name].clone()
+    }
+
+    fn get_constant(&self, name: &str) -> String {
+        self.constants[name].clone()
+    }
+
+    fn is_constant(&self, name: &str) -> bool {
+        self.constants.contains_key(name)
     }
 
     pub fn scratch_regs(&self) -> &u8 { &self.scratch_regs }
@@ -248,6 +266,10 @@ impl Compiler {
                 writeln!(w, "\tidiv    {}", self.scratch_name(left_reg));
                 self.free_scratch(left_reg);
                 writeln!(w, "\tmov     {}, rdx", self.scratch_name(res_reg));
+            } else if bin_op_node.op_token().token_type() == TokenType::BitAnd {
+                writeln!(w, "\tand     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+            } else if bin_op_node.op_token().token_type() == TokenType::BitOr {
+                writeln!(w, "\tor      {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Ee
                 || bin_op_node.op_token().token_type() == TokenType::Gt
                 || bin_op_node.op_token().token_type() == TokenType::Lt
@@ -482,6 +504,13 @@ impl Compiler {
         if node.node_type() == NodeType::VarAccess {
             let var_access_node = node.as_any().downcast_ref::<VarAccessNode>().unwrap();
 
+            if self.is_constant(var_access_node.var_name()) {
+                todo!("Constants!");
+                let reg = self.res_scratch();
+                writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), self.get_constant(var_access_node.var_name()));
+                return Some(reg);
+            }
+
             let (var_offset, _) = self.get_var(var_access_node.var_name());
             let reg = self.res_scratch();
 
@@ -492,14 +521,6 @@ impl Compiler {
             }
 
             return Some(reg);
-        }
-
-        if node.node_type() == NodeType::Extern {
-            let extern_node = node.as_any().downcast_ref::<ExternNode>().unwrap();
-
-            self.add_extern(extern_node.name().clone());
-
-            return None;
         }
 
         if node.node_type() == NodeType::While {
@@ -594,10 +615,17 @@ impl Compiler {
 
             writeln!(w, "{}:", self.label_name(&label_end));
 
+            return None;
         }
 
         if node.node_type() == NodeType::Cast {
             return Some(self.code_gen(node.as_any().downcast_ref::<CastNode>().unwrap().node(), w).unwrap());
+        }
+
+        if node.node_type() == NodeType::ConstDef {
+            let const_def_node = node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap();
+            self.create_constant_label(const_def_node.name().to_string());
+            return None;
         }
 
         None
@@ -620,20 +648,18 @@ impl Compiler {
         writeln!(res, "global  {}\n", ENTRY_SYMBOL);
 
         writeln!(res, "section .text");
-        // writeln!(res, "\tdefault rel");
 
         if self.externs.len() > 0 {
             writeln!(res, "\textern {}", self.externs.join(","));
         }
 
-        // writeln!(res, "\tglobal  {}\n", ENTRY_SYMBOL);
-
         writeln!(res, "\n{}\n", code);
 
         writeln!(res, "section .data");
 
+        writeln!(res, "\t;; Static strings");
         for (str, uuid) in &self.strings {
-            writeln!(res, "\t{}  db `{}`", uuid, str);
+            writeln!(res, "\t{}  DB `{}`", uuid, str);
         }
 
         res

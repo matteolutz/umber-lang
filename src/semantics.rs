@@ -7,8 +7,8 @@ use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::cast_node::CastNode;
+use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::continue_node::ContinueNode;
-use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
@@ -154,12 +154,12 @@ impl Validator {
             NodeType::Return => self.validate_return_node(node.as_any().downcast_ref::<ReturnNode>().unwrap()),
             NodeType::Break => self.validate_break_node(node.as_any().downcast_ref::<BreakNode>().unwrap()),
             NodeType::Continue => self.validate_continue_node(node.as_any().downcast_ref::<ContinueNode>().unwrap()),
-            NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
             NodeType::Syscall => self.validate_syscall_node(),
             NodeType::While => self.validate_while_node(node.as_any().downcast_ref::<WhileNode>().unwrap()),
             NodeType::For => self.validate_for_node(node.as_any().downcast_ref::<ForNode>().unwrap()),
             NodeType::If => self.validate_if_node(node.as_any().downcast_ref::<IfNode>().unwrap()),
             NodeType::Cast => self.validate_cast_node(node.as_any().downcast_ref::<CastNode>().unwrap()),
+            NodeType::ConstDef => self.validate_const_def_node(node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -523,19 +523,6 @@ impl Validator {
         res
     }
 
-    fn validate_extern_node(&mut self, node: &ExternNode) -> ValidationResult {
-        let mut res = ValidationResult::new();
-
-        if self.has_symbol(node.name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Symbol '{}' already defined!", node.name()).as_str()));
-            return res;
-        }
-
-        self.declare_symbol(node.name().clone(), Symbol::new(Box::new(ExternType::new()), false));
-
-        res
-    }
-
     fn validate_syscall_node(&mut self) -> ValidationResult {
         let mut res = ValidationResult::new();
 
@@ -664,6 +651,25 @@ impl Validator {
         res.success(node.cast_type().clone());
         res
     }
+
+    fn validate_const_def_node(&mut self, node: &ConstDefinitionNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let assign_type = res.register_res(self.validate(node.value()));
+        if res.has_error() {
+            return res;
+        }
+
+        if !assign_type.as_ref().unwrap().eq(node.value_type()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type '{}' can't be assigned to type '{}'!", assign_type.as_ref().unwrap(), node.value_type()).as_str()));
+            return res;
+        }
+
+
+        self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.unwrap(), false));
+        res
+    }
+
 }
 
 #[cfg(test)]

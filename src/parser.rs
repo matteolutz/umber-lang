@@ -10,8 +10,8 @@ use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::cast_node::CastNode;
 use crate::nodes::char_node::CharNode;
+use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::continue_node::ContinueNode;
-use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::case::IfCase;
@@ -724,7 +724,20 @@ impl Parser {
         let pos_start = self.current_token().pos_start().clone();
 
         if is_top_level {
-            if self.current_token().matches_keyword("extern") {
+            if self.current_token().matches_keyword("fun") {
+                let func_def = res.register_res(self.function_def());
+
+                if res.has_error() {
+                    return res;
+                }
+
+                res.success(func_def.unwrap());
+                return res;
+            }
+
+            if self.current_token().matches_keyword("const") {
+                let pos_start = self.current_token().pos_start().clone();
+
                 res.register_advancement();
                 self.advance();
 
@@ -738,18 +751,37 @@ impl Parser {
                 res.register_advancement();
                 self.advance();
 
-                res.success(Box::new(ExternNode::new(name, pos_start, self.current_token().pos_start().clone())));
-                return res;
-            }
+                if self.current_token().token_type() != TokenType::Colon {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ':'!"));
+                    return res;
+                }
 
-            if self.current_token().matches_keyword("fun") {
-                let func_def = res.register_res(self.function_def());
+                res.register_advancement();
+                self.advance();
 
+                let (const_type, const_type_error) = self.parse_intrinsic_type();
+                if const_type_error.is_some() {
+                    res.failure(const_type_error.unwrap());
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Eq {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '='!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                let value_node = res.register_res(self.expression());
                 if res.has_error() {
                     return res;
                 }
 
-                res.success(func_def.unwrap());
+                res.success(Box::new(ConstDefinitionNode::new(name, value_node.unwrap(), const_type.unwrap(), pos_start)));
                 return res;
             }
 
@@ -1205,6 +1237,41 @@ impl Parser {
             self.advance();
 
             let var_name = token.token_value().as_ref().unwrap().clone();
+
+            if self.current_token().token_type() == TokenType::Plus
+                || self.current_token().token_type() == TokenType::Minus
+                || self.current_token().token_type() == TokenType::Mul
+                || self.current_token().token_type() == TokenType::Div
+                || self.current_token().token_type() == TokenType::Modulo
+                || self.current_token().token_type() == TokenType::BitAnd
+                || self.current_token().token_type() == TokenType::BitOr
+            {
+                let op_token = self.current_token().clone();
+
+                self.advance();
+
+                if self.current_token().token_type() == TokenType::Eq {
+                    res.register_advancement();
+                    res.register_advancement();
+                    self.advance();
+
+                    let pos_start = self.current_token().pos_start().clone();
+
+                    let assign_expr = res.register_res(self.expression());
+                    if res.has_error() {
+                        return res;
+                    }
+
+                    res.success(Box::new(VarAssignNode::new(var_name.clone(),
+            false,
+                    Box::new(BinOpNode::new(
+                        Box::new(VarAccessNode::new(var_name, false, false, pos_start.clone(), self.current_token().pos_end().clone())), op_token, assign_expr.unwrap()
+                    )), pos_start)));
+                    return res;
+                }
+
+                self.reverse(1);
+            }
 
             if self.current_token().token_type() == TokenType::Eq {
                 res.register_advancement();

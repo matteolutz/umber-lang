@@ -19,10 +19,10 @@ pub mod while_node;
 pub mod statements_node;
 pub mod asm_node;
 pub mod syscall_node;
-pub mod extern_node;
 pub mod for_node;
 pub mod cast_node;
 pub mod char_node;
+pub mod const_def_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -46,8 +46,8 @@ pub enum NodeType {
     Statements,
     Assembly,
     Syscall,
-    Extern,
     Cast,
+    ConstDef,
 }
 
 pub trait NodeToAny: 'static {
