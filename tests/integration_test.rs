@@ -11,7 +11,7 @@ use umber_lang::semantics::Validator;
 
 #[test]
 pub fn test_file() {
-    let file = Path::new("E:\\Coding\\Assembly Projects\\umber-output\\sort\\sort.ub");
+    let file = Path::new("E:\\Coding\\Assembly Projects\\umber-output\\test.ub");
 
     let asm_path = file.parent().unwrap().join(format!("{}.asm", file.file_stem().unwrap().to_str().unwrap()));
 

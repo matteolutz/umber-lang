@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -34,6 +33,8 @@ const SCRATCH_REGS: [&str; 7] = [
 const NUMBER_ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
 const SYSCALL_REGS: [&str; 4] = ["rax", "rdi", "rsi", "rdx"];
+
+const ENTRY_SYMBOL: &str = "_start";
 
 pub struct Compiler {
     scratch_regs: u8,
@@ -313,6 +314,9 @@ impl Compiler {
             let call_node = node.as_any().downcast_ref::<CallNode>().unwrap();
             let func_label = if self.externs.contains(&call_node.func_to_call().to_string()) { call_node.func_to_call().to_string() } else { self.function_label_name(call_node.func_to_call()) };
 
+            writeln!(w, "\tpush    r10");
+            writeln!(w, "\tpush    r11");
+
             let mut number_reg_index: usize = 0;
             for arg in call_node.arg_nodes() {
                 let reg = self.code_gen(arg, w).unwrap();
@@ -328,6 +332,9 @@ impl Compiler {
             }
 
             writeln!(w, "\tcall    {}", func_label);
+
+            writeln!(w, "\tpop     r11");
+            writeln!(w, "\tpop     r10");
 
             let reg = self.res_scratch();
             writeln!(w, "\tmov     {}, rax", self.scratch_name(reg));
@@ -347,7 +354,6 @@ impl Compiler {
             // let temp_rbp_reg = self.res_scratch();
             // writeln!(w, "\tmov     {}, rbp", self.scratch_name(temp_rbp_reg));
             writeln!(w, "\tpush    rbp");
-
             writeln!(w, "\tmov     rbp, rsp");
 
             let mut function_body = String::new();
@@ -379,9 +385,22 @@ impl Compiler {
                 writeln!(w, "\tsub     rsp, {}", self.base_offset);
             }
 
+            writeln!(w, "\tpush    rbx");
+            writeln!(w, "\tpush    r12");
+            writeln!(w, "\tpush    r13");
+            writeln!(w, "\tpush    r14");
+            writeln!(w, "\tpush    r15");
+
             writeln!(w, "{}", function_body);
 
             writeln!(w, "{}:", self.label_name(&func_epilogue_label));
+
+            writeln!(w, "\tpop     r15");
+            writeln!(w, "\tpop     r14");
+            writeln!(w, "\tpop     r13");
+            writeln!(w, "\tpop     r12");
+            writeln!(w, "\tpop     rbx");
+
             writeln!(w, "\tmov     rsp, rbp");
             writeln!(w, "\tpop     rbp");
             writeln!(w, "\tret\n");
@@ -544,7 +563,6 @@ impl Compiler {
                 case_labels.push(self.label_create());
             }
 
-            writeln!(w, ";; Begin if");
             for i in 0..if_node.cases().len() {
                 let case = &if_node.cases()[i];
 
@@ -564,7 +582,6 @@ impl Compiler {
             }
 
             writeln!(w, "{}:", self.label_name(&label_end));
-            writeln!(w, ";; End if");
 
         }
 
@@ -580,7 +597,7 @@ impl Compiler {
 
         let mut code = String::new();
 
-        writeln!(code, "main:");
+        writeln!(code, "{}:", ENTRY_SYMBOL);
         writeln!(code, "\tcall    {}", self.function_label_name("main"));
         writeln!(code, "\tmov     rdi, rax");
         writeln!(code, "\tmov     rax, 60");
@@ -589,14 +606,16 @@ impl Compiler {
 
         self.code_gen(node, &mut code);
 
+        writeln!(res, "global  {}\n", ENTRY_SYMBOL);
+
         writeln!(res, "section .text");
-        writeln!(res, "\tdefault rel");
+        // writeln!(res, "\tdefault rel");
 
         if self.externs.len() > 0 {
             writeln!(res, "\textern {}", self.externs.join(","));
         }
 
-        writeln!(res, "\tglobal  main\n");
+        // writeln!(res, "\tglobal  {}\n", ENTRY_SYMBOL);
 
         writeln!(res, "\n{}\n", code);
 
