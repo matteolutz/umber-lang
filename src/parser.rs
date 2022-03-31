@@ -9,6 +9,7 @@ use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::cast_node::CastNode;
+use crate::nodes::char_node::CharNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
@@ -31,6 +32,7 @@ use crate::results::parse::ParseResult;
 use crate::token::{Token, TokenType};
 use crate::values::value_type::array_type::ArrayType;
 use crate::values::value_type::bool_type::BoolType;
+use crate::values::value_type::char_type::CharType;
 use crate::values::value_type::number_type::NumberType;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
@@ -111,6 +113,7 @@ impl Parser {
             "number" => Box::new(NumberType::new()),
             "string" => Box::new(StringType::new()),
             "bool" => Box::new(BoolType::new()),
+            "char" => Box::new(CharType::new()),
             "void" => Box::new(VoidType::new()),
             _ => return (None, Some(Error::new(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "NotAnIntrinsicType".to_string(), format!("'{}' is not an intrinsic type!", self.current_token().token_value().as_ref().unwrap()))))
         };
@@ -1162,6 +1165,18 @@ impl Parser {
             return res;
         }
 
+        if token.token_type() == TokenType::Char {
+            let actual_char = self.current_token().token_value().as_ref().unwrap().chars().next().unwrap();
+            let pos_start = self.current_token().pos_start().clone();
+            let pos_end = self.current_token().pos_start().clone();
+
+            res.register_advancement();
+            self.advance();
+
+            res.success(Box::new(CharNode::new(actual_char, pos_start, pos_end)));
+            return res;
+        }
+
         if token.token_type() == TokenType::Identifier {
             res.register_advancement();
             self.advance();
@@ -1172,6 +1187,19 @@ impl Parser {
                 res.register_advancement();
                 self.advance();
 
+                if self.current_token().token_type() == TokenType::BitAnd {
+                    res.register_advancement();
+                    self.advance();
+
+                    let expr = res.register_res(self.expression());
+                    if res.has_error() {
+                        return res;
+                    }
+
+                    res.success(Box::new(VarAssignNode::new(var_name, true, expr.unwrap(), token.pos_start().clone())));
+                    return res;
+                }
+
                 let expr = res.register_res(self.expression());
                 if res.has_error() {
                     return res;
@@ -1181,7 +1209,7 @@ impl Parser {
                 return res;
             }
 
-            if self.current_token().token_type() == TokenType::BitAnd {
+            /*if self.current_token().token_type() == TokenType::BitAnd {
                 self.advance();
 
                 if self.current_token().token_type() == TokenType::Eq {
@@ -1199,7 +1227,7 @@ impl Parser {
                 }
 
                 self.reverse(1);
-            }
+            }*/
 
             if self.current_token().token_type() == TokenType::Mul {
                 res.register_advancement();

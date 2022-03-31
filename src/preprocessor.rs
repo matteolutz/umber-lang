@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::fs;
 use std::ops::{Add, Index};
 use std::path::Path;
 use crate::error::Error;
+use regex;
 
 pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<String>) -> (Option<String>, Option<String>) {
     let lines: Vec<&str> = str.lines().collect();
@@ -11,6 +13,10 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<
 
     for (i, line) in lines.iter().enumerate() {
         if line.starts_with('#') {
+            if line.strip_prefix('#').unwrap().starts_with(' ') {
+                continue;
+            }
+
             let trimmed = line.strip_prefix('#').unwrap().trim();
             if trimmed.len() == 0 {
                 return (None, Some(format!("empty preprocessor directive in line {}", i + 1)));
@@ -66,6 +72,8 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<
             } else {
                 return (None, Some(format!("unknown preprocessor directive '{}' in line {}", command, i + 1)));
             }
+
+            continue;
         }
 
         result.push_str(line);

@@ -1,7 +1,9 @@
+use regex::escape;
 use crate::{error, utils};
 use crate::error::Error;
 use crate::position::Position;
 use crate::token::{KEYWORDS, Token, TokenType};
+use crate::token::TokenType::Lcurly;
 
 pub struct Lexer {
     file_name: Box<String>,
@@ -50,8 +52,14 @@ impl Lexer {
                 tokens.push(self.make_number());
             } else if utils::is_digit(&current) || utils::is_alpha(&current) {
                 tokens.push(self.make_identifier());
-            } else if current == '\"' {
+            } else if current == '"' {
                 tokens.push(self.make_string());
+            } else if current == '\'' {
+                let (token, error) = self.make_char();
+                if error.is_some() {
+                    return (vec![], error);
+                }
+                tokens.push(token.unwrap());
             } else if current == '+' {
                 tokens.push(Token::new_without_value(TokenType::Plus, self.pos.clone(), self.pos.clone()));
                 self.advance();
@@ -209,6 +217,41 @@ impl Lexer {
         self.advance();
 
         Token::new_with_value(TokenType::String, new_string, pos_start, self.pos.clone())
+    }
+
+    fn make_char(&mut self) -> (Option<Token>, Option<Error>) {
+        let mut new_char = String::new();
+        let mut escaped = false;
+        let pos_start = self.pos.clone();
+
+        self.advance();
+
+        if self.current_char.unwrap() == '\\' {
+            new_char.push('\\');
+            escaped = true;
+            self.advance();
+        }
+
+        if self.current_char.is_none() || (self.current_char.unwrap() == '\'' && escaped) {
+            return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected escaped character, after \\!")));
+        }
+
+        new_char.push(self.current_char.unwrap());
+
+        self.advance();
+
+        if self.current_char.is_none() || self.current_char.unwrap() != '\'' {
+            return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected ' after character!")));
+        }
+
+        let chars: Vec<char> = new_char.chars().collect::<Vec<char>>();
+        if chars.len() > 1 {
+            return (None, Some(error::illegal_character_error(pos_start, self.pos.clone(), "Expected single character, got multiple characters!")));
+        }
+
+        self.advance();
+
+        (Some(Token::new_with_value(TokenType::Char, chars[0].to_string(), pos_start, self.pos.clone())), None)
     }
 
     fn make_minus_or_arrow(&mut self) -> Token {

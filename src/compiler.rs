@@ -8,6 +8,7 @@ use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::call_node::CallNode;
 use crate::nodes::cast_node::CastNode;
+use crate::nodes::char_node::CharNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
@@ -185,6 +186,12 @@ impl Compiler {
             return Some(reg);
         }
 
+        if node.node_type() == NodeType::Char {
+            let reg = self.res_scratch();
+            writeln!(w, "\tmov     {}, QWORD {}", self.scratch_name(reg), *node.as_any().downcast_ref::<CharNode>().unwrap().value() as u8);
+            return Some(reg);
+        }
+
         if node.node_type() == NodeType::List {
             let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
 
@@ -224,6 +231,11 @@ impl Compiler {
                 res_reg = self.res_scratch();
                 writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
                 self.free_scratch(left_reg);
+            } else if bin_op_node.op_token().token_type() == TokenType::Modulo {
+                let res_reg = self.res_scratch();
+                writeln!(w, "\tidiv    {}", self.scratch_name(left_reg));
+                self.free_scratch(left_reg);
+                writeln!(w, "\tmov     {}, rdx", self.scratch_name(res_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Ee
                 || bin_op_node.op_token().token_type() == TokenType::Gt
                 || bin_op_node.op_token().token_type() == TokenType::Lt
@@ -275,6 +287,8 @@ impl Compiler {
                 res_reg = self.res_scratch();
                 writeln!(w, "\tmov     {}, [{}]", self.scratch_name(res_reg), self.scratch_name(left));
                 self.free_scratch(left);
+            } else if unary_op_node.op_token().token_type() == TokenType::Minus {
+                todo!("Unary minus");
             } else if unary_op_node.op_token().token_type() == TokenType::Not {
                 let label_true = self.label_create();
                 let label_after = self.label_create();
@@ -490,15 +504,27 @@ impl Compiler {
             self.current_loop_start = Some(label_start);
             self.current_loop_break = Some(label_end);
 
-            self.code_gen(for_node.init_stmt(), w);
+            let init_reg = self.code_gen(for_node.init_stmt(), w);
+            if let Some(init_reg) = init_reg {
+                self.free_scratch(init_reg);
+            }
 
             writeln!(w, "{}:", self.label_name(&label_start));
             let condition_reg = self.code_gen(for_node.condition(), w).unwrap();
             writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg));
             self.free_scratch(condition_reg);
             writeln!(w, "\tje      {}", self.label_name(&label_end));
-            self.code_gen(for_node.body(), w);
-            self.code_gen(for_node.next_expr(), w);
+
+            let body_reg = self.code_gen(for_node.body(), w);
+            if let Some(body_reg) = body_reg {
+                self.free_scratch(body_reg);
+            }
+
+            let next_reg = self.code_gen(for_node.next_expr(), w);
+            if let Some(next_reg) = next_reg {
+                self.free_scratch(next_reg);
+            }
+
             writeln!(w, "\tjmp     {}", self.label_name(&label_start));
             writeln!(w, "{}:", self.label_name(&label_end));
 

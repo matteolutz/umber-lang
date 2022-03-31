@@ -81,6 +81,7 @@ pub enum TokenType {
     Int,
     Float,
     String,
+    Char,
     Identifier,
     Keyword,
     Plus,
@@ -117,7 +118,7 @@ pub enum TokenType {
     Eof,
 }
 
-pub static KEYWORDS: [&'static str; 22] = [
+pub static KEYWORDS: [&'static str; 23] = [
     "let",
     "mut",
     "if",
@@ -138,6 +139,7 @@ pub static KEYWORDS: [&'static str; 22] = [
     "number",
     "string",
     "bool",
+    "char",
     "void",
     "as"
 ];

@@ -11,11 +11,13 @@ pub mod void_type;
 pub mod array_type;
 pub mod extern_type;
 pub mod pointer_type;
+pub mod char_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
     Number,
     Bool,
+    Char,
     String,
     Function,
     Void,
