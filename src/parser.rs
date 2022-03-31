@@ -388,11 +388,34 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        if self.current_token().token_type() == TokenType::Rsquare {
+        if self.current_token().token_type() == TokenType::Newline {
             res.register_advancement();
             self.advance();
 
-            res.success(Box::new(ListNode::new(vec![], element_type, pos_start, self.current_token().pos_end().clone())));
+            if self.current_token().token_type() != TokenType::Int {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected int or array element!"));
+                return res;
+            }
+
+            let length = self.current_token().token_value().as_ref().unwrap().parse::<usize>().unwrap();
+
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Rsquare {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']'!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            res.success(Box::new(ListNode::new(length, vec![], false, element_type, pos_start, self.current_token().pos_end().clone())));
+            return res;
+        }
+
+        if self.current_token().token_type() == TokenType::Rsquare {
+            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected int or array element!"));
             return res;
         }
 
@@ -422,7 +445,7 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
-        res.success(Box::new(ListNode::new(elements, element_type, pos_start, self.current_token().pos_end().clone())));
+        res.success(Box::new(ListNode::new(elements.len(), elements, true, element_type, pos_start, self.current_token().pos_end().clone())));
         res
     }
 

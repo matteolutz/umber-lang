@@ -6,27 +6,35 @@ use crate::position::Position;
 use crate::values::value_type::ValueType;
 
 pub struct ListNode {
+    length: usize,
     element_nodes: Vec<Box<dyn Node>>,
+    has_elements: bool,
     element_type: Box<dyn ValueType>,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl ListNode {
-
-    pub fn new(element_nodes: Vec<Box<dyn Node>>, element_type: Box<dyn ValueType>, pos_start: Position, pos_end: Position) -> Self {
+    pub fn new(length: usize, element_nodes: Vec<Box<dyn Node>>, has_elements: bool, element_type: Box<dyn ValueType>, pos_start: Position, pos_end: Position) -> Self {
         ListNode {
+            length,
             element_nodes,
+            has_elements,
             element_type,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
+    pub fn length(&self) -> &usize {
+        &self.length
+    }
+    pub fn has_elements(&self) -> &bool {
+        &self.has_elements
+    }
     pub fn element_nodes(&self) -> &Vec<Box<dyn Node>> { &self.element_nodes }
     pub fn element_type(&self) -> &Box<dyn ValueType> { &self.element_type }
     pub fn size(&self) -> usize { self.element_nodes.len() }
-
 }
 
 impl Display for ListNode {

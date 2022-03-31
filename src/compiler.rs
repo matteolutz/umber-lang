@@ -196,7 +196,18 @@ impl Compiler {
         if node.node_type() == NodeType::List {
             let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
 
-            // writeln!(w, "sub     rsp, {}", list_node.size() as u64 * list_node.element_type().get_size());
+            if !*list_node.has_elements()  {
+                let first_elem_offset = self.base_offset + list_node.element_type().get_size();
+
+                for i in 0..*list_node.length() {
+                    self.base_offset += list_node.element_type().get_size();
+                    writeln!(w, "\tmov     QWORD [rbp - ({})], 0", self.base_offset);
+                }
+
+                let reg = self.res_scratch();
+                writeln!(w, "\tlea     {}, [rbp - {}]", self.scratch_name(reg), first_elem_offset);
+                return Some(reg);
+            }
 
             let first_element_offset = self.base_offset + list_node.element_type().get_size();
 

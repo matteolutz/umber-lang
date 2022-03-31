@@ -3,7 +3,6 @@ use std::fs;
 use std::ops::{Add, Index};
 use std::path::Path;
 use crate::error::Error;
-use regex;
 
 pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<String>) -> (Option<String>, Option<String>) {
     let lines: Vec<&str> = str.lines().collect();

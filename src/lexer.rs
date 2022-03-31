@@ -1,4 +1,3 @@
-use regex::escape;
 use crate::{error, utils};
 use crate::error::Error;
 use crate::position::Position;
