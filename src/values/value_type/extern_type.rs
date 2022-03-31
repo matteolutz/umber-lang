@@ -44,6 +44,10 @@ impl ValueType for ExternType {
         None
     }
 
+    fn is_valid_cast(&self, _t: &Box<dyn ValueType>) -> bool {
+        false
+    }
+
     fn box_clone(&self) -> Box<dyn ValueType> {
         Box::new(self.clone())
     }

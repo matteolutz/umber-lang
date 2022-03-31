@@ -7,6 +7,7 @@ use crate::nodes::{Node, NodeType};
 use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::call_node::CallNode;
+use crate::nodes::cast_node::CastNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
@@ -274,6 +275,19 @@ impl Compiler {
                 res_reg = self.res_scratch();
                 writeln!(w, "\tmov     {}, [{}]", self.scratch_name(res_reg), self.scratch_name(left));
                 self.free_scratch(left);
+            } else if unary_op_node.op_token().token_type() == TokenType::Not {
+                let label_true = self.label_create();
+                let label_after = self.label_create();
+
+                res_reg = self.res_scratch();
+                writeln!(w, "\tcmp     {}, QWORD 0", self.scratch_name(left));
+                self.free_scratch(left);
+                writeln!(w, "\tje      {}", self.label_name(&label_true));
+                writeln!(w, "\tmov     {}, QWORD 0", self.scratch_name(res_reg));
+                writeln!(w, "\tjmp     {}", self.label_name(&label_after));
+                writeln!(w, "{}:", self.label_name(&label_true));
+                writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
+                writeln!(w, "{}:", self.label_name(&label_after));
             } else {
                 panic!("Token '{:?}' not supported as an unary operation yet!", unary_op_node.op_token().token_type());
             }
@@ -413,8 +427,8 @@ impl Compiler {
                 let temp_reg = self.res_scratch();
                 writeln!(w, "\tmov     {}, [rbp - ({})]", self.scratch_name(temp_reg), var_offset);
                 writeln!(w, "\tmov     [{}], {}", self.scratch_name(temp_reg), self.scratch_name(reg));
+                self.free_scratch(temp_reg);
             } else {
-                // TODO add size specifier
                 writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
             }
 
@@ -526,6 +540,10 @@ impl Compiler {
             writeln!(w, "{}:", self.label_name(&label_end));
             writeln!(w, ";; End if");
 
+        }
+
+        if node.node_type() == NodeType::Cast {
+            return Some(self.code_gen(node.as_any().downcast_ref::<CastNode>().unwrap().node(), w).unwrap());
         }
 
         None

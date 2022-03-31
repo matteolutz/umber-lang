@@ -34,6 +34,7 @@ pub trait ValueType: ValueTypeAsAny + Display {
 
     fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>>;
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>>;
+    fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool;
 
     fn box_clone(&self) -> Box<dyn ValueType>;
 

@@ -8,6 +8,7 @@ use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
+use crate::nodes::cast_node::CastNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
@@ -1069,6 +1070,22 @@ impl Parser {
         let mut atom = res.register_res(self.atom());
         if res.has_error() {
             return res;
+        }
+
+        if self.current_token().matches_keyword("as") {
+            res.register_advancement();
+            self.advance();
+
+            let (cast_type, cast_type_error) = self.parse_intrinsic_type();
+            if cast_type_error.is_some() {
+                res.failure(cast_type_error.unwrap());
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            atom = Some(Box::new(CastNode::new(atom.unwrap(), cast_type.unwrap())));
         }
 
         if self.current_token().token_type() == TokenType::Lparen {

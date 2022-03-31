@@ -6,6 +6,7 @@ use crate::nodes::{Node, NodeType};
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
+use crate::nodes::cast_node::CastNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
@@ -144,6 +145,7 @@ impl Validator {
             NodeType::While => self.validate_while_node(node.as_any().downcast_ref::<WhileNode>().unwrap()),
             NodeType::For => self.validate_for_node(node.as_any().downcast_ref::<ForNode>().unwrap()),
             NodeType::If => self.validate_if_node(node.as_any().downcast_ref::<IfNode>().unwrap()),
+            NodeType::Cast => self.validate_cast_node(node.as_any().downcast_ref::<CastNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -604,6 +606,23 @@ impl Validator {
 
         // TODO: check if all code paths return a value
 
+        res
+    }
+
+    fn validate_cast_node(&mut self, node: &CastNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let node_type = res.register_res(self.validate(node.node()));
+        if res.has_error() {
+            return res;
+        }
+
+        if !node_type.unwrap().is_valid_cast(node.cast_type()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Invalid cast!"));
+            return res;
+        }
+
+        res.success(node.cast_type().clone());
         res
     }
 }

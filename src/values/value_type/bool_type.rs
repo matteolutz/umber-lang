@@ -56,6 +56,14 @@ impl ValueType for BoolType {
         None
     }
 
+    fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
+        if t.value_type() == ValueTypes::Number {
+            return true;
+        }
+
+        false
+    }
+
     fn box_clone(&self) -> Box<dyn ValueType> {
         Box::new(self.clone())
     }
