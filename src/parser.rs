@@ -1232,26 +1232,6 @@ impl Parser {
                 return res;
             }
 
-            /*if self.current_token().token_type() == TokenType::BitAnd {
-                self.advance();
-
-                if self.current_token().token_type() == TokenType::Eq {
-                    res.register_advancement();
-                    res.register_advancement();
-                    self.advance();
-
-                    let expr = res.register_res(self.expression());
-                    if res.has_error() {
-                        return res;
-                    }
-
-                    res.success(Box::new(VarAssignNode::new(var_name, true, expr.unwrap(), token.pos_start().clone())));
-                    return res;
-                }
-
-                self.reverse(1);
-            }*/
-
             if self.current_token().token_type() == TokenType::Mul {
                 res.register_advancement();
                 self.advance();
