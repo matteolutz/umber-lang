@@ -59,6 +59,10 @@ impl ValueType for NumberType {
             return true;
         }
 
+        if t.value_type() == ValueTypes::Pointer {
+            return true;
+        }
+
         false
     }
 

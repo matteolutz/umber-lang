@@ -39,6 +39,15 @@ use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::ValueType;
 use crate::values::value_type::void_type::VoidType;
 
+macro_rules! expect_token {
+    ($self:ident, $res:ident, $token_type:expr, $repr:literal) => {
+        if $self.current_token().token_type() != $token_type {
+            $res.failure(error::invalid_syntax_error($self.current_token().pos_start().clone(), $self.current_token().pos_end().clone(), format!("Expected '{}'!", $repr).as_str()));
+            return $res;
+        }
+    };
+}
+
 #[derive(Copy, Clone)]
 enum BinOpFunction {
     Arith = 0,

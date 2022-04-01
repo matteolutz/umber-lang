@@ -217,10 +217,11 @@ impl Compiler {
             if !*list_node.has_elements()  {
                 let first_elem_offset = self.base_offset + list_node.element_type().get_size();
 
-                for i in 0..*list_node.length() {
+                /*for i in 0..*list_node.length() {
                     self.base_offset += list_node.element_type().get_size();
                     writeln!(w, "\tmov     QWORD [rbp - ({})], 0", self.base_offset);
-                }
+                }*/
+                self.base_offset += *list_node.length() as u64 * list_node.element_type().get_size();
 
                 let reg = self.res_scratch();
                 writeln!(w, "\tlea     {}, [rbp - {}]", self.scratch_name(reg), first_elem_offset);

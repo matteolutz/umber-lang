@@ -2,16 +2,28 @@ use std::collections::HashMap;
 use std::fs;
 use std::ops::{Add, Index};
 use std::path::Path;
+use regex::Regex;
 use crate::error::Error;
 
-pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<String>) -> (Option<String>, Option<String>) {
+pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<String>, macros: &mut HashMap<String, String>) -> (Option<String>, Option<String>) {
     let lines: Vec<&str> = str.lines().collect();
     let mut result = String::new();
 
     let mut already_include = already_include.clone();
 
-    for (i, line) in lines.iter().enumerate() {
+    for (i, r_line) in lines.iter().enumerate() {
+
+        let mut line = r_line.to_string();
+
+        // TODO: no macro expansions in strings
+        for (macro_name, macro_body) in &*macros {
+            let re = Regex::new(macro_name.as_str()).unwrap();
+            line = re.replace_all(line.as_str(), macro_body.as_str()).to_string();
+        }
+
         if line.starts_with('#') {
+
+            // TODO: refactor this, change comment syntax to be //
             if line.strip_prefix('#').unwrap().starts_with(' ') {
                 continue;
             }
@@ -51,7 +63,7 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<
 
                     let file_content = file_content_option.unwrap();
 
-                    let (preprocessed, preprocess_error) = preprocess(file_content, include_paths, &already_include);
+                    let (preprocessed, preprocess_error) = preprocess(file_content, include_paths, &already_include, macros);
                     if let Some(error) = preprocess_error {
                         return (None, Some(format!("error preprocessing included file {}: {}", loc, error)));
                     }
@@ -68,14 +80,27 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<
                 if !success {
                     return (None, Some(format!("could not find included file {}", file_path)));
                 }
-            } else {
-                return (None, Some(format!("unknown preprocessor directive '{}' in line {}", command, i + 1)));
+
+                continue;
             }
 
-            continue;
+            if command == "macro" {
+                if args.len() < 2 {
+                    return (None, Some(format!("macro directive requires at least 2 arguments in line {}", i + 1)));
+                }
+
+                let macro_name = args[0].to_string();
+                let macro_body = "(".to_owned() + args[1..].join(" ").as_str() + ")";
+
+                macros.insert(macro_name, macro_body);
+
+                continue;
+            }
+
+            return (None, Some(format!("unknown preprocessor directive '{}' in line {}", command, i + 1)));
         }
 
-        result.push_str(line);
+        result.push_str(line.as_str());
         result.push('\n');
     }
 

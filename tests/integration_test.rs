@@ -19,11 +19,13 @@ pub fn test_file() {
 
     let (preprocessed, preprocess_error) = preprocessor::preprocess(file_contents, &vec![
         "E:\\Coding\\Umber\\include\\"
-    ], &vec![]);
+    ], &vec![], &mut HashMap::new());
 
     if let Some(error) = preprocess_error {
         panic!("{}", error);
     }
+
+    // println!("preprocessed: {}", preprocessed.as_ref().unwrap());
 
     let mut lexer = umber_lang::lexer::Lexer::new(Box::new("umber_lang test!".to_string()), Box::new(preprocessed.unwrap()));
     let (tokens, error) = lexer.make_tokens();
