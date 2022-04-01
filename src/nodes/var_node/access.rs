@@ -14,11 +14,11 @@ pub struct VarAccessNode {
 
 impl VarAccessNode {
 
-    pub fn new(var_name: String, reference: bool, mutable_reference: bool, pos_start: Position, pos_end: Position) -> Self {
+    pub fn new(var_name: String, pos_start: Position, pos_end: Position) -> Self {
         VarAccessNode {
             var_name,
-            reference,
-            mutable_reference,
+            reference: false,
+            mutable_reference: false,
             pos_start,
             pos_end
         }

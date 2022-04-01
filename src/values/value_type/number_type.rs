@@ -55,11 +55,9 @@ impl ValueType for NumberType {
     }
 
     fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
-        if t.value_type() == ValueTypes::Bool {
-            return true;
-        }
-
-        if t.value_type() == ValueTypes::Pointer {
+        if t.value_type() == ValueTypes::Bool
+            || t.value_type() == ValueTypes::Pointer
+            || t.value_type() == ValueTypes::Char {
             return true;
         }
 

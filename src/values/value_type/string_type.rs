@@ -45,7 +45,14 @@ impl ValueType for StringType {
         None
     }
 
-    fn is_valid_cast(&self, _t: &Box<dyn ValueType>) -> bool {
+    fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
+        if t.value_type() == ValueTypes::Pointer {
+            let p = t.as_any().downcast_ref::<PointerType>().unwrap();
+            if p.pointee_type().value_type() == ValueTypes::Char && !*p.is_mutable() {
+                return true;
+            }
+        }
+
         false
     }
 

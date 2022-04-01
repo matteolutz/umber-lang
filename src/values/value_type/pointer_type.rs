@@ -65,6 +65,10 @@ impl ValueType for PointerType {
 
     fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
         // TODO: maybe add conversion to number
+        if t.value_type() == ValueTypes::Number {
+            return true;
+        }
+
         if t.value_type() == ValueTypes::Pointer {
             let pointer_type = t.as_any().downcast_ref::<Self>().unwrap();
             /*if pointer_type.pointee_type().eq(&self.pointee_type) && !*pointer_type.is_mutable() {

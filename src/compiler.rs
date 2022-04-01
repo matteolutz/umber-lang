@@ -212,6 +212,8 @@ impl Compiler {
         }
 
         if node.node_type() == NodeType::List {
+            todo!("not supported for now!");
+
             let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
 
             if !*list_node.has_elements()  {

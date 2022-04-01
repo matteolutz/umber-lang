@@ -1274,7 +1274,7 @@ impl Parser {
                     res.success(Box::new(VarAssignNode::new(var_name.clone(),
             false,
                     Box::new(BinOpNode::new(
-                        Box::new(VarAccessNode::new(var_name, false, false, pos_start.clone(), self.current_token().pos_end().clone())), op_token, assign_expr.unwrap()
+                        Box::new(VarAccessNode::new(var_name, pos_start.clone(), self.current_token().pos_end().clone())), op_token, assign_expr.unwrap()
                     )), pos_start)));
                     return res;
                 }
@@ -1308,23 +1308,8 @@ impl Parser {
                 return res;
             }
 
-            if self.current_token().token_type() == TokenType::Mul {
-                res.register_advancement();
-                self.advance();
 
-                if self.current_token().matches_keyword("mut") {
-                    res.register_advancement();
-                    self.advance();
-
-                    res.success(Box::new(VarAccessNode::new(var_name, true, true,token.pos_start().clone(), token.pos_end().clone())));
-                    return res;
-                }
-
-                res.success(Box::new(VarAccessNode::new(var_name, true, false,token.pos_start().clone(), token.pos_end().clone())));
-                return res;
-            }
-
-            res.success(Box::new(VarAccessNode::new(var_name, false, false,token.pos_start().clone(), token.pos_end().clone())));
+            res.success(Box::new(VarAccessNode::new(var_name, token.pos_start().clone(), token.pos_end().clone())));
             return res;
         }
 
