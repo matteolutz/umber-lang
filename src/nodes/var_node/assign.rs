@@ -6,17 +6,15 @@ use crate::position::Position;
 
 pub struct VarAssignNode {
     var_name: String,
-    reference_assign: bool,
     value_node: Box<dyn Node>,
     pos_start: Position
 }
 
 impl VarAssignNode {
 
-    pub fn new(var_name: String, reference_assign: bool, value_node: Box<dyn Node>, pos_start: Position) -> Self {
+    pub fn new(var_name: String, value_node: Box<dyn Node>, pos_start: Position) -> Self {
         VarAssignNode {
             var_name,
-            reference_assign,
             value_node,
             pos_start
         }
@@ -24,9 +22,6 @@ impl VarAssignNode {
 
     pub fn var_name(&self) -> &str {
         &self.var_name
-    }
-    pub fn reference_assign(&self) -> &bool {
-        &self.reference_assign
     }
     pub fn value_node(&self) -> &Box<dyn Node> {
         &self.value_node

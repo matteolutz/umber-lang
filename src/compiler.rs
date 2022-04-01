@@ -15,6 +15,7 @@ use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
+use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::string_node::StringNode;
@@ -259,16 +260,32 @@ impl Compiler {
             } else if bin_op_node.op_token().token_type() == TokenType::Minus {
                 writeln!(w, "\tsub     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Mul {
+                writeln!(w, "\tpush    rax");
+
                 writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
                 writeln!(w, "\timul    {}", self.scratch_name(right_reg));
-                res_reg = self.res_scratch();
-                writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
-                self.free_scratch(left_reg);
+
+                writeln!(w, "\tmov     {}, rax", self.scratch_name(left_reg));
+
+                writeln!(w, "\tpop     rax");
+            } else if bin_op_node.op_token().token_type() == TokenType::Div {
+                writeln!(w, "\tpush    rax");
+
+                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
+                writeln!(w, "\tidiv    {}", self.scratch_name(right_reg));
+
+                writeln!(w, "\tmov     {}, rax", self.scratch_name(left_reg));
+
+                writeln!(w, "\tpop     rax");
             } else if bin_op_node.op_token().token_type() == TokenType::Modulo {
-                let res_reg = self.res_scratch();
-                writeln!(w, "\tidiv    {}", self.scratch_name(left_reg));
-                self.free_scratch(left_reg);
-                writeln!(w, "\tmov     {}, rdx", self.scratch_name(res_reg));
+                writeln!(w, "\tpush    rax");
+
+                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
+                writeln!(w, "\tidiv    {}", self.scratch_name(right_reg));
+
+                writeln!(w, "\tmov     {}, rdx", self.scratch_name(left_reg));
+
+                writeln!(w, "\tpop     rax");
             } else if bin_op_node.op_token().token_type() == TokenType::BitAnd {
                 writeln!(w, "\tand     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::BitOr {
@@ -492,14 +509,14 @@ impl Compiler {
 
             let reg = self.code_gen(var_assign_node.value_node(), w).unwrap();
 
-            if *var_assign_node.reference_assign() {
+            /*if *var_assign_node.reference_assign() {
                 let temp_reg = self.res_scratch();
                 writeln!(w, "\tmov     {}, [rbp - ({})]", self.scratch_name(temp_reg), var_offset);
                 writeln!(w, "\tmov     [{}], {}", self.scratch_name(temp_reg), self.scratch_name(reg));
                 self.free_scratch(temp_reg);
-            } else {
+            } else {*/
                 writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
-            }
+            // }
 
             return Some(reg);
         }
@@ -629,6 +646,19 @@ impl Compiler {
             let const_def_node = node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap();
             self.create_constant_label(const_def_node.name().to_string());
             return None;
+        }
+
+        if node.node_type() == NodeType::PointerAssign {
+            let assign_node = node.as_any().downcast_ref::<PointerAssignNode>().unwrap();
+
+            let pointer_reg = self.code_gen(assign_node.assign_to(), w).unwrap();
+            let assign_reg = self.code_gen(assign_node.assign_node(), w).unwrap();
+
+            writeln!(w, "\tmov     [{}], {}", self.scratch_name(pointer_reg), self.scratch_name(assign_reg));
+
+            self.free_scratch(pointer_reg);
+
+            return Some(assign_reg);
         }
 
         None

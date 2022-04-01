@@ -7,13 +7,15 @@ use crate::values::value_type::ValueType;
 pub struct CastNode {
     node: Box<dyn Node>,
     cast_type: Box<dyn ValueType>,
+    pos_end: Position
 }
 
 impl CastNode {
-    pub fn new(node: Box<dyn Node>, cast_type: Box<dyn ValueType>) -> Self {
+    pub fn new(node: Box<dyn Node>, cast_type: Box<dyn ValueType>, pos_end: Position) -> Self {
         Self {
             node,
             cast_type,
+            pos_end
         }
     }
 
@@ -43,7 +45,7 @@ impl Node for CastNode {
     }
 
     fn pos_end(&self) -> &Position {
-        self.node.pos_end()
+        &self.pos_end
     }
 
     fn node_type(&self) -> NodeType {

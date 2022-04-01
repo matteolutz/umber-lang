@@ -23,6 +23,7 @@ pub mod for_node;
 pub mod cast_node;
 pub mod char_node;
 pub mod const_def_node;
+pub mod pointer_assign_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -48,6 +49,7 @@ pub enum NodeType {
     Syscall,
     Cast,
     ConstDef,
+    PointerAssign,
 }
 
 pub trait NodeToAny: 'static {

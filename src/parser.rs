@@ -19,6 +19,7 @@ use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
+use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::string_node::StringNode;
@@ -1020,6 +1021,24 @@ impl Parser {
             return res;
         }
 
+        if self.current_token().matches_keyword("as") {
+            res.register_advancement();
+            self.advance();
+
+            let (cast_type, cast_type_error) = self.parse_intrinsic_type();
+            if cast_type_error.is_some() {
+                res.failure(cast_type_error.unwrap());
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            res.success(Box::new(CastNode::new(node.unwrap(), cast_type.unwrap(), self.current_token().pos_end().clone())));
+            return res;
+        }
+
+
         res.success(node.unwrap());
         res
     }
@@ -1089,7 +1108,9 @@ impl Parser {
     }
 
     fn factor(&mut self) -> ParseResult {
-        if self.current_token().token_type() == TokenType::Plus || self.current_token().token_type() == TokenType::Minus {
+        if self.current_token().token_type() == TokenType::Plus
+            || self.current_token().token_type() == TokenType::Minus
+        {
             let mut res = ParseResult::new();
             let token = self.current_token().clone();
 
@@ -1098,6 +1119,35 @@ impl Parser {
 
             let factor = res.register_res(self.factor());
             if res.has_error() {
+                return res;
+            }
+
+            res.success(Box::new(UnaryOpNode::new(token, factor.unwrap())));
+            return res;
+        }
+
+        if self.current_token().token_type() == TokenType::Mul {
+            let mut res = ParseResult::new();
+            let token = Token::new_without_value(TokenType::Dereference, self.current_token().pos_start().clone(), self.current_token().pos_end().clone());
+
+            res.register_advancement();
+            self.advance();
+
+            let factor = res.register_res(self.factor());
+            if res.has_error() {
+                return res;
+            }
+
+            if self.current_token().token_type() == TokenType::Eq {
+                res.register_advancement();
+                self.advance();
+
+                let assign_node = res.register_res(self.expression());
+                if res.has_error() {
+                    return res;
+                }
+
+                res.success(Box::new(PointerAssignNode::new(factor.unwrap(), assign_node.unwrap())));
                 return res;
             }
 
@@ -1119,40 +1169,9 @@ impl Parser {
     fn call(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
 
-        if self.current_token().token_type() == TokenType::Mul {
-            let op_token = Token::new_without_value(TokenType::Dereference, self.current_token().pos_start().clone(), self.current_token().pos_end().clone());
-
-            res.register_advancement();
-            self.advance();
-
-            let node = res.register_res(self.call());
-            if res.has_error() {
-                return res;
-            }
-
-            res.success(Box::new(UnaryOpNode::new(op_token, node.unwrap())));
-            return res;
-        }
-
         let mut atom = res.register_res(self.atom());
         if res.has_error() {
             return res;
-        }
-
-        if self.current_token().matches_keyword("as") {
-            res.register_advancement();
-            self.advance();
-
-            let (cast_type, cast_type_error) = self.parse_intrinsic_type();
-            if cast_type_error.is_some() {
-                res.failure(cast_type_error.unwrap());
-                return res;
-            }
-
-            res.register_advancement();
-            self.advance();
-
-            atom = Some(Box::new(CastNode::new(atom.unwrap(), cast_type.unwrap())));
         }
 
         if self.current_token().token_type() == TokenType::Lparen {
@@ -1241,11 +1260,17 @@ impl Parser {
             return res;
         }
 
-        if token.token_type() == TokenType::Identifier {
+        if self.current_token().token_type() == TokenType::Identifier {
+            if self.current_token().token_type() != TokenType::Identifier {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
+                return res;
+            }
+
+            let var_name = self.current_token().token_value().as_ref().unwrap().clone();
+            let pos_start = self.current_token().pos_start().clone();
+
             res.register_advancement();
             self.advance();
-
-            let var_name = token.token_value().as_ref().unwrap().clone();
 
             if self.current_token().token_type() == TokenType::Plus
                 || self.current_token().token_type() == TokenType::Minus
@@ -1264,18 +1289,15 @@ impl Parser {
                     res.register_advancement();
                     self.advance();
 
-                    let pos_start = self.current_token().pos_start().clone();
-
                     let assign_expr = res.register_res(self.expression());
                     if res.has_error() {
                         return res;
                     }
 
                     res.success(Box::new(VarAssignNode::new(var_name.clone(),
-            false,
-                    Box::new(BinOpNode::new(
-                        Box::new(VarAccessNode::new(var_name, pos_start.clone(), self.current_token().pos_end().clone())), op_token, assign_expr.unwrap()
-                    )), pos_start)));
+                                                            Box::new(BinOpNode::new(
+                                                                Box::new(VarAccessNode::new(var_name, pos_start.clone(), self.current_token().pos_end().clone())), op_token, assign_expr.unwrap(),
+                                                            )), pos_start)));
                     return res;
                 }
 
@@ -1286,30 +1308,17 @@ impl Parser {
                 res.register_advancement();
                 self.advance();
 
-                if self.current_token().token_type() == TokenType::BitAnd {
-                    res.register_advancement();
-                    self.advance();
-
-                    let expr = res.register_res(self.expression());
-                    if res.has_error() {
-                        return res;
-                    }
-
-                    res.success(Box::new(VarAssignNode::new(var_name, true, expr.unwrap(), token.pos_start().clone())));
-                    return res;
-                }
-
                 let expr = res.register_res(self.expression());
                 if res.has_error() {
                     return res;
                 }
 
-                res.success(Box::new(VarAssignNode::new(var_name, false, expr.unwrap(), token.pos_start().clone())));
+                res.success(Box::new(VarAssignNode::new(var_name, expr.unwrap(), pos_start)));
                 return res;
             }
 
 
-            res.success(Box::new(VarAccessNode::new(var_name, token.pos_start().clone(), token.pos_end().clone())));
+            res.success(Box::new(VarAccessNode::new(var_name, pos_start, self.current_token().pos_end().clone())));
             return res;
         }
 

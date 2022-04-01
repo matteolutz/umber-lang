@@ -13,6 +13,7 @@ use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
+use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
@@ -160,6 +161,7 @@ impl Validator {
             NodeType::If => self.validate_if_node(node.as_any().downcast_ref::<IfNode>().unwrap()),
             NodeType::Cast => self.validate_cast_node(node.as_any().downcast_ref::<CastNode>().unwrap()),
             NodeType::ConstDef => self.validate_const_def_node(node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap()),
+            NodeType::PointerAssign => self.validate_pointer_assign_node(node.as_any().downcast_ref::<PointerAssignNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -309,7 +311,7 @@ impl Validator {
 
         let symbol_type = assign_type.unwrap();
 
-        if *node.reference_assign() {
+        /*if *node.reference_assign() {
             if self.get_symbol(node.var_name()).unwrap().value_type().value_type() != ValueTypes::Pointer {
                 res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' is not a pointer!", node.var_name()).as_str()));
                 return res;
@@ -327,7 +329,7 @@ impl Validator {
 
             res.success(self.get_symbol(node.var_name()).unwrap().value_type().clone());
             return res;
-        }
+        }*/
 
         if !self.get_symbol(node.var_name()).unwrap().value_type().eq(&symbol_type) {
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable type {} does not match assign type {}!", self.get_symbol(node.var_name()).unwrap().value_type(), &symbol_type).as_str()));
@@ -667,6 +669,40 @@ impl Validator {
 
 
         self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.unwrap(), false));
+        res
+    }
+
+    fn validate_pointer_assign_node(&mut self, node: &PointerAssignNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let assign_to = res.register_res(self.validate(node.assign_to()));
+        if res.has_error() {
+            return res;
+        }
+
+        if assign_to.as_ref().unwrap().value_type() != ValueTypes::Pointer {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't assign to non-pointer type!"));
+            return res;
+        }
+
+        let pointer_to = assign_to.as_ref().unwrap().as_any().downcast_ref::<PointerType>().unwrap();
+
+        if !pointer_to.is_mutable() {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't assign to immutable pointer type!"));
+            return res;
+        }
+
+        let assign_from = res.register_res(self.validate(node.assign_node()));
+        if res.has_error() {
+            return res;
+        }
+
+        if !assign_from.as_ref().unwrap().eq(pointer_to.pointee_type()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Can't assign '{}' to pointer of type '{}'!", assign_from.as_ref().unwrap(), pointer_to.pointee_type()).as_str()));
+            return res;
+        }
+
+        res.success(assign_from.unwrap());
         res
     }
 
