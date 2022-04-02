@@ -4,10 +4,10 @@ use crate::position::Position;
 use crate::utils;
 
 pub struct Error {
-    pub pos_start: Position,
-    pub pos_end: Position,
-    pub error_name: String,
-    pub details: String,
+    pos_start: Position,
+    pos_end: Position,
+    error_name: String,
+    details: String,
 }
 
 impl Error {
@@ -19,6 +19,20 @@ impl Error {
             details,
         }
     }
+
+    pub fn pos_start(&self) -> &Position {
+        &self.pos_start
+    }
+    pub fn pos_end(&self) -> &Position {
+        &self.pos_end
+    }
+    pub fn error_name(&self) -> &str {
+        &self.error_name
+    }
+    pub fn details(&self) -> &str {
+        &self.details
+    }
+
 }
 
 impl Display for Error {

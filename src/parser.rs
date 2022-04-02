@@ -151,20 +151,24 @@ impl Parser {
             return (Some(Box::new(ArrayType::new(size, base_type))), None);
         }
 
-        if self.current_token().token_type() == TokenType::Mul {
+        let mut final_type = base_type;
+        while self.current_token().token_type() == TokenType::Mul {
             self.advance();
 
             if self.current_token().matches_keyword("mut") {
-                return (Some(Box::new(PointerType::new(base_type, true))), None);
+                self.advance();
+                final_type = Box::new(PointerType::new(final_type, true));
+            } else {
+                final_type = Box::new(PointerType::new(final_type, false));
             }
 
-            self.reverse(1);
-            return (Some(Box::new(PointerType::new(base_type, false))), None);
+            // self.reverse(1);
+            // return (Some(Box::new(PointerType::new(base_type, false))), None);
         }
 
         self.reverse(1);
 
-        (Some(base_type), None)
+        (Some(final_type), None)
     }
 
     // endregion

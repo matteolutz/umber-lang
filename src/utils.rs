@@ -10,6 +10,7 @@ pub fn string_with_arrows(text: &str, pos_start: &Position, pos_end: &Position) 
 
     for i in 0..line_count {
         let line = &text[idx_start..idx_end];
+        println!("line: {}", line);
 
         let col_start = if i == 0 { *pos_start.col() } else { 0 };
         let col_end = if i == line_count - 1 { *pos_end.col() } else { line.len() - 1 };

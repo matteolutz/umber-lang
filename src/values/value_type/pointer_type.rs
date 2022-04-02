@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::token::{Token, TokenType};
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
+use crate::values::value_type::bool_type::BoolType;
 
 #[derive(Clone)]
 pub struct PointerType {
@@ -48,8 +49,15 @@ impl ValueType for PointerType {
     }
 
     fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
-        if t.value_type() == ValueTypes::Number && (op.token_type() == TokenType::Plus || op.token_type() == TokenType::Minus) {
+        if (t.value_type() == ValueTypes::Number || t.value_type() == ValueTypes::Pointer)
+            && (op.token_type() == TokenType::Plus || op.token_type() == TokenType::Minus
+        ) {
             return Some(self.box_clone());
+        }
+
+        if (t.value_type() == ValueTypes::Number || t.value_type() == ValueTypes::Pointer)
+            && (op.token_type() == TokenType::Ee || op.token_type() == TokenType::Ne) {
+            return Some(Box::new(BoolType::new()));
         }
 
         None
