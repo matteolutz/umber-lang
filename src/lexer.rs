@@ -219,23 +219,22 @@ impl Lexer {
     }
 
     fn make_char(&mut self) -> (Option<Token>, Option<Error>) {
-        let mut new_char = String::new();
+        let mut new_char: char;
         let mut escaped = false;
         let pos_start = self.pos.clone();
 
         self.advance();
 
         if self.current_char.unwrap() == '\\' {
-            new_char.push('\\');
             escaped = true;
             self.advance();
         }
 
-        if self.current_char.is_none() || (self.current_char.unwrap() == '\'' && escaped) {
-            return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected escaped character, after \\!")));
+        if self.current_char.is_none() {
+            return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected escaped character, after '''!")));
         }
 
-        new_char.push(self.current_char.unwrap());
+        new_char = if escaped { utils::escape_char(self.current_char.as_ref().unwrap()) } else { self.current_char.unwrap() };
 
         self.advance();
 
@@ -243,14 +242,9 @@ impl Lexer {
             return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected ' after character!")));
         }
 
-        let chars: Vec<char> = new_char.chars().collect::<Vec<char>>();
-        if chars.len() > 1 {
-            return (None, Some(error::illegal_character_error(pos_start, self.pos.clone(), "Expected single character, got multiple characters!")));
-        }
-
         self.advance();
 
-        (Some(Token::new_with_value(TokenType::Char, chars[0].to_string(), pos_start, self.pos.clone())), None)
+        (Some(Token::new_with_value(TokenType::Char, new_char.to_string(), pos_start, self.pos.clone())), None)
     }
 
     fn make_minus_or_arrow(&mut self) -> Token {

@@ -509,14 +509,7 @@ impl Compiler {
 
             let reg = self.code_gen(var_assign_node.value_node(), w).unwrap();
 
-            /*if *var_assign_node.reference_assign() {
-                let temp_reg = self.res_scratch();
-                writeln!(w, "\tmov     {}, [rbp - ({})]", self.scratch_name(temp_reg), var_offset);
-                writeln!(w, "\tmov     [{}], {}", self.scratch_name(temp_reg), self.scratch_name(reg));
-                self.free_scratch(temp_reg);
-            } else {*/
-                writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
-            // }
+            writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
 
             return Some(reg);
         }
@@ -570,9 +563,10 @@ impl Compiler {
             let for_node = node.as_any().downcast_ref::<ForNode>().unwrap();
 
             let label_start = self.label_create();
+            let label_next = self.label_create();
             let label_end = self.label_create();
 
-            self.current_loop_start = Some(label_start);
+            self.current_loop_start = Some(label_next);
             self.current_loop_break = Some(label_end);
 
             let init_reg = self.code_gen(for_node.init_stmt(), w);
@@ -591,6 +585,7 @@ impl Compiler {
                 self.free_scratch(body_reg);
             }
 
+            writeln!(w, "{}:", self.label_name(&label_next));
             let next_reg = self.code_gen(for_node.next_expr(), w);
             if let Some(next_reg) = next_reg {
                 self.free_scratch(next_reg);
@@ -692,7 +687,7 @@ impl Compiler {
 
         writeln!(res, "\t;; Static strings");
         for (str, uuid) in &self.strings {
-            writeln!(res, "\t{}  DB `{}`", uuid, str);
+            writeln!(res, "\t{}  DB `{}`, 0", uuid, str);
         }
 
         res
