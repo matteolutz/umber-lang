@@ -15,12 +15,6 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<
 
         let mut line = r_line.to_string();
 
-        // TODO: no macro expansions in strings
-        for (macro_name, macro_body) in &*macros {
-            let re = Regex::new(macro_name.as_str()).unwrap();
-            line = re.replace_all(line.as_str(), macro_body.as_str()).to_string();
-        }
-
         if line.starts_with('#') {
 
             // TODO: refactor this, change comment syntax to be //
@@ -90,7 +84,12 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<
                 }
 
                 let macro_name = args[0].to_string();
-                let macro_body = "(".to_owned() + args[1..].join(" ").as_str() + ")";
+                let mut macro_body = "(".to_owned() + args[1..].join(" ").as_str() + ")";
+
+                for (o_macro_name, o_macro_body) in &*macros {
+                    let re = Regex::new(o_macro_name.as_str()).expect(format!("Invalid regex: '{}': \"{}\", line: {}\n{}", o_macro_name, o_macro_body, i+1, r_line).as_str());
+                    macro_body = re.replace_all(macro_body.as_str(), o_macro_body.as_str()).to_string();
+                }
 
                 macros.insert(macro_name, macro_body);
 
@@ -98,6 +97,11 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<
             }
 
             return (None, Some(format!("unknown preprocessor directive '{}' in line {}", command, i + 1)));
+        }
+
+        for (macro_name, macro_body) in &*macros {
+            let re = Regex::new(macro_name.as_str()).expect(format!("Invalid regex: '{}': \"{}\", line: {}\n{}", macro_name, macro_body, i+1, r_line).as_str());
+            line = re.replace_all(line.as_str(), macro_body.as_str()).to_string();
         }
 
         result.push_str(line.as_str());
