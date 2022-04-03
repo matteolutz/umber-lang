@@ -10,7 +10,6 @@ pub fn string_with_arrows(text: &str, pos_start: &Position, pos_end: &Position) 
 
     for i in 0..line_count {
         let line = &text[idx_start..idx_end];
-        println!("line: {}", line);
 
         let col_start = if i == 0 { *pos_start.col() } else { 0 };
         let col_end = if i == line_count - 1 { *pos_end.col() } else { line.len() - 1 };
@@ -51,5 +50,15 @@ pub fn escape_char(c: &char) -> char {
         'n' => '\n',
         't' => '\t',
         _ => panic!("Cant escape char: {}", c),
+    }
+}
+
+pub fn get_asm_size_name(s: &u64) -> String {
+    match s {
+        1 => "BYTE".to_string(),
+        2 => "WORD".to_string(),
+        4 => "DWORD".to_string(),
+        8 => "QWORD".to_string(),
+        _ => panic!("Invalid size: {}", s),
     }
 }

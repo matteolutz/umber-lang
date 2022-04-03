@@ -15,7 +15,9 @@ use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::return_node::ReturnNode;
+use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
+use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
@@ -162,6 +164,8 @@ impl Validator {
             NodeType::Cast => self.validate_cast_node(node.as_any().downcast_ref::<CastNode>().unwrap()),
             NodeType::ConstDef => self.validate_const_def_node(node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap()),
             NodeType::PointerAssign => self.validate_pointer_assign_node(node.as_any().downcast_ref::<PointerAssignNode>().unwrap()),
+            NodeType::SizeOf => self.validate_sizeof_node(),
+            NodeType::StaticDef => self.validate_static_def_node(node.as_any().downcast_ref::<StaticDefinitionNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -703,6 +707,32 @@ impl Validator {
         }
 
         res.success(assign_from.unwrap());
+        res
+    }
+
+    fn validate_sizeof_node(&self) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        res.success(Box::new(NumberType::new()));
+        res
+    }
+
+    fn validate_static_def_node(&mut self, node: &StaticDefinitionNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let assign_type = res.register_res(self.validate(node.value()));
+        if res.has_error() {
+            return res;
+        }
+
+        if !assign_type.as_ref().unwrap().eq(node.value_type()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type '{}' can't be assigned to type '{}'!", assign_type.as_ref().unwrap(), node.value_type()).as_str()));
+            return res;
+        }
+
+        self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.as_ref().unwrap().clone(), *node.is_mutable()));
+
+        res.success(assign_type.unwrap());
         res
     }
 

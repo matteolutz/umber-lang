@@ -56,7 +56,7 @@ impl ValueType for PointerType {
         }
 
         if (t.value_type() == ValueTypes::Number || t.value_type() == ValueTypes::Pointer)
-            && (op.token_type() == TokenType::Ee || op.token_type() == TokenType::Ne) {
+            && (op.token_type() == TokenType::Ee || op.token_type() == TokenType::Ne || op.token_type() == TokenType::Gt || op.token_type() == TokenType::Lt || op.token_type() == TokenType::Gte || op.token_type() == TokenType::Lte) {
             return Some(Box::new(BoolType::new()));
         }
 

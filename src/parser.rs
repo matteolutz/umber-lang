@@ -21,7 +21,9 @@ use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::return_node::ReturnNode;
+use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
+use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
@@ -798,8 +800,6 @@ impl Parser {
                 res.success(Box::new(ConstDefinitionNode::new(name, value_node.unwrap(), const_type.unwrap(), pos_start)));
                 return res;
             }
-
-            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected top level statement!"));
         } else {
             if self.current_token().token_type() == TokenType::Lcurly {
                 res.register_advancement();
@@ -851,7 +851,7 @@ impl Parser {
                 return res;
             }
 
-            if self.current_token().matches_keyword("asm__") {
+            if self.current_token().matches_keyword("asm") {
                 res.register_advancement();
                 self.advance();
 
@@ -892,8 +892,66 @@ impl Parser {
             }
 
             res.success(expr.unwrap());
+            return res;
         }
 
+        if self.current_token().matches_keyword("static") {
+            res.register_advancement();
+            self.advance();
+
+            let mut is_mutable: bool = false;
+            if self.current_token().matches_keyword("mut") {
+                res.register_advancement();
+                self.advance();
+
+                is_mutable = true;
+            }
+
+            if self.current_token().token_type() != TokenType::Identifier {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
+                return res;
+            }
+
+            let static_name = self.current_token().token_value().as_ref().unwrap().clone();
+
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Colon {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ':'!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            let (in_type, in_type_error) = self.parse_intrinsic_type();
+            if in_type_error.is_some() {
+                res.failure(in_type_error.unwrap());
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Eq {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '='!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            let expr = res.register_res(self.expression());
+            if res.has_error() {
+                return res;
+            }
+
+            res.success(Box::new(StaticDefinitionNode::new(static_name, in_type.unwrap(), expr.unwrap(), is_mutable, pos_start)));
+            return res;
+        }
+
+        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected statement or expression!"));
         res
     }
 
@@ -1387,6 +1445,38 @@ impl Parser {
             return res;
         }
 
+        if token.matches_keyword("sizeof") {
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Lsquare {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '['!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            let (in_type, in_type_error) = self.parse_intrinsic_type();
+            if in_type_error.is_some() {
+                res.failure(in_type_error.unwrap());
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            if self.current_token().token_type() != TokenType::Rsquare {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']'!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            res.success(Box::new(SizeOfNode::new(in_type.unwrap(), token.pos_start().clone(), self.current_token().pos_end().clone())));
+            return res;
+        }
 
         res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
         res
