@@ -17,6 +17,7 @@ pub fn test_file() {
 
     let file_contents = fs::read_to_string(&file).expect("Failed to read file");
 
+    println!("Preprocessing file...");
     let (preprocessed, preprocess_error) = preprocessor::preprocess(file_contents, &vec![
         "E:\\Coding\\Umber\\include\\"
     ], &vec![], &mut HashMap::new());
@@ -27,6 +28,7 @@ pub fn test_file() {
 
     // println!("preprocessed: {}", preprocessed.as_ref().unwrap());
 
+    println!("Lexing file...");
     let mut lexer = umber_lang::lexer::Lexer::new(Box::new("umber_lang test!".to_string()), Box::new(preprocessed.unwrap()));
     let (tokens, error) = lexer.make_tokens();
 
@@ -35,6 +37,7 @@ pub fn test_file() {
         return;
     }
 
+    println!("Parsing file...");
     let mut parser = umber_lang::parser::Parser::new(tokens);
     let parse_res = parser.parse();
 
@@ -45,6 +48,7 @@ pub fn test_file() {
 
     let ast_root = parse_res.node().as_ref().unwrap();
 
+    println!("Validating file...");
     let mut validator = umber_lang::semantics::Validator::new();
     let validation_res = validator.validate(ast_root);
 
@@ -53,6 +57,7 @@ pub fn test_file() {
         return;
     }
 
+    println!("Compiling file...");
     let mut compiler = umber_lang::compiler::Compiler::new();
     let asm = compiler.compile_to_str(ast_root);
 
