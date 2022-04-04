@@ -334,30 +334,38 @@ impl Compiler {
                 writeln!(w, "\tsub     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Mul {
                 writeln!(w, "\tpush    rax");
+                writeln!(w, "\tpush    rdx");
 
                 writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
                 writeln!(w, "\timul    {}", self.scratch_name(right_reg));
 
-                writeln!(w, "\tmov     {}, rax", self.scratch_name(left_reg));
+                writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
 
+                writeln!(w, "\tpop    rdx");
                 writeln!(w, "\tpop     rax");
             } else if bin_op_node.op_token().token_type() == TokenType::Div {
                 writeln!(w, "\tpush    rax");
+                writeln!(w, "\tpush    rdx");
 
+                writeln!(w, "\txor     rdx, rdx");
                 writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
                 writeln!(w, "\tidiv    {}", self.scratch_name(right_reg));
 
                 writeln!(w, "\tmov     {}, rax", self.scratch_name(left_reg));
 
+                writeln!(w, "\tpop     rdx");
                 writeln!(w, "\tpop     rax");
             } else if bin_op_node.op_token().token_type() == TokenType::Modulo {
                 writeln!(w, "\tpush    rax");
+                writeln!(w, "\tpush    rdx");
 
+                writeln!(w, "\txor     rdx, rdx");
                 writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
                 writeln!(w, "\tidiv    {}", self.scratch_name(right_reg));
 
                 writeln!(w, "\tmov     {}, rdx", self.scratch_name(left_reg));
 
+                writeln!(w, "\tpop     rdx");
                 writeln!(w, "\tpop     rax");
             } else if bin_op_node.op_token().token_type() == TokenType::BitAnd {
                 writeln!(w, "\tand     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
