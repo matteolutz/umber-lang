@@ -25,7 +25,7 @@ impl Error {
     }
     pub fn pos_end(&self) -> &Position {
         &self.pos_end
-    }
+        }
     pub fn error_name(&self) -> &str {
         &self.error_name
     }

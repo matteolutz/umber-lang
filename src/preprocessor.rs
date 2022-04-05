@@ -5,11 +5,9 @@ use std::path::Path;
 use regex::Regex;
 use crate::error::Error;
 
-pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<String>, macros: &mut HashMap<String, String>) -> (Option<String>, Option<String>) {
+pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &mut Vec<String>, macros: &mut HashMap<String, String>) -> (Option<String>, Option<String>) {
     let lines: Vec<&str> = str.lines().collect();
     let mut result = String::new();
-
-    let mut already_include = already_include.clone();
 
     for (i, r_line) in lines.iter().enumerate() {
 
@@ -57,7 +55,7 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &Vec<
 
                     let file_content = file_content_option.unwrap();
 
-                    let (preprocessed, preprocess_error) = preprocess(file_content, include_paths, &already_include, macros);
+                    let (preprocessed, preprocess_error) = preprocess(file_content, include_paths, already_include, macros);
                     if let Some(error) = preprocess_error {
                         return (None, Some(format!("error preprocessing included file {}: {}", loc, error)));
                     }

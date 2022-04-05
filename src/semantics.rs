@@ -48,7 +48,9 @@ pub struct Validator {
     type_stack: Vec<HashMap<String, Symbol>>,
     scope_stack: Vec<ScopeType>,
 
-    current_function_return_type: Option<Box<dyn ValueType>>
+    current_function_return_type: Option<Box<dyn ValueType>>,
+
+    structs: HashMap<String, Vec<Box<dyn ValueType>>>,
 }
 
 impl Validator {
@@ -60,7 +62,8 @@ impl Validator {
             scope_stack: vec![
                 ScopeType::Global,
             ],
-            current_function_return_type: None
+            current_function_return_type: None,
+            structs: HashMap::new(),
         }
     }
 

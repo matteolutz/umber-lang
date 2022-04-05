@@ -26,6 +26,7 @@ pub mod const_def_node;
 pub mod pointer_assign_node;
 pub mod sizeof_node;
 pub mod static_def_node;
+pub mod struct_def_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -53,7 +54,8 @@ pub enum NodeType {
     ConstDef,
     PointerAssign,
     SizeOf,
-    StaticDef
+    StaticDef,
+    StructDef
 }
 
 pub trait NodeToAny: 'static {

@@ -20,7 +20,7 @@ pub fn test_file() {
     println!("Preprocessing file...");
     let (preprocessed, preprocess_error) = preprocessor::preprocess(file_contents, &vec![
         "E:\\Coding\\Umber\\include\\"
-    ], &vec![], &mut HashMap::new());
+    ], &mut vec![], &mut HashMap::new());
 
     if let Some(error) = preprocess_error {
         panic!("{}", error);

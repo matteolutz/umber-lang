@@ -12,6 +12,7 @@ pub mod array_type;
 pub mod extern_type;
 pub mod pointer_type;
 pub mod char_type;
+pub mod struct_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
@@ -24,6 +25,7 @@ pub enum ValueTypes {
     Array,
     Extern,
     Pointer,
+    Struct
 }
 
 pub trait ValueTypeAsAny {

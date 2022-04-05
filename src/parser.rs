@@ -25,6 +25,7 @@ use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
+use crate::nodes::struct_def_node::StructDefinitionNode;
 use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
@@ -39,6 +40,7 @@ use crate::values::value_type::char_type::CharType;
 use crate::values::value_type::number_type::NumberType;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
+use crate::values::value_type::struct_type::StructType;
 use crate::values::value_type::ValueType;
 use crate::values::value_type::void_type::VoidType;
 
@@ -127,6 +129,17 @@ impl Parser {
             "bool" => Box::new(BoolType::new()),
             "char" => Box::new(CharType::new()),
             "void" => Box::new(VoidType::new()),
+            "struct" => {
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Identifier {
+                    return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected struct name!")));
+                }
+
+                let struct_name = self.current_token().token_value().as_ref().unwrap().clone();
+
+                Box::new(StructType::new(struct_name))
+            }
             _ => return (None, Some(Error::new(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "NotAnIntrinsicType".to_string(), format!("'{}' is not an intrinsic type!", self.current_token().token_value().as_ref().unwrap()))))
         };
 
@@ -800,6 +813,80 @@ impl Parser {
                 res.success(Box::new(ConstDefinitionNode::new(name, value_node.unwrap(), const_type.unwrap(), pos_start)));
                 return res;
             }
+
+            if self.current_token().matches_keyword("struct") {
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Identifier {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
+                    return res;
+                }
+
+                let name = self.current_token().token_value().as_ref().unwrap().clone();
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Lcurly {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '{'!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                let mut fields: Vec<(String, Box<dyn ValueType>)> = Vec::new();
+                loop {
+                    if self.current_token().token_type() != TokenType::Identifier {
+                        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
+                        return res;
+                    }
+
+                    let field_name = self.current_token().token_value().as_ref().unwrap().clone();
+
+                    res.register_advancement();
+                    self.advance();
+
+                    if self.current_token().token_type() != TokenType::Colon {
+                        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ':'!"));
+                        return res;
+                    }
+
+                    res.register_advancement();
+                    self.advance();
+
+                    let (field_type, field_type_error) = self.parse_intrinsic_type();
+                    if field_type_error.is_some() {
+                        res.failure(field_type_error.unwrap());
+                        return res;
+                    }
+
+                    res.register_advancement();
+                    self.advance();
+
+                    fields.push((field_name, field_type.unwrap()));
+
+                    if self.current_token().token_type() != TokenType::Comma {
+                        break;
+                    }
+
+                    res.register_advancement();
+                    self.advance();
+                }
+
+                if self.current_token().token_type() != TokenType::Rcurly {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '}'!"));
+                    return res;
+                }
+
+                res.register_advancement();
+                self.advance();
+
+                res.success(Box::new(StructDefinitionNode::new(name, fields, pos_start, self.current_token().pos_end().clone())));
+                return res;
+            }
+
         } else {
             if self.current_token().token_type() == TokenType::Lcurly {
                 res.register_advancement();

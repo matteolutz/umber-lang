@@ -43,7 +43,7 @@ impl Lexer {
             if current == ' ' || current == '\t' || current == '\n' {
                 self.advance();
             } else if current == '#' {
-                self.skip_comment();
+                panic!("unallowed character");
             } else if current == ';' {
                 tokens.push(Token::new_without_value(TokenType::Newline, self.pos.clone(), self.pos.clone()));
                 self.advance();
@@ -68,8 +68,18 @@ impl Lexer {
                 tokens.push(Token::new_without_value(TokenType::Mul, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '/' {
-                tokens.push(Token::new_without_value(TokenType::Div, self.pos.clone(), self.pos.clone()));
+                let pos_start = self.pos.clone();
+
                 self.advance();
+
+                if self.current_char.unwrap() != '/' && self.current_char.unwrap() != '*' {
+                    tokens.push(Token::new_without_value(TokenType::Div, pos_start, self.pos.clone()));
+                } else if self.current_char.unwrap() == '*' {
+                    self.skip_multiline_comment();
+                } else {
+                    self.skip_comment();
+                }
+
             } else if current == '%' {
                 tokens.push(Token::new_without_value(TokenType::Modulo, self.pos.clone(), self.pos.clone()));
                 self.advance();
@@ -144,7 +154,7 @@ impl Lexer {
                 found_asterisk = true;
             } else if self.current_char.unwrap() == '/' && found_asterisk {
                 self.advance();
-                break
+                return;
             } else {
                 found_asterisk = false;
             }
@@ -152,6 +162,7 @@ impl Lexer {
             self.advance();
         }
 
+        panic!("no closing thing found!");
     }
 
     fn make_number(&mut self) -> Token {
