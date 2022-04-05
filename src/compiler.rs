@@ -775,7 +775,11 @@ impl Compiler {
         let mut code = String::new();
 
         writeln!(code, "{}:", ENTRY_SYMBOL);
+        writeln!(code, "\tpop     rdi");
+        writeln!(code, "\tmov     rsi, 0");
+
         writeln!(code, "\tcall    {}", self.function_label_name("main"));
+
         writeln!(code, "\tmov     rdi, rax");
         writeln!(code, "\tmov     rax, 60");
         writeln!(code, "\tsyscall");

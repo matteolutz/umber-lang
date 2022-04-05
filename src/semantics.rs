@@ -384,9 +384,27 @@ impl Validator {
             return res;
         }
 
-        if node.var_name() == "main" && (node.args().len() != 0 || node.return_type().value_type() != ValueTypes::Number) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Main function must have no arguments and return type 'number'!").as_str()));
-            return res;
+        if node.var_name() == "main" {
+            if node.return_type().value_type() != ValueTypes::Number {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Main function must return type 'number'!").as_str()));
+                return res;
+            }
+
+            if node.args().len() != 2 {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Main function must have two parameters!").as_str()));
+                return res;
+            }
+
+            if node.args()[0].1.value_type() != ValueTypes::Number {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("First parameter of main function must be of type 'number'!").as_str()));
+                return res;
+            }
+
+            if node.args()[1].1.value_type() != ValueTypes::Pointer {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Second parameter of main function must be of type 'pointer'!").as_str()));
+                return res;
+            }
+
         }
 
         let mut arg_types: Vec<Box<dyn ValueType>> = vec![];
