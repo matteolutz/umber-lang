@@ -5,7 +5,7 @@ use std::path::Path;
 use regex::Regex;
 use crate::error::Error;
 
-pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &mut Vec<String>, macros: &mut HashMap<String, String>) -> (Option<String>, Option<String>) {
+pub fn preprocess(current_file_path: &str, str: String, include_paths: &Vec<&str>, already_include: &mut Vec<String>, macros: &mut HashMap<String, String>) -> (Option<String>, Option<String>) {
     let lines: Vec<&str> = str.lines().collect();
     let mut result = String::new();
 
@@ -36,7 +36,7 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &mut 
             if command == "include" {
                 let file_path = args.join(" ").to_string();
 
-                let mut file_locations: Vec<String> = vec![file_path.to_string()];
+                let mut file_locations: Vec<String> = vec![Path::new(current_file_path).parent().unwrap().join(file_path.to_string()).to_str().unwrap().to_string()];
                 for path in include_paths.iter() {
                     file_locations.push(Path::new(path).join(&file_path).to_str().unwrap().to_string());
                 }
@@ -55,7 +55,7 @@ pub fn preprocess(str: String, include_paths: &Vec<&str>, already_include: &mut 
 
                     let file_content = file_content_option.unwrap();
 
-                    let (preprocessed, preprocess_error) = preprocess(file_content, include_paths, already_include, macros);
+                    let (preprocessed, preprocess_error) = preprocess(loc,file_content, include_paths, already_include, macros);
                     if let Some(error) = preprocess_error {
                         return (None, Some(format!("error preprocessing included file {}: {}", loc, error)));
                     }

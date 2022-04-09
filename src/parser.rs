@@ -1239,6 +1239,7 @@ impl Parser {
                 TokenType::Minus,
                 TokenType::BitAnd,
                 TokenType::BitOr,
+                TokenType::BitXor,
             ],
             BinOpFunction::Term,
         )
@@ -1304,15 +1305,7 @@ impl Parser {
             return res;
         }
 
-        return self.power();
-    }
-
-    fn power(&mut self) -> ParseResult {
-        self.bin_operation(
-            BinOpFunction::Call,
-            vec![TokenType::Pow],
-            BinOpFunction::Factor,
-        )
+        return self.call();
     }
 
     fn call(&mut self) -> ParseResult {
@@ -1321,6 +1314,28 @@ impl Parser {
         let mut atom = res.register_res(self.atom());
         if res.has_error() {
             return res;
+        }
+
+        while self.current_token().token_type() == TokenType::Lsquare {
+            let pos_start = self.current_token().pos_start().clone();
+
+            res.register_advancement();
+            self.advance();
+
+            let expr = res.register_res(self.expression());
+            if res.has_error() {
+                return res;
+            }
+
+            if self.current_token().token_type() != TokenType::Rsquare {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after offset expression!"));
+                return res;
+            }
+
+            atom = Some(Box::new(BinOpNode::new(atom.unwrap(), Token::new_without_value(TokenType::Offset, pos_start, self.current_token().pos_end().clone()), expr.unwrap())));
+
+            res.register_advancement();
+            self.advance();
         }
 
         if self.current_token().token_type() == TokenType::Lparen {

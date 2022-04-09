@@ -196,7 +196,7 @@ impl Compiler {
 
         if node.node_type() == NodeType::Assembly {
             let assembly_node = node.as_any().downcast_ref::<AssemblyNode>().unwrap();
-            writeln!(w, "\n;; Assembly injected im asm__[\"...\"]\n\t{}\n;; End\n", assembly_node.content());
+            writeln!(w, "\n;; Assembly injected im asm[\"...\"]\n\t{}\n;; End\n", assembly_node.content());
         }
 
         if node.node_type() == NodeType::Syscall {
@@ -371,6 +371,8 @@ impl Compiler {
                 writeln!(w, "\tand     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::BitOr {
                 writeln!(w, "\tor      {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+            } else if bin_op_node.op_token().token_type() == TokenType::BitXor {
+                writeln!(w, "\txor     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Ee
                 || bin_op_node.op_token().token_type() == TokenType::Gt
                 || bin_op_node.op_token().token_type() == TokenType::Lt
@@ -403,6 +405,8 @@ impl Compiler {
                 writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
 
                 writeln!(w, "{}:", self.label_name(&label_after));
+            } else if bin_op_node.op_token().token_type() == TokenType::Offset {
+                writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
             }
@@ -776,7 +780,7 @@ impl Compiler {
 
         writeln!(code, "{}:", ENTRY_SYMBOL);
         writeln!(code, "\tpop     rdi");
-        writeln!(code, "\tmov     rsi, 0");
+        writeln!(code, "\tpop     rsi");
 
         writeln!(code, "\tcall    {}", self.function_label_name("main"));
 

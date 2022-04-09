@@ -55,7 +55,7 @@ pub enum NodeType {
     PointerAssign,
     SizeOf,
     StaticDef,
-    StructDef
+    StructDef,
 }
 
 pub trait NodeToAny: 'static {

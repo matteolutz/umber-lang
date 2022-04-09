@@ -49,7 +49,7 @@ impl Lexer {
                 self.advance();
             } else if utils::is_digit(&current) {
                 tokens.push(self.make_number());
-            } else if utils::is_digit(&current) || utils::is_alpha(&current) {
+            } else if utils::is_alpha(&current) {
                 tokens.push(self.make_identifier());
             } else if current == '"' {
                 tokens.push(self.make_string());
@@ -84,7 +84,7 @@ impl Lexer {
                 tokens.push(Token::new_without_value(TokenType::Modulo, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == '^' {
-                tokens.push(Token::new_without_value(TokenType::Pow, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(TokenType::BitXor, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if current == ':' {
                 tokens.push(Token::new_without_value(TokenType::Colon, self.pos.clone(), self.pos.clone()));

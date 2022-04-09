@@ -18,7 +18,7 @@ pub fn test_file() {
     let file_contents = fs::read_to_string(&file).expect("Failed to read file");
 
     println!("Preprocessing file...");
-    let (preprocessed, preprocess_error) = preprocessor::preprocess(file_contents, &vec![
+    let (preprocessed, preprocess_error) = preprocessor::preprocess(file.to_str().unwrap(), file_contents, &vec![
         "E:\\Coding\\Umber\\include\\"
     ], &mut vec![], &mut HashMap::new());
 

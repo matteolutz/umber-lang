@@ -18,6 +18,7 @@ use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
+use crate::nodes::struct_def_node::StructDefinitionNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
@@ -49,8 +50,6 @@ pub struct Validator {
     scope_stack: Vec<ScopeType>,
 
     current_function_return_type: Option<Box<dyn ValueType>>,
-
-    structs: HashMap<String, Vec<Box<dyn ValueType>>>,
 }
 
 impl Validator {
@@ -63,7 +62,6 @@ impl Validator {
                 ScopeType::Global,
             ],
             current_function_return_type: None,
-            structs: HashMap::new(),
         }
     }
 
@@ -169,6 +167,7 @@ impl Validator {
             NodeType::PointerAssign => self.validate_pointer_assign_node(node.as_any().downcast_ref::<PointerAssignNode>().unwrap()),
             NodeType::SizeOf => self.validate_sizeof_node(),
             NodeType::StaticDef => self.validate_static_def_node(node.as_any().downcast_ref::<StaticDefinitionNode>().unwrap()),
+            NodeType::StructDef => self.validate_struct_def_node(node.as_any().downcast_ref::<StructDefinitionNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -223,6 +222,7 @@ impl Validator {
 
         for el in node.element_nodes() {
             let t = res.register_res(self.validate(el));
+
             if res.has_error() {
                 return res;
             }
@@ -400,8 +400,8 @@ impl Validator {
                 return res;
             }
 
-            if node.args()[1].1.value_type() != ValueTypes::Pointer {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Second parameter of main function must be of type 'pointer'!").as_str()));
+            if node.args()[1].1.value_type() != ValueTypes::Pointer || node.args()[1].1.as_any().downcast_ref::<PointerType>().unwrap().pointee_type().value_type() != ValueTypes::Char {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Second parameter of main function must be a pointer to a character!").as_str()));
                 return res;
             }
 
@@ -755,6 +755,10 @@ impl Validator {
 
         res.success(assign_type.unwrap());
         res
+    }
+
+    fn validate_struct_def_node(&mut self, node: &StructDefinitionNode) -> ValidationResult {
+        panic!("Structs are not supported yet!");
     }
 
 }

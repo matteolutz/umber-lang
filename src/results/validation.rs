@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+use crate::error;
 use crate::error::Error;
-use crate::values::value_type::ValueType;
+use crate::position::Position;
+use crate::values::value_type::{ValueType, ValueTypes};
+use crate::values::value_type::struct_type::StructType;
 
 pub struct ValidationResult {
     error: Option<Error>,
@@ -33,6 +37,13 @@ impl ValidationResult {
     }
 
     pub fn success(&mut self, value_type: Box<dyn ValueType>) {
+        if value_type.value_type() == ValueTypes::Struct {
+            self.error = Some(error::semantic_error(
+                Position::empty(), Position::empty(),
+                "Structs are not allowed as return types"
+            ));
+        }
+
         self.value_type = Some(value_type);
     }
 

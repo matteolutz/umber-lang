@@ -45,12 +45,8 @@ impl Token {
         &self.pos_end
     }
 
-    pub fn matches_string(&self, token_type: TokenType, value_str: &str) -> bool {
-        self.matches(token_type, value_str)
-    }
-
     pub fn matches_keyword(&self, value_str: &str) -> bool {
-        self.matches_string(TokenType::Keyword, value_str)
+        self.matches(TokenType::Keyword, value_str)
     }
 
     pub fn matches(&self, token_type: TokenType, token_value: &str) -> bool {
@@ -89,7 +85,6 @@ pub enum TokenType {
     Mul,
     Div,
     Modulo,
-    Pow,
     Eq,
     Colon,
     Lparen,
@@ -108,12 +103,13 @@ pub enum TokenType {
     Or,
     BitAnd,
     BitOr,
+    BitXor,
     Not,
     Comma,
     Arrow,
     Newline,
-    Reference,
     Dereference,
+    Offset,
     Bof,
     Eof,
 }

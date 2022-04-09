@@ -19,6 +19,16 @@ impl Position {
         }
     }
 
+    pub fn empty() -> Self {
+        Position {
+            line: 0,
+            col: 0,
+            index: 0,
+            file_name: Box::new("".to_string()),
+            file_text: Box::new("".to_string())
+        }
+    }
+
     pub fn advance(&mut self, current_char: char) {
         self.index += 1;
         self.col += 1;

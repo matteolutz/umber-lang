@@ -22,10 +22,10 @@ impl StructDefinitionNode {
         }
     }
 
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
-    pub fn get_fields(&self) -> &Vec<(String, Box<dyn ValueType>)> {
+    pub fn fields(&self) -> &Vec<(String, Box<dyn ValueType>)> {
         &self.fields
     }
 
