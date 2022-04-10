@@ -5,6 +5,8 @@ use std::path::Path;
 use umber_lang;
 use umber_lang::compiler::Compiler;
 use umber_lang::lexer::Lexer;
+use umber_lang::nodes::{Node, NodeType};
+use umber_lang::nodes::unaryop_node::UnaryOpNode;
 use umber_lang::parser::Parser;
 use umber_lang::preprocessor;
 use umber_lang::semantics::Validator;
@@ -29,7 +31,7 @@ pub fn test_file() {
     // println!("preprocessed: {}", preprocessed.as_ref().unwrap());
 
     println!("Lexing file...");
-    let mut lexer = umber_lang::lexer::Lexer::new(Box::new("umber_lang test!".to_string()), Box::new(preprocessed.unwrap()));
+    let mut lexer = umber_lang::lexer::Lexer::new(Box::new(file.to_str().unwrap().to_string()), Box::new(preprocessed.unwrap()));
     let (tokens, error) = lexer.make_tokens();
 
     if let Some(error) = error {

@@ -37,7 +37,7 @@ impl Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}\n  File '{}', line {}\n\n{}\n", self.error_name, self.details, self.pos_start.file_name(), self.pos_start.line() + 1, utils::string_with_arrows(self.pos_start.file_text(), &self.pos_start, &self.pos_end))
+        write!(f, "Error: {}: {}\n{}:{}:{}\n\n{}\n", self.error_name, self.details, self.pos_start.file_name(), self.pos_start.line() + 1, self.pos_start.col() + 1, utils::string_with_arrows(self.pos_start.file_text(), &self.pos_start, &self.pos_end))
     }
 }
 

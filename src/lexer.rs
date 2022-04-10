@@ -119,6 +119,24 @@ impl Lexer {
                 tokens.push(self.make_and());
             } else if current == '|' {
                 tokens.push(self.make_or());
+            } else if current == '~' {
+                tokens.push(Token::new_without_value(TokenType::BitNot, self.pos.clone(), self.pos.clone()));
+                self.advance();
+            } else if current == '@' {
+                let pos_start = self.pos.clone();
+
+                self.advance();
+
+                if self.current_char.is_none() || !utils::is_digit(self.current_char.as_ref().unwrap()) {
+                    return (vec![], Some(error::illegal_character_error(pos_start, self.pos.clone(), "Expected number after '@'!")));
+                }
+
+                let number = self.make_number();
+                if number.token_type() != TokenType::Int {
+                    return (vec![], Some(error::illegal_character_error(pos_start, self.pos.clone(), "Expected integer number after '@'!")));
+                }
+
+                tokens.push(Token::new_with_value(TokenType::ReadBytes, number.token_value().as_ref().unwrap().clone(), pos_start, self.pos.clone()));
             } else if current == ',' {
                 tokens.push(Token::new_without_value(TokenType::Comma, self.pos.clone(), self.pos.clone()));
                 self.advance();
@@ -309,6 +327,9 @@ impl Lexer {
         if self.current_char.is_some() && self.current_char.unwrap() == '=' {
             self.advance();
             token_type = TokenType::Lte;
+        } else  if self.current_char.is_some() && self.current_char.unwrap() == '<' {
+            self.advance();
+            token_type = TokenType::BitShl;
         }
 
         Token::new_without_value(token_type, pos_start, self.pos.clone())
@@ -323,6 +344,9 @@ impl Lexer {
         if self.current_char.is_some() && self.current_char.unwrap() == '=' {
             self.advance();
             token_type = TokenType::Gte;
+        } else if self.current_char.is_some() && self.current_char.unwrap() == '>' {
+            self.advance();
+            token_type = TokenType::BitShr;
         }
 
         Token::new_without_value(token_type, pos_start, self.pos.clone())

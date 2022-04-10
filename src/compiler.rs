@@ -16,6 +16,7 @@ use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
+use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
@@ -373,6 +374,16 @@ impl Compiler {
                 writeln!(w, "\tor      {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::BitXor {
                 writeln!(w, "\txor     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+            } else if bin_op_node.op_token().token_type() == TokenType::BitShl {
+                writeln!(w, "\tpush    rcx");
+                writeln!(w, "\tmov     rcx, {}", self.scratch_name(right_reg));
+                writeln!(w, "\tsal     {}, cl", self.scratch_name(left_reg));
+                writeln!(w, "\tpop     rcx");
+            } else if bin_op_node.op_token().token_type() == TokenType::BitShr {
+                writeln!(w, "\tpush    rcx");
+                writeln!(w, "\tmov     rcx, {}", self.scratch_name(right_reg));
+                writeln!(w, "\tsar     {}, cl", self.scratch_name(left_reg));
+                writeln!(w, "\tpop     rcx");
             } else if bin_op_node.op_token().token_type() == TokenType::Ee
                 || bin_op_node.op_token().token_type() == TokenType::Gt
                 || bin_op_node.op_token().token_type() == TokenType::Lt
@@ -424,7 +435,8 @@ impl Compiler {
 
             if unary_op_node.op_token().token_type() == TokenType::Dereference {
                 res_reg = self.res_scratch();
-                writeln!(w, "\tmov     {}, [{}]", self.scratch_name(res_reg), self.scratch_name(left));
+                // TODO: check for pointer pointee type and load the correct size
+                writeln!(w, "\tmov     QWORD {}, [{}]", self.scratch_name(res_reg), self.scratch_name(left));
                 self.free_scratch(left);
             } else if unary_op_node.op_token().token_type() == TokenType::Minus {
                 todo!("Unary minus");
@@ -441,6 +453,8 @@ impl Compiler {
                 writeln!(w, "{}:", self.label_name(&label_true));
                 writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
                 writeln!(w, "{}:", self.label_name(&label_after));
+            } else if unary_op_node.op_token().token_type() == TokenType::BitNot {
+                writeln!(w, "\tnot     {}", self.scratch_name(res_reg));
             } else {
                 panic!("Token '{:?}' not supported as an unary operation yet!", unary_op_node.op_token().token_type());
             }
@@ -638,6 +652,9 @@ impl Compiler {
             let label_start = self.label_create();
             let label_end = self.label_create();
 
+            let prev_loop_start = self.current_loop_start;
+            let prev_loop_break = self.current_loop_break;
+
             self.current_loop_start = Some(label_start);
             self.current_loop_break = Some(label_end);
 
@@ -653,11 +670,17 @@ impl Compiler {
 
             writeln!(w, "{}:", self.label_name(&label_end));
 
+            self.current_loop_start = prev_loop_start;
+            self.current_loop_break = prev_loop_break;
+
             return None;
         }
 
         if node.node_type() == NodeType::For {
             let for_node = node.as_any().downcast_ref::<ForNode>().unwrap();
+
+            let prev_loop_start = self.current_loop_start;
+            let prev_loop_break = self.current_loop_break;
 
             let label_start = self.label_create();
             let label_next = self.label_create();
@@ -690,6 +713,9 @@ impl Compiler {
 
             writeln!(w, "\tjmp     {}", self.label_name(&label_start));
             writeln!(w, "{}:", self.label_name(&label_end));
+
+            self.current_loop_start = prev_loop_start;
+            self.current_loop_break = prev_loop_break;
 
             return None;
         }
@@ -768,6 +794,18 @@ impl Compiler {
             self.add_static(static_def_node.name().to_string(), static_def_node.value_type().get_size());
 
             return None;
+        }
+
+        if node.node_type() == NodeType::ReadBytes {
+            let read_bytes_node = node.as_any().downcast_ref::<ReadBytesNode>().unwrap();
+
+            let from_reg = self.code_gen(read_bytes_node.node(), w).unwrap();
+
+            let res_reg = self.res_scratch();
+            writeln!(w, "\tmovsx   {}, {} [{}]", self.scratch_name(res_reg), utils::get_asm_size_name(read_bytes_node.bytes()), self.scratch_name(from_reg));
+            self.free_scratch(from_reg);
+
+            return Some(res_reg);
         }
 
         None

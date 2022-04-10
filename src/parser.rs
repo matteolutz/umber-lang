@@ -20,6 +20,7 @@ use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
+use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
@@ -1187,6 +1188,21 @@ impl Parser {
             return res;
         }
 
+        if self.current_token().token_type() == TokenType::ReadBytes {
+            let token = self.current_token().clone();
+
+            let bytes: u64 = token.token_value().as_ref().unwrap().parse::<u64>().unwrap();
+            if bytes != 1 && bytes != 2 && bytes != 4 && bytes != 8 {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Invalid number of bytes!"));
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            res.success(Box::new(ReadBytesNode::new(node.unwrap(), bytes, self.current_token().pos_end().clone())));
+            return res;
+        }
 
         res.success(node.unwrap());
         res
@@ -1194,21 +1210,6 @@ impl Parser {
 
     fn comp_expression(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
-
-        if self.current_token().token_type() == TokenType::Not {
-            let op_token = self.current_token().clone();
-
-            res.register_advancement();
-            self.advance();
-
-            let node = res.register_res(self.comp_expression());
-            if res.has_error() {
-                return res;
-            }
-
-            res.success(Box::new(UnaryOpNode::new(op_token, node.unwrap())));
-            return res;
-        }
 
         let node = res.register_res(self.bin_operation(
             BinOpFunction::Arith,
@@ -1240,6 +1241,8 @@ impl Parser {
                 TokenType::BitAnd,
                 TokenType::BitOr,
                 TokenType::BitXor,
+                TokenType::BitShl,
+                TokenType::BitShr,
             ],
             BinOpFunction::Term,
         )
@@ -1258,10 +1261,13 @@ impl Parser {
     }
 
     fn factor(&mut self) -> ParseResult {
+        let mut res = ParseResult::new();
+
         if self.current_token().token_type() == TokenType::Plus
             || self.current_token().token_type() == TokenType::Minus
+            || self.current_token().token_type() == TokenType::Not
+            || self.current_token().token_type() == TokenType::BitNot
         {
-            let mut res = ParseResult::new();
             let token = self.current_token().clone();
 
             res.register_advancement();
@@ -1277,7 +1283,9 @@ impl Parser {
         }
 
         if self.current_token().token_type() == TokenType::Mul {
-            let mut res = ParseResult::new();
+            // NOTE: When using the `*` operator, the compiler won't check for the actual pointee type size, but rather always use the size of a quadword (8 bytes, 64bits).
+            // NOTE: as a temporary solution, we'll use the '@' operator instead. This will be fixed in the future.
+
             let token = Token::new_without_value(TokenType::Dereference, self.current_token().pos_start().clone(), self.current_token().pos_end().clone());
 
             res.register_advancement();
@@ -1305,7 +1313,13 @@ impl Parser {
             return res;
         }
 
-        return self.call();
+        let call = res.register_res(self.call());
+        if res.has_error() {
+            return res;
+        }
+
+        res.success(call.unwrap());
+        res
     }
 
     fn call(&mut self) -> ParseResult {
@@ -1443,6 +1457,9 @@ impl Parser {
                 || self.current_token().token_type() == TokenType::Modulo
                 || self.current_token().token_type() == TokenType::BitAnd
                 || self.current_token().token_type() == TokenType::BitOr
+                || self.current_token().token_type() == TokenType::BitXor
+                || self.current_token().token_type() == TokenType::BitShl
+                || self.current_token().token_type() == TokenType::BitShr
             {
                 let op_token = self.current_token().clone();
 

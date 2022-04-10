@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Read;
 use std::ops::IndexMut;
 
 use crate::error;
@@ -14,6 +15,7 @@ use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
+use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
@@ -168,6 +170,7 @@ impl Validator {
             NodeType::SizeOf => self.validate_sizeof_node(),
             NodeType::StaticDef => self.validate_static_def_node(node.as_any().downcast_ref::<StaticDefinitionNode>().unwrap()),
             NodeType::StructDef => self.validate_struct_def_node(node.as_any().downcast_ref::<StructDefinitionNode>().unwrap()),
+            NodeType::ReadBytes => self.validate_read_bytes_node(node.as_any().downcast_ref::<ReadBytesNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -424,7 +427,7 @@ impl Validator {
         self.current_function_return_type = Some(node.return_type().clone());
 
         for (name, value_type) in node.args() {
-            self.declare_symbol(name.clone(), Symbol::new(value_type.clone(), false));
+            self.declare_symbol(name.clone(), Symbol::new(value_type.clone(), true));
         }
 
         res.register_res(self.validate(node.body_node()));
@@ -759,6 +762,23 @@ impl Validator {
 
     fn validate_struct_def_node(&mut self, node: &StructDefinitionNode) -> ValidationResult {
         panic!("Structs are not supported yet!");
+    }
+
+    fn validate_read_bytes_node(&mut self, node: &ReadBytesNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let node_type = res.register_res(self.validate(node.node()));
+        if res.has_error() {
+            return res;
+        }
+
+        if node_type.as_ref().unwrap().value_type() != ValueTypes::Pointer {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't read bytes from non-pointer type!"));
+            return res;
+        }
+
+        res.success(Box::new(NumberType::new()));
+        res
     }
 
 }
