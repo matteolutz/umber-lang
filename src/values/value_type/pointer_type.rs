@@ -60,6 +60,10 @@ impl ValueType for PointerType {
             return Some(Box::new(BoolType::new()));
         }
 
+        if op.token_type() == TokenType::PointerAssign && t.eq(&self.pointee_type) && self.is_mutable {
+            return Some(self.pointee_type.box_clone());
+        }
+
         if op.token_type() == TokenType::Offset && t.value_type() == ValueTypes::Number {
             return Some(self.pointee_type.clone());
         }

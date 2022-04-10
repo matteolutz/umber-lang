@@ -19,7 +19,6 @@ use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
-use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
@@ -1171,23 +1170,6 @@ impl Parser {
             return res;
         }
 
-        if self.current_token().matches_keyword("as") {
-            res.register_advancement();
-            self.advance();
-
-            let (cast_type, cast_type_error) = self.parse_intrinsic_type();
-            if cast_type_error.is_some() {
-                res.failure(cast_type_error.unwrap());
-                return res;
-            }
-
-            res.register_advancement();
-            self.advance();
-
-            res.success(Box::new(CastNode::new(node.unwrap(), cast_type.unwrap(), self.current_token().pos_end().clone())));
-            return res;
-        }
-
         if self.current_token().token_type() == TokenType::ReadBytes {
             let token = self.current_token().clone();
 
@@ -1238,11 +1220,6 @@ impl Parser {
             vec![
                 TokenType::Plus,
                 TokenType::Minus,
-                TokenType::BitAnd,
-                TokenType::BitOr,
-                TokenType::BitXor,
-                TokenType::BitShl,
-                TokenType::BitShr,
             ],
             BinOpFunction::Term,
         )
@@ -1296,30 +1273,21 @@ impl Parser {
                 return res;
             }
 
-            if self.current_token().token_type() == TokenType::Eq {
-                res.register_advancement();
-                self.advance();
-
-                let assign_node = res.register_res(self.expression());
-                if res.has_error() {
-                    return res;
-                }
-
-                res.success(Box::new(PointerAssignNode::new(factor.unwrap(), assign_node.unwrap())));
-                return res;
-            }
-
             res.success(Box::new(UnaryOpNode::new(token, factor.unwrap())));
             return res;
         }
 
-        let call = res.register_res(self.call());
-        if res.has_error() {
-            return res;
-        }
-
-        res.success(call.unwrap());
-        res
+        self.bin_operation(
+            BinOpFunction::Call,
+            vec![
+                TokenType::BitAnd,
+                TokenType::BitOr,
+                TokenType::BitXor,
+                TokenType::BitShl,
+                TokenType::BitShr,
+            ],
+            BinOpFunction::Call,
+        )
     }
 
     fn call(&mut self) -> ParseResult {
@@ -1328,28 +1296,6 @@ impl Parser {
         let mut atom = res.register_res(self.atom());
         if res.has_error() {
             return res;
-        }
-
-        while self.current_token().token_type() == TokenType::Lsquare {
-            let pos_start = self.current_token().pos_start().clone();
-
-            res.register_advancement();
-            self.advance();
-
-            let expr = res.register_res(self.expression());
-            if res.has_error() {
-                return res;
-            }
-
-            if self.current_token().token_type() != TokenType::Rsquare {
-                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after offset expression!"));
-                return res;
-            }
-
-            atom = Some(Box::new(BinOpNode::new(atom.unwrap(), Token::new_without_value(TokenType::Offset, pos_start, self.current_token().pos_end().clone()), expr.unwrap())));
-
-            res.register_advancement();
-            self.advance();
         }
 
         if self.current_token().token_type() == TokenType::Lparen {
@@ -1398,8 +1344,45 @@ impl Parser {
                 res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Dynamic calls aren't implemented yet!"));
             }
 
-            res.success(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().to_string(), arg_nodes, atom.as_ref().unwrap().pos_start().clone())));
-            return res;
+            atom = Some(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().to_string(), arg_nodes, atom.as_ref().unwrap().pos_start().clone())))
+        }
+
+        while self.current_token().token_type() == TokenType::Lsquare {
+            let s_pos_start = self.current_token().pos_start().clone();
+
+            res.register_advancement();
+            self.advance();
+
+            let expr = res.register_res(self.expression());
+            if res.has_error() {
+                return res;
+            }
+
+            if self.current_token().token_type() != TokenType::Rsquare {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after offset expression!"));
+                return res;
+            }
+
+            atom = Some(Box::new(BinOpNode::new(atom.unwrap(), Token::new_without_value(TokenType::Offset, s_pos_start, self.current_token().pos_end().clone()), expr.unwrap())));
+
+            res.register_advancement();
+            self.advance();
+        }
+
+        if self.current_token().matches_keyword("as") {
+            res.register_advancement();
+            self.advance();
+
+            let (cast_type, cast_type_error) = self.parse_intrinsic_type();
+            if cast_type_error.is_some() {
+                res.failure(cast_type_error.unwrap());
+                return res;
+            }
+
+            res.register_advancement();
+            self.advance();
+
+            atom = Some(Box::new(CastNode::new(atom.unwrap(), cast_type.unwrap(), self.current_token().pos_end().clone())));
         }
 
         res.success(atom.unwrap());
@@ -1410,23 +1393,19 @@ impl Parser {
         let mut res = ParseResult::new();
         let token = self.current_token().clone();
 
+        let mut node: Box<dyn Node>;
+
         if token.token_type() == TokenType::Int || token.token_type() == TokenType::Float {
             res.register_advancement();
             self.advance();
 
-            res.success(Box::new(NumberNode::new(token)));
-            return res;
-        }
-
-        if token.token_type() == TokenType::String {
+            node = Box::new(NumberNode::new(token));
+        } else if token.token_type() == TokenType::String {
             res.register_advancement();
             self.advance();
 
-            res.success(Box::new(StringNode::new(token)));
-            return res;
-        }
-
-        if token.token_type() == TokenType::Char {
+            node = Box::new(StringNode::new(token));
+        } else if token.token_type() == TokenType::Char {
             let actual_char = self.current_token().token_value().as_ref().unwrap().chars().next().unwrap();
             let pos_start = self.current_token().pos_start().clone();
             let pos_end = self.current_token().pos_start().clone();
@@ -1434,11 +1413,9 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            res.success(Box::new(CharNode::new(actual_char, pos_start, pos_end)));
-            return res;
-        }
+            node = Box::new(CharNode::new(actual_char, pos_start, pos_end));
+        } else if self.current_token().token_type() == TokenType::Identifier {
 
-        if self.current_token().token_type() == TokenType::Identifier {
             if self.current_token().token_type() != TokenType::Identifier {
                 res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
                 return res;
@@ -1498,12 +1475,8 @@ impl Parser {
                 return res;
             }
 
-
-            res.success(Box::new(VarAccessNode::new(var_name, pos_start, self.current_token().pos_end().clone())));
-            return res;
-        }
-
-        if token.token_type() == TokenType::Lparen {
+            node = Box::new(VarAccessNode::new(var_name, pos_start, self.current_token().pos_end().clone()));
+        } else if token.token_type() == TokenType::Lparen {
             res.register_advancement();
             self.advance();
 
@@ -1520,51 +1493,36 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            res.success(expr.unwrap());
-            return res;
-        }
-
-        if token.token_type() == TokenType::Lsquare {
+            node = expr.unwrap();
+        } else if token.token_type() == TokenType::Lsquare {
             let list_expr = res.register_res(self.list_expr());
             if res.has_error() {
                 return res;
             }
 
-            res.success(list_expr.unwrap());
-            return res;
-        }
-
-        if token.matches_keyword("while") {
+            node = list_expr.unwrap();
+        } else if token.matches_keyword("while") {
             let while_expr = res.register_res(self.while_expr());
             if res.has_error() {
                 return res;
             }
 
-            res.success(while_expr.unwrap());
-            return res;
-        }
-
-        if token.matches_keyword("for") {
+            node = while_expr.unwrap();
+        } else if token.matches_keyword("for") {
             let for_expr = res.register_res(self.for_expr());
             if res.has_error() {
                 return res;
             }
 
-            res.success(for_expr.unwrap());
-            return res;
-        }
-
-        if token.matches_keyword("if") {
+            node = for_expr.unwrap();
+        } else if token.matches_keyword("if") {
             let if_expr = res.register_res(self.if_expr());
             if res.has_error() {
                 return res;
             }
 
-            res.success(if_expr.unwrap());
-            return res;
-        }
-
-        if token.matches_keyword("sizeof") {
+           node = if_expr.unwrap();
+        } else if token.matches_keyword("sizeof") {
             res.register_advancement();
             self.advance();
 
@@ -1593,11 +1551,27 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            res.success(Box::new(SizeOfNode::new(in_type.unwrap(), token.pos_start().clone(), self.current_token().pos_end().clone())));
-            return res;
+            node = Box::new(SizeOfNode::new(in_type.unwrap(), token.pos_start().clone(), self.current_token().pos_end().clone()));
+        } else {
+            res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
+            return res
         }
 
-        res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
+        if self.current_token().token_type() == TokenType::PointerAssign {
+            let op_token = self.current_token().clone();
+
+            res.register_advancement();
+            self.advance();
+
+            let expr = res.register_res(self.expression());
+            if res.has_error() {
+                return res;
+            }
+
+            node = Box::new(BinOpNode::new(node, op_token, expr.unwrap()));
+        }
+
+        res.success(node);
         res
     }
 

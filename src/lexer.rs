@@ -127,6 +127,12 @@ impl Lexer {
 
                 self.advance();
 
+                if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+                    tokens.push(Token::new_without_value(TokenType::PointerAssign, pos_start, self.pos.clone()));
+                    self.advance();
+                    continue;
+                }
+
                 if self.current_char.is_none() || !utils::is_digit(self.current_char.as_ref().unwrap()) {
                     return (vec![], Some(error::illegal_character_error(pos_start, self.pos.clone(), "Expected number after '@'!")));
                 }

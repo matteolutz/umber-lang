@@ -114,6 +114,7 @@ pub enum TokenType {
     Dereference,
     Offset,
     ReadBytes,
+    PointerAssign,
     Bof,
     Eof,
 }

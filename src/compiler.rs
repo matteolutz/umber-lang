@@ -15,7 +15,6 @@ use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
-use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
@@ -416,6 +415,8 @@ impl Compiler {
                 writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
 
                 writeln!(w, "{}:", self.label_name(&label_after));
+            } else if bin_op_node.op_token().token_type() == TokenType::PointerAssign {
+                writeln!(w, "\tmov     [{}], {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Offset {
                 writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else {
@@ -766,19 +767,6 @@ impl Compiler {
             return None;
         }
 
-        if node.node_type() == NodeType::PointerAssign {
-            let assign_node = node.as_any().downcast_ref::<PointerAssignNode>().unwrap();
-
-            let pointer_reg = self.code_gen(assign_node.assign_to(), w).unwrap();
-            let assign_reg = self.code_gen(assign_node.assign_node(), w).unwrap();
-
-            writeln!(w, "\tmov     [{}], {}", self.scratch_name(pointer_reg), self.scratch_name(assign_reg));
-
-            self.free_scratch(pointer_reg);
-
-            return Some(assign_reg);
-        }
-
         if node.node_type() == NodeType::SizeOf {
             let size_of_node = node.as_any().downcast_ref::<SizeOfNode>().unwrap();
 
@@ -802,7 +790,12 @@ impl Compiler {
             let from_reg = self.code_gen(read_bytes_node.node(), w).unwrap();
 
             let res_reg = self.res_scratch();
-            writeln!(w, "\tmovsx   {}, {} [{}]", self.scratch_name(res_reg), utils::get_asm_size_name(read_bytes_node.bytes()), self.scratch_name(from_reg));
+
+            if *read_bytes_node.bytes() == 8 {
+                writeln!(w, "\tmov     {}, QWORD [{}]", self.scratch_name(res_reg), self.scratch_name(from_reg));
+            } else {
+                writeln!(w, "\tmovsx   {}, {} [{}]", self.scratch_name(res_reg), utils::get_asm_size_name(read_bytes_node.bytes()), self.scratch_name(from_reg));
+            }
             self.free_scratch(from_reg);
 
             return Some(res_reg);

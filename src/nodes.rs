@@ -23,7 +23,6 @@ pub mod for_node;
 pub mod cast_node;
 pub mod char_node;
 pub mod const_def_node;
-pub mod pointer_assign_node;
 pub mod sizeof_node;
 pub mod static_def_node;
 pub mod struct_def_node;
@@ -53,7 +52,6 @@ pub enum NodeType {
     Syscall,
     Cast,
     ConstDef,
-    PointerAssign,
     SizeOf,
     StaticDef,
     StructDef,
