@@ -470,7 +470,21 @@ impl Compiler {
             writeln!(w, "\tpush    r10");
             writeln!(w, "\tpush    r11");
 
+            for arg in call_node.arg_nodes().iter().rev() {
+                let reg = self.code_gen(arg, w).unwrap();
+                writeln!(w, "\tpush    {}", self.scratch_name(reg));
+                self.free_scratch(reg);
+            }
+
             let mut number_reg_index: usize = 0;
+            for arg in call_node.arg_nodes() {
+                if number_reg_index < NUMBER_ARG_REGS.len() {
+                    writeln!(w, "\tpop     {}", NUMBER_ARG_REGS[number_reg_index]);
+                    number_reg_index += 1;
+                }
+            }
+
+            /*let mut number_reg_index: usize = 0;
             for arg in call_node.arg_nodes() {
                 let reg = self.code_gen(arg, w).unwrap();
 
@@ -482,7 +496,7 @@ impl Compiler {
                 }
 
                 self.free_scratch(reg);
-            }
+            }*/
 
             writeln!(w, "\tcall    {}", func_label);
 
