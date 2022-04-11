@@ -741,7 +741,7 @@ impl Validator {
             return res;
         }
 
-        res.success(Box::new(NumberType::new()));
+        res.success(node_type.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().clone());
         res
     }
 
