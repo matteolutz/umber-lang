@@ -3,6 +3,7 @@ use std::fs;
 use std::fs::remove_file;
 use std::path::Path;
 use std::process::Command;
+use std::collections::HashMap;
 
 fn main() {
     let args = env::args().collect::<Vec<_>>();
@@ -19,7 +20,15 @@ fn main() {
 
     let file_contents = fs::read_to_string(&file).expect("Failed to read file");
 
-    let mut lexer = umber_lang::lexer::Lexer::new(Box::new(file_name), Box::new(file_contents));
+    let (preprocessed, preprocess_error) = umber_lang::preprocessor::preprocess(file.to_str().unwrap(), file_contents, &vec![
+        "/usr/bin/umber/include"
+    ], &mut vec![], &mut HashMap::new());
+
+    if let Some(error) = preprocess_error {
+        panic!("{}", error);
+    }
+
+    let mut lexer = umber_lang::lexer::Lexer::new(Box::new(file_name), Box::new(preprocessed.unwrap()));
     let (tokens, error) = lexer.make_tokens();
 
     if let Some(error) = error {
