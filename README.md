@@ -1,5 +1,5 @@
 <p align="center">
-<img height="100" src="./assets/img/logo.png">
+<a href="https://github.com/matteolutz/umber-lang"><img height="100" src="./assets/img/logo.png"></a>
 
 <h1 align="center">
     umber-lang
