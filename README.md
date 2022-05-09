@@ -19,7 +19,7 @@
 
 ## What is Umber
 
-Umber is an compiled (soon multiparadigm) programming language, implemented in Rust. It's currently _WIP_ so please use it on your own risk.  
+Umber is an compiled (soon multiparadigm) programming language, implemented in Rust. It's currently _WIP_ so please use it at your own risk.  
 Future commits **WILL** probably contain **BREAKING CHANGES**.
 
 ## How to use it
