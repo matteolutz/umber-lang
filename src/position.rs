@@ -3,19 +3,17 @@ pub struct Position {
     index: usize,
     line: usize,
     col: usize,
-    file_name: Box<String>,
-    file_text: Box<String>,
+    file_name: Box<String>
 }
 
 impl Position {
 
-    pub fn new(file_name: Box<String>, file_text: Box<String>) -> Self {
+    pub fn new(file_name: Box<String>) -> Self {
         Position {
             line: 0,
             col: 0,
             index: 0,
             file_name,
-            file_text
         }
     }
 
@@ -25,7 +23,6 @@ impl Position {
             col: 0,
             index: 0,
             file_name: Box::new("".to_string()),
-            file_text: Box::new("".to_string())
         }
     }
 
@@ -53,10 +50,6 @@ impl Position {
 
     pub fn file_name(&self) -> &Box<String> {
         &self.file_name
-    }
-
-    pub fn file_text(&self) -> &Box<String> {
-        &self.file_text
     }
 
 }

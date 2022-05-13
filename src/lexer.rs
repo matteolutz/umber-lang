@@ -17,7 +17,7 @@ impl Lexer {
         return Lexer {
             file_name: file_name.clone(),
             file_text: file_text.clone(),
-            pos: Position::new(file_name.clone(), file_text.clone()),
+            pos: Position::new(file_name.clone()),
             current_char: if file_text.len() > 0 { file_text.chars().nth(0) } else { None },
         };
     }

@@ -32,7 +32,7 @@ impl ValueTypeAsAny for StructType {
 
 impl Display for StructType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<StructType>[Name: {}]", self.name)
+        write!(f, "struct {}", self.name)
     }
 }
 

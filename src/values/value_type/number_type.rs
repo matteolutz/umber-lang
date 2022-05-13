@@ -22,7 +22,7 @@ impl ValueTypeAsAny for NumberType {
 
 impl Display for NumberType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<NumberType>[]")
+        write!(f, "number")
     }
 }
 

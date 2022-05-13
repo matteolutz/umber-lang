@@ -24,7 +24,7 @@ impl ValueTypeAsAny for StringType {
 
 impl Display for StringType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<StringType>[]")
+        write!(f, "string")
     }
 }
 

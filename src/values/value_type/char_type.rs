@@ -21,7 +21,7 @@ impl ValueTypeAsAny for CharType {
 
 impl Display for CharType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<CharType>[]")
+        write!(f, "char")
     }
 }
 

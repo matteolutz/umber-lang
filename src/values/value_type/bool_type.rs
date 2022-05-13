@@ -23,7 +23,7 @@ impl ValueTypeAsAny for BoolType {
 
 impl Display for BoolType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<BoolType>[]")
+        write!(f, "bool")
     }
 }
 

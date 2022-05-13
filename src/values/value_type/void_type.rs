@@ -23,7 +23,7 @@ impl ValueTypeAsAny for VoidType {
 
 impl Display for VoidType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<VoidType>[]")
+        write!(f, "void")
     }
 }
 

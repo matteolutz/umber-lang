@@ -341,7 +341,7 @@ impl Compiler {
 
                 writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
 
-                writeln!(w, "\tpop    rdx");
+                writeln!(w, "\tpop     rdx");
                 writeln!(w, "\tpop     rax");
             } else if bin_op_node.op_token().token_type() == TokenType::Div {
                 writeln!(w, "\tpush    rax");

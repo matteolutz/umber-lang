@@ -4,6 +4,8 @@ use std::fmt::{Display, Formatter};
 use crate::token::Token;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
+// TODO: deprecate this
+
 #[derive(Clone)]
 pub struct FunctionType {
     arg_types: Vec<Box<dyn ValueType>>,

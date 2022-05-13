@@ -434,6 +434,7 @@ impl Validator {
         self.current_function_return_type = old_return_type;
 
         if res.has_error() {
+            res.failure(error::semantic_error_with_parent(node.pos_start().clone(), node.pos_end().clone(), "Function definition failed!", res.error().as_ref().unwrap().clone()));
             return res;
         }
 

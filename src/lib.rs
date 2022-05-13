@@ -10,4 +10,5 @@ pub mod utils;
 pub mod results;
 pub mod semantics;
 pub mod values;
+pub mod flattener;
 pub mod compiler;
