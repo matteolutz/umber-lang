@@ -484,21 +484,11 @@ impl Compiler {
                 }
             }
 
-            /*let mut number_reg_index: usize = 0;
-            for arg in call_node.arg_nodes() {
-                let reg = self.code_gen(arg, w).unwrap();
-
-                if number_reg_index >= NUMBER_ARG_REGS.len() {
-                    writeln!(w, "\tpush    {}", self.scratch_name(reg));
-                } else {
-                    writeln!(w, "\tmov     {}, {}", NUMBER_ARG_REGS[number_reg_index], self.scratch_name(reg));
-                    number_reg_index += 1;
-                }
-
-                self.free_scratch(reg);
-            }*/
-
             writeln!(w, "\tcall    {}", func_label);
+
+            if call_node.arg_nodes().len() > NUMBER_ARG_REGS.len() {
+                writeln!(w, "\tadd     rsp, {}", (call_node.arg_nodes().len() - NUMBER_ARG_REGS.len()) * 8);
+            }
 
             writeln!(w, "\tpop     r11");
             writeln!(w, "\tpop     r10");
@@ -518,8 +508,6 @@ impl Compiler {
 
             writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()));
 
-            // let temp_rbp_reg = self.res_scratch();
-            // writeln!(w, "\tmov     {}, rbp", self.scratch_name(temp_rbp_reg));
             writeln!(w, "\tpush    rbp");
             writeln!(w, "\tmov     rbp, rsp");
 
@@ -532,17 +520,18 @@ impl Compiler {
 
                 if number_reg_index >= NUMBER_ARG_REGS.len() {
                     let reg = self.res_scratch();
-                    writeln!(&mut function_body, "\tpop     {}", self.scratch_name(reg));
+
+                    let mut non_reg_index = number_reg_index - NUMBER_ARG_REGS.len() + 1;
+
+                    writeln!(&mut function_body, "\tmov     {}, QWORD [rbp + {}]", self.scratch_name(reg), (non_reg_index * 8) + 8);
                     writeln!(&mut function_body, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
                     self.free_scratch(reg);
                 } else {
                     writeln!(&mut function_body, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, NUMBER_ARG_REGS[number_reg_index]);
-                    number_reg_index += 1;
                 }
-            }
 
-            // writeln!(&mut function_body, "\tpush    {}", self.scratch_name(temp_rbp_reg));
-            // self.free_scratch(temp_rbp_reg);
+                number_reg_index += 1;
+            }
 
             self.current_function_epilogue = Some(func_epilogue_label);
 

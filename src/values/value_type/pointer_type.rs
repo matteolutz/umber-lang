@@ -35,7 +35,7 @@ impl ValueTypeAsAny for PointerType {
 
 impl Display for PointerType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}* {}", self.pointee_type, if self.is_mutable {  "mut" } else { "" })
+        write!(f, "{}*{}", self.pointee_type, if self.is_mutable {  " mut" } else { "" })
     }
 }
 
