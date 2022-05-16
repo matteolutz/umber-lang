@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::env::var;
 use std::fmt::Write;
 
-
 use crate::nodes::{Node, NodeType};
 use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
@@ -29,7 +28,6 @@ use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::while_node::WhileNode;
 use crate::token::TokenType;
 use crate::utils;
-
 
 const SCRATCH_REGS: [&str; 7] = [
     "rbx", "r10", "r11", "r12", "r13", "r14", "r15"
@@ -476,12 +474,9 @@ impl Compiler {
                 self.free_scratch(reg);
             }
 
-            let mut number_reg_index: usize = 0;
-            for arg in call_node.arg_nodes() {
-                if number_reg_index < NUMBER_ARG_REGS.len() {
-                    writeln!(w, "\tpop     {}", NUMBER_ARG_REGS[number_reg_index]);
-                    number_reg_index += 1;
-                }
+            for i in 0..call_node.arg_nodes().len() {
+                if i >= NUMBER_ARG_REGS.len() { break };
+                writeln!(w, "\tpop     {}", NUMBER_ARG_REGS[i]);
             }
 
             writeln!(w, "\tcall    {}", func_label);
