@@ -2,30 +2,44 @@ use std::fmt::{Debug, Display, Formatter};
 
 use crate::position::Position;
 
+pub const TOKEN_FLAGS_NULL: u8 = 0;
+
+pub const TOKEN_FLAGS_IS_ASSIGN: u8 = 1 << 0;
+
 #[derive(Clone)]
 pub struct Token {
     tok_type: TokenType,
     tok_value: Option<String>,
     pos_start: Position,
     pos_end: Position,
+    flags: u8,
 }
 
 impl Token {
 
     pub fn new_without_value(tok_type: TokenType, pos_start: Position, pos_end: Position) -> Token {
-        Token::new(tok_type, None, pos_start, pos_end)
+        Token::new(tok_type, None, pos_start, pos_end, TOKEN_FLAGS_NULL)
     }
 
     pub fn new_with_value(tok_type: TokenType, tok_value: String, pos_start: Position, pos_end: Position) -> Token {
-        Token::new(tok_type, Some(tok_value), pos_start, pos_end)
+        Token::new(tok_type, Some(tok_value), pos_start, pos_end, TOKEN_FLAGS_NULL)
     }
 
-    pub fn new(tok_type: TokenType, tok_value: Option<String>, pos_start: Position, pos_end: Position) -> Token {
+    pub fn new_with_flags(tok_type: TokenType, tok_value: String, pos_start: Position, pos_end: Position, flags: u8) -> Token {
+        Token::new(tok_type, Some(tok_value), pos_start, pos_end, flags)
+    }
+
+    pub fn new_with_flags_no_value(tok_type: TokenType, pos_start: Position, pos_end: Position, flags: u8) -> Token {
+        Token::new(tok_type, None, pos_start, pos_end, flags)
+    }
+
+    pub fn new(tok_type: TokenType, tok_value: Option<String>, pos_start: Position, pos_end: Position, flags: u8) -> Token {
         Token {
             tok_type,
             tok_value,
             pos_start,
-            pos_end
+            pos_end,
+            flags
         }
     }
 
@@ -45,8 +59,14 @@ impl Token {
         &self.pos_end
     }
 
+    pub fn flags(&self) -> &u8 { &self.flags }
+
     pub fn matches_keyword(&self, value_str: &str) -> bool {
         self.matches(TokenType::Keyword, value_str)
+    }
+
+    pub fn has_flag(&self, flag: u8) -> bool {
+        self.flags & flag == flag
     }
 
     pub fn matches(&self, token_type: TokenType, token_value: &str) -> bool {
@@ -86,6 +106,13 @@ pub enum TokenType {
     Div,
     Modulo,
     Eq,
+    PlusAssign,
+    MinusAssign,
+    MulAssign,
+    DivAssign,
+    ModuloAssign,
+    PlusPlus,
+    MinusMinus,
     Colon,
     Lparen,
     Rparen,
@@ -102,11 +129,17 @@ pub enum TokenType {
     And,
     Or,
     BitAnd,
+    BitAndAssign,
     BitOr,
+    BitOrAssign,
     BitXor,
+    BitXorAssign,
     BitShl,
+    BitShlAssign,
     BitShr,
+    BitShrAssign,
     BitNot,
+    BitNotAssign,
     Not,
     Comma,
     Arrow,

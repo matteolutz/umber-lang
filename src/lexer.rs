@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use crate::{error, utils};
 use crate::error::Error;
 use crate::position::Position;
-use crate::token::{KEYWORDS, Token, TokenType};
+use crate::token::{KEYWORDS, Token, TOKEN_FLAGS_IS_ASSIGN, TOKEN_FLAGS_NULL     , TokenType};
 use crate::token::TokenType::Lcurly;
 
 pub struct Lexer {
@@ -13,17 +14,16 @@ pub struct Lexer {
 
 impl Lexer {
 
-    pub fn new(file_name: Box<String>, file_text: Box<String>) -> Lexer {
-        return Lexer {
+    pub fn new(file_name: Box<String>, file_text: Box<String>) -> Self {
+        Self {
             file_name: file_name.clone(),
             file_text: file_text.clone(),
             pos: Position::new(file_name.clone()),
             current_char: if file_text.len() > 0 { file_text.chars().nth(0) } else { None },
-        };
+        }
     }
 
-
-    fn advance(&mut self) -> () {
+    fn advance(&mut self) {
         self.pos.advance(self.current_char.unwrap());
 
         if *self.pos.index() < self.file_text.len() {
@@ -35,7 +35,7 @@ impl Lexer {
     }
 
     pub fn make_tokens(&mut self) -> (Vec<Token>, Option<Error>) {
-        let mut tokens: Vec<Token> = vec![Token::new_without_value(TokenType::Eof, self.pos.clone(), self.pos.clone())];
+        let mut tokens: Vec<Token> = vec![Token::new_without_value(TokenType::Bof, self.pos.clone(), self.pos.clone())];
 
         while self.current_char.is_some() {
             let current = self.current_char.unwrap();
@@ -60,32 +60,19 @@ impl Lexer {
                 }
                 tokens.push(token.unwrap());
             } else if current == '+' {
-                tokens.push(Token::new_without_value(TokenType::Plus, self.pos.clone(), self.pos.clone()));
-                self.advance();
+                tokens.push(self.make_plus());
             } else if current == '-' {
                 tokens.push(self.make_minus_or_arrow());
             } else if current == '*' {
-                tokens.push(Token::new_without_value(TokenType::Mul, self.pos.clone(), self.pos.clone()));
-                self.advance();
+                tokens.push(self.make_mul());
             } else if current == '/' {
-                let pos_start = self.pos.clone();
-
-                self.advance();
-
-                if self.current_char.unwrap() != '/' && self.current_char.unwrap() != '*' {
-                    tokens.push(Token::new_without_value(TokenType::Div, pos_start, self.pos.clone()));
-                } else if self.current_char.unwrap() == '*' {
-                    self.skip_multiline_comment();
-                } else {
-                    self.skip_comment();
+                if let Some(token) = self.make_div_or_comment() {
+                    tokens.push(token);
                 }
-
             } else if current == '%' {
-                tokens.push(Token::new_without_value(TokenType::Modulo, self.pos.clone(), self.pos.clone()));
-                self.advance();
+                tokens.push(self.make_modulo());
             } else if current == '^' {
-                tokens.push(Token::new_without_value(TokenType::BitXor, self.pos.clone(), self.pos.clone()));
-                self.advance();
+                tokens.push(self.make_bit_xor());
             } else if current == ':' {
                 tokens.push(Token::new_without_value(TokenType::Colon, self.pos.clone(), self.pos.clone()));
                 self.advance();
@@ -284,16 +271,24 @@ impl Lexer {
 
     fn make_minus_or_arrow(&mut self) -> Token {
         let mut token_type = TokenType::Minus;
+        let mut flags = TOKEN_FLAGS_NULL;
         let pos_start = self.pos.clone();
 
         self.advance();
 
-        if self.current_char.is_some() && self.current_char.unwrap() == '>' {
+        if self.current_char.is_some() && self.current_char.unwrap() == '-' {
+            self.advance();
+            token_type = TokenType::MinusMinus;
+        } else if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+            self.advance();
+            flags = TOKEN_FLAGS_IS_ASSIGN;
+            token_type = TokenType::Minus;
+        } else if self.current_char.is_some() && self.current_char.unwrap() == '>' {
             self.advance();
             token_type = TokenType::Arrow;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos.clone())
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
     }
 
     fn make_not_equals(&mut self) -> Token {
@@ -326,6 +321,7 @@ impl Lexer {
 
     fn make_less_than(&mut self) -> Token {
         let mut token_type = TokenType::Lt;
+        let mut flags = TOKEN_FLAGS_NULL;
         let pos_start = self.pos.clone();
 
         self.advance();
@@ -333,16 +329,22 @@ impl Lexer {
         if self.current_char.is_some() && self.current_char.unwrap() == '=' {
             self.advance();
             token_type = TokenType::Lte;
-        } else  if self.current_char.is_some() && self.current_char.unwrap() == '<' {
+        } else if self.current_char.is_some() && self.current_char.unwrap() == '<' {
             self.advance();
             token_type = TokenType::BitShl;
+
+            if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+                self.advance();
+                flags = TOKEN_FLAGS_IS_ASSIGN;
+            }
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos.clone())
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
     }
 
     fn make_greater_than(&mut self) -> Token {
         let mut token_type = TokenType::Gt;
+        let mut flags = TOKEN_FLAGS_NULL;
         let pos_start = self.pos.clone();
 
         self.advance();
@@ -353,13 +355,19 @@ impl Lexer {
         } else if self.current_char.is_some() && self.current_char.unwrap() == '>' {
             self.advance();
             token_type = TokenType::BitShr;
+
+            if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+                self.advance();
+                flags = TOKEN_FLAGS_IS_ASSIGN;
+            }
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos.clone())
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
     }
 
     fn make_and(&mut self) -> Token {
         let mut token_type = TokenType::BitAnd;
+        let mut flags = TOKEN_FLAGS_NULL;
         let pos_start = self.pos.clone();
 
         self.advance();
@@ -367,13 +375,17 @@ impl Lexer {
         if self.current_char.is_some() && self.current_char.unwrap() == '&' {
             self.advance();
             token_type = TokenType::And;
+        } else if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+            self.advance();
+            flags = TOKEN_FLAGS_IS_ASSIGN;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos.clone())
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
     }
 
     fn make_or(&mut self) -> Token {
         let mut token_type = TokenType::BitOr;
+        let mut flags = TOKEN_FLAGS_NULL;
         let pos_start = self.pos.clone();
 
         self.advance();
@@ -381,9 +393,135 @@ impl Lexer {
         if self.current_char.is_some() && self.current_char.unwrap() == '|' {
             self.advance();
             token_type = TokenType::Or;
+        } else if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+            self.advance();
+            flags = TOKEN_FLAGS_IS_ASSIGN;
         }
 
-        Token::new_without_value(token_type, pos_start, self.pos.clone())
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
     }
+
+    fn make_plus(&mut self) -> Token {
+        let mut token_type = TokenType::Plus;
+        let mut flags = TOKEN_FLAGS_NULL;
+        let pos_start = self.pos.clone();
+
+        self.advance();
+
+        if self.current_char.is_some() && self.current_char.unwrap() == '+' {
+            self.advance();
+            token_type = TokenType::PlusPlus;
+        } else if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+            self.advance();
+            flags = TOKEN_FLAGS_IS_ASSIGN;
+        }
+
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
+    }
+
+    fn make_mul(&mut self) -> Token {
+        let mut token_type = TokenType::Mul;
+        let mut flags = TOKEN_FLAGS_NULL;
+        let pos_start = self.pos.clone();
+
+        self.advance();
+
+        if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+            self.advance();
+            flags = TOKEN_FLAGS_IS_ASSIGN;
+        }
+
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
+    }
+
+    fn make_div_or_comment(&mut self) -> Option<Token> {
+        let mut token_type = TokenType::Div;
+        let mut flags = TOKEN_FLAGS_NULL;
+        let pos_start = self.pos.clone();
+
+        self.advance();
+
+        if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+            self.advance();
+            flags = TOKEN_FLAGS_IS_ASSIGN;
+        } else if self.current_char.unwrap() == '*' {
+            self.skip_multiline_comment();
+            return None;
+        } else if self.current_char.unwrap() == '/' {
+            self.skip_comment();
+            return None;
+        }
+
+        Some(Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags))
+    }
+
+    fn make_modulo(&mut self) -> Token {
+        let mut token_type = TokenType::Modulo;
+        let mut flags = TOKEN_FLAGS_NULL;
+        let pos_start = self.pos.clone();
+
+        self.advance();
+
+        if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+            self.advance();
+            flags = TOKEN_FLAGS_IS_ASSIGN;
+        }
+
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
+    }
+
+    fn make_bit_xor(&mut self) -> Token {
+        let mut token_type = TokenType::BitXor;
+        let mut flags = TOKEN_FLAGS_NULL;
+        let pos_start = self.pos.clone();
+
+        self.advance();
+
+        if self.current_char.is_some() && self.current_char.unwrap() == '=' {
+            self.advance();
+            flags = TOKEN_FLAGS_IS_ASSIGN;
+        }
+
+        Token::new_with_flags_no_value(token_type, pos_start, self.pos.clone(), flags)
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn test_make_token_identifier() {
+        let mut lexer = Lexer::new(Box::new("".to_string()), Box::new("let five: number = 5;".to_string()));
+        let (tokens, error) = lexer.make_tokens();
+
+        assert!(error.is_none());
+
+        assert_eq!(tokens.len(), 9);
+
+        assert_eq!(tokens[0].token_type(), TokenType::Bof);
+
+        assert!(tokens[1].matches_keyword("let"));
+
+        assert_eq!(tokens[2].token_type(), TokenType::Identifier);
+        assert!(tokens[2].token_value().is_some());
+        assert_eq!(tokens[2].token_value().as_ref().unwrap(), "five");
+
+        assert_eq!(tokens[3].token_type(), TokenType::Colon);
+
+        assert!(tokens[4].matches_keyword("number"));
+
+        assert_eq!(tokens[5].token_type(), TokenType::Eq);
+
+        assert_eq!(tokens[6].token_type(), TokenType::Int);
+        assert!(tokens[6].token_value().is_some());
+        assert_eq!(tokens[6].token_value().as_ref().unwrap(), "5");
+
+        assert_eq!(tokens[7].token_type(), TokenType::Newline);
+
+        assert_eq!(tokens[8].token_type(), TokenType::Eof);
+    }
+
 
 }

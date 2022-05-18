@@ -33,7 +33,7 @@ use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::while_node::WhileNode;
 use crate::results::parse::ParseResult;
-use crate::token::{Token, TokenType};
+use crate::token::{Token, TOKEN_FLAGS_IS_ASSIGN, TokenType};
 use crate::values::value_type::array_type::ArrayType;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
@@ -92,7 +92,7 @@ impl Parser {
     pub fn parse(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
 
-        if self.current_token().token_type() == TokenType::Bof {
+        if self.current_token().token_type() != TokenType::Bof {
             res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected BOF!"));
             return res;
         }
@@ -1427,7 +1427,7 @@ impl Parser {
             res.register_advancement();
             self.advance();
 
-            if self.current_token().token_type() == TokenType::Plus
+            if self.current_token().has_flag(TOKEN_FLAGS_IS_ASSIGN) && (self.current_token().token_type() == TokenType::Plus
                 || self.current_token().token_type() == TokenType::Minus
                 || self.current_token().token_type() == TokenType::Mul
                 || self.current_token().token_type() == TokenType::Div
@@ -1436,30 +1436,23 @@ impl Parser {
                 || self.current_token().token_type() == TokenType::BitOr
                 || self.current_token().token_type() == TokenType::BitXor
                 || self.current_token().token_type() == TokenType::BitShl
-                || self.current_token().token_type() == TokenType::BitShr
+                || self.current_token().token_type() == TokenType::BitShr)
             {
                 let op_token = self.current_token().clone();
 
+                res.register_advancement();
                 self.advance();
 
-                if self.current_token().token_type() == TokenType::Eq {
-                    res.register_advancement();
-                    res.register_advancement();
-                    self.advance();
-
-                    let assign_expr = res.register_res(self.expression());
-                    if res.has_error() {
-                        return res;
-                    }
-
-                    res.success(Box::new(VarAssignNode::new(var_name.clone(),
-                                                            Box::new(BinOpNode::new(
-                                                                Box::new(VarAccessNode::new(var_name, pos_start.clone(), self.current_token().pos_end().clone())), op_token, assign_expr.unwrap(),
-                                                            )), pos_start)));
+                let assign_expr = res.register_res(self.expression());
+                if res.has_error() {
                     return res;
                 }
 
-                self.reverse(1);
+                res.success(Box::new(VarAssignNode::new(var_name.clone(),
+                                                        Box::new(BinOpNode::new(
+                                                            Box::new(VarAccessNode::new(var_name, pos_start.clone(), self.current_token().pos_end().clone())), op_token, assign_expr.unwrap(),
+                                                        )), pos_start)));
+                return res;
             }
 
             if self.current_token().token_type() == TokenType::Eq {
