@@ -131,7 +131,7 @@ impl Validator {
         false
     }
 
-    fn find_fist_function(&self) -> Option<Box<dyn ValueType>> {
+    fn find_first_function(&self) -> Option<Box<dyn ValueType>> {
         if self.is_in_scope_stack(ScopeType::Function) {
             return self.current_function_return_type.clone();
         }
@@ -500,7 +500,7 @@ impl Validator {
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Return statement outside of function!"));
             return res;
         }*/
-        let function_return_type = self.find_fist_function();
+        let function_return_type = self.find_first_function();
         if function_return_type.is_none() {
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Return statement outside of function!"));
             return res;
