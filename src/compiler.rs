@@ -12,6 +12,7 @@ use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
+use crate::nodes::import_node::ImportNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
@@ -797,6 +798,12 @@ impl Compiler {
             self.free_scratch(from_reg);
 
             return Some(res_reg);
+        }
+
+        if node.node_type() == NodeType::Import {
+            let import_node = node.as_any().downcast_ref::<ImportNode>().unwrap();
+            self.code_gen(import_node.node(), w);
+            return None;
         }
 
         None

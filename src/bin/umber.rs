@@ -28,7 +28,7 @@ fn main() {
         panic!("{}", error);
     }
 
-    let mut lexer = umber_lang::lexer::Lexer::new(Box::new(file_name), Box::new(preprocessed.unwrap()));
+    let mut lexer = umber_lang::lexer::Lexer::new(file.to_path_buf(), preprocessed.unwrap());
     let (tokens, error) = lexer.make_tokens();
 
     if let Some(error) = error {
@@ -37,14 +37,14 @@ fn main() {
     }
 
     let mut parser = umber_lang::parser::Parser::new(tokens);
-    let parse_res = parser.parse();
+    let (root_node, parse_error) = parser.parse();
 
-    if let Some(error) = parse_res.error() {
+    if let Some(error) = parse_error {
         eprintln!("{}", error);
         return;
     }
 
-    let ast_root = parse_res.node().as_ref().unwrap();
+    let ast_root = root_node.as_ref().unwrap();
 
     let mut validator = umber_lang::semantics::Validator::new();
     let validation_res = validator.validate(ast_root);

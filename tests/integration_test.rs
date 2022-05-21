@@ -31,7 +31,7 @@ pub fn test_file() {
     // println!("preprocessed: {}", preprocessed.as_ref().unwrap());
 
     println!("Lexing file...");
-    let mut lexer = umber_lang::lexer::Lexer::new(Box::new(file.to_str().unwrap().to_string()), Box::new(preprocessed.unwrap()));
+    let mut lexer = umber_lang::lexer::Lexer::new(file.to_path_buf(), preprocessed.unwrap());
     let (tokens, error) = lexer.make_tokens();
 
     if let Some(error) = error {
@@ -41,14 +41,16 @@ pub fn test_file() {
 
     println!("Parsing file...");
     let mut parser = umber_lang::parser::Parser::new(tokens);
-    let parse_res = parser.parse();
+    let (root_node, parse_error) = parser.parse();
 
-    if let Some(error) = parse_res.error() {
+    if let Some(error) = parse_error {
         eprintln!("{}", error);
         return;
     }
 
-    let ast_root = parse_res.node().as_ref().unwrap();
+    let ast_root = root_node.as_ref().unwrap();
+
+    println!("ast_root: {}", ast_root);
 
     println!("Validating file...");
     let mut validator = umber_lang::semantics::Validator::new();

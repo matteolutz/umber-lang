@@ -1,19 +1,21 @@
+use std::path::{Path, PathBuf};
+
 #[derive(Clone)]
 pub struct Position {
     index: usize,
     line: usize,
     col: usize,
-    file_name: Box<String>
+    file_path: PathBuf
 }
 
 impl Position {
 
-    pub fn new(file_name: Box<String>) -> Self {
+    pub fn new(file_path: PathBuf) -> Self {
         Position {
             line: 0,
             col: 0,
             index: 0,
-            file_name,
+            file_path,
         }
     }
 
@@ -22,7 +24,7 @@ impl Position {
             line: 0,
             col: 0,
             index: 0,
-            file_name: Box::new("".to_string()),
+            file_path: PathBuf::new(),
         }
     }
 
@@ -48,8 +50,8 @@ impl Position {
         &self.col
     }
 
-    pub fn file_name(&self) -> &Box<String> {
-        &self.file_name
+    pub fn file_name(&self) -> &PathBuf {
+        &self.file_path
     }
 
 }

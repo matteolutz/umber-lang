@@ -13,6 +13,7 @@ use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
+use crate::nodes::import_node::ImportNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
@@ -27,6 +28,7 @@ use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::while_node::WhileNode;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
+use crate::token::TokenType;
 use crate::values::value_type::{ValueType, ValueTypes};
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
@@ -169,6 +171,7 @@ impl Validator {
             NodeType::StaticDef => self.validate_static_def_node(node.as_any().downcast_ref::<StaticDefinitionNode>().unwrap()),
             NodeType::StructDef => self.validate_struct_def_node(node.as_any().downcast_ref::<StructDefinitionNode>().unwrap()),
             NodeType::ReadBytes => self.validate_read_bytes_node(node.as_any().downcast_ref::<ReadBytesNode>().unwrap()),
+            NodeType::Import => self.validate_import_node(node.as_any().downcast_ref::<ImportNode>().unwrap()),
             _ => self.validate_empty()
         }
     }
@@ -725,7 +728,7 @@ impl Validator {
         res
     }
 
-    fn validate_struct_def_node(&mut self, node: &StructDefinitionNode) -> ValidationResult {
+    fn validate_struct_def_node(&mut self, _node: &StructDefinitionNode) -> ValidationResult {
         panic!("Structs are not supported yet!");
     }
 
@@ -743,6 +746,18 @@ impl Validator {
         }
 
         res.success(node_type.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().clone());
+        res
+    }
+
+    fn validate_import_node(&mut self, node: &ImportNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let stmt_node = node.node().as_any().downcast_ref::<StatementsNode>().unwrap();
+
+        for stmt in stmt_node.statement_nodes() {
+            res.register_res(self.validate(stmt));
+        }
+
         res
     }
 

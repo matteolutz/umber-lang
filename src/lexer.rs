@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use crate::{error, utils};
 use crate::error::Error;
 use crate::position::Position;
@@ -6,19 +7,19 @@ use crate::token::{KEYWORDS, Token, TOKEN_FLAGS_IS_ASSIGN, TOKEN_FLAGS_NULL     
 use crate::token::TokenType::Lcurly;
 
 pub struct Lexer {
-    file_name: Box<String>,
-    file_text: Box<String>,
+    file_path: PathBuf,
+    file_text: String,
     pos: Position,
     current_char: Option<char>,
 }
 
 impl Lexer {
 
-    pub fn new(file_name: Box<String>, file_text: Box<String>) -> Self {
+    pub fn new(file_path: PathBuf, file_text: String) -> Self {
         Self {
-            file_name: file_name.clone(),
+            file_path: file_path.clone(),
             file_text: file_text.clone(),
-            pos: Position::new(file_name.clone()),
+            pos: Position::new(file_path.clone()),
             current_char: if file_text.len() > 0 { file_text.chars().nth(0) } else { None },
         }
     }
@@ -40,7 +41,7 @@ impl Lexer {
         while self.current_char.is_some() {
             let current = self.current_char.unwrap();
 
-            if current == ' ' || current == '\t' || current == '\n' {
+            if current == ' ' || current == '\t' || current == '\n' || current == '\r' {
                 self.advance();
             } else if current == '#' {
                 panic!("unallowed character");
@@ -493,7 +494,7 @@ mod tests {
 
     #[test]
     pub fn test_make_token_identifier() {
-        let mut lexer = Lexer::new(Box::new("".to_string()), Box::new("let five: number = 5;".to_string()));
+        let mut lexer = Lexer::new(PathBuf::new(), "let five: number = 5;".to_string());
         let (tokens, error) = lexer.make_tokens();
 
         assert!(error.is_none());

@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fs;
+use std::path::Path;
 
 use crate::error;
 use crate::error::Error;
+use crate::lexer::Lexer;
 use crate::nodes::{Node, NodeType};
 use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
@@ -17,6 +20,7 @@ use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::case::IfCase;
 use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
+use crate::nodes::import_node::ImportNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
@@ -89,12 +93,11 @@ impl Parser {
         self.token_index -= amount;
     }
 
-    pub fn parse(&mut self) -> ParseResult {
+    pub fn parse(&mut self) -> (Option<Box<dyn Node>>, Option<Error>) {
         let mut res = ParseResult::new();
 
         if self.current_token().token_type() != TokenType::Bof {
-            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected BOF!"));
-            return res;
+            return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected BOF!")));
         }
 
         res.register_advancement();
@@ -102,16 +105,14 @@ impl Parser {
 
         let stmts = res.register_res(self.statements(true));
         if res.has_error() {
-            return res;
+            return (None, res.error().clone());
         }
 
         if !res.has_error() && self.current_token().token_type() != TokenType::Eof {
-            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected statements!"));
-            return res;
+            return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected statements!")));
         }
 
-        res.success(stmts.unwrap());
-        res
+        return (stmts, None);
     }
 
     // region Helper functions
@@ -887,6 +888,44 @@ impl Parser {
                 return res;
             }
 
+            if self.current_token().matches_keyword("import") {
+                let pos_start = self.current_token().pos_start().clone();
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::String {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected string literal!"));
+                    return res;
+                }
+
+                let module_path = Path::join(Path::new(self.current_token().pos_start().file_name()).parent().unwrap(), Path::new(self.current_token().token_value().as_ref().unwrap()));
+
+                res.register_advancement();
+                self.advance();
+
+                let file_text = fs::read_to_string(module_path.clone()).unwrap();
+
+                let mut l = Lexer::new(module_path.clone(), file_text);
+                let (tokens, lexing_error) = l.make_tokens();
+
+                if let Some(lexing_error) = lexing_error {
+                    res.failure(error::semantic_error_with_parent(pos_start, self.current_token().pos_end().clone(), "Failed to import module!", lexing_error));
+                    return res;
+                }
+
+                let mut p = Parser::new(tokens);
+                let (root_node, parse_error) = p.parse();
+
+                if let Some(parse_error) = parse_error {
+                    res.failure(error::semantic_error_with_parent(pos_start, self.current_token().pos_end().clone(), "Failed to import module!", parse_error));
+                    return res;
+                }
+
+                res.success(Box::new(ImportNode::new(root_node.unwrap())));
+                return res;
+            }
+
         } else {
             if self.current_token().token_type() == TokenType::Lcurly {
                 res.register_advancement();
@@ -1359,7 +1398,7 @@ impl Parser {
             }
 
             if self.current_token().token_type() != TokenType::Rsquare {
-                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after offset expression!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after ofnet expression!"));
                 return res;
             }
 

@@ -27,6 +27,7 @@ pub mod sizeof_node;
 pub mod static_def_node;
 pub mod struct_def_node;
 pub mod read_bytes_node;
+pub mod import_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -55,7 +56,8 @@ pub enum NodeType {
     SizeOf,
     StaticDef,
     StructDef,
-    ReadBytes
+    ReadBytes,
+    Import
 }
 
 pub trait NodeToAny: 'static {
