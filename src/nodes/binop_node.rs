@@ -5,6 +5,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::token::Token;
 
+#[derive(Clone)]
 pub struct BinOpNode {
     left_node: Box<dyn Node>,
     op_token: Token,
@@ -55,5 +56,9 @@ impl Node for BinOpNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::BinOp
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

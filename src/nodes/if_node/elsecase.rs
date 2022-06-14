@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::nodes::Node;
 
+#[derive(Clone)]
 pub struct ElseCase {
     statements: Box<dyn Node>
 }

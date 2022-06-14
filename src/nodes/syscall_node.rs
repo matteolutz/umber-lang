@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct SyscallNode {
     args: Vec<Box<dyn Node>>,
     pos_start: Position,
@@ -46,5 +47,9 @@ impl Node for SyscallNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::Syscall
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

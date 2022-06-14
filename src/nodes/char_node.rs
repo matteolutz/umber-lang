@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct CharNode {
     value: char,
     pos_start: Position,
@@ -46,5 +47,9 @@ impl Node for CharNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::Char
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

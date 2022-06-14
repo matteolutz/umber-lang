@@ -15,13 +15,16 @@ use crate::nodes::cast_node::CastNode;
 use crate::nodes::char_node::CharNode;
 use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::continue_node::ContinueNode;
+use crate::nodes::dereference_node::DereferenceNode;
 use crate::nodes::for_node::ForNode;
+use crate::nodes::functiondecl_node::FunctionDeclarationNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::case::IfCase;
 use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::list_node::ListNode;
+use crate::nodes::macro_def_node::MacroDefNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
@@ -69,10 +72,12 @@ enum BinOpFunction {
 pub struct Parser {
     tokens: Vec<Token>,
     token_index: usize,
+    macros: HashMap<String, Box<dyn Node>>,
+    include_paths: Vec<String>,
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Vec<Token>, include_paths: Vec<String>) -> Self {
         if tokens.is_empty() {
             panic!("No tokens were provided!");
         }
@@ -80,7 +85,26 @@ impl Parser {
         Parser {
             tokens,
             token_index: 0,
+            macros: HashMap::new(),
+            include_paths
         }
+    }
+
+    pub fn new_with_macros(tokens: Vec<Token>, macros: HashMap<String, Box<dyn Node>>, include_paths: Vec<String>) -> Self {
+        if tokens.is_empty() {
+            panic!("No tokens were provided!");
+        }
+
+        Parser {
+            tokens,
+            token_index: 0,
+            macros,
+            include_paths
+        }
+    }
+
+    pub fn macros(&self) -> &HashMap<String, Box<dyn Node>> {
+        &self.macros
     }
 
     fn current_token(&self) -> &Token { return &self.tokens[self.token_index]; }
@@ -113,6 +137,21 @@ impl Parser {
         }
 
         return (stmts, None);
+    }
+
+    pub fn parse_macro(&mut self) -> (Option<Box<dyn Node>>, Option<Error>) {
+        let mut res = ParseResult::new();
+
+        let expr = res.register_res(self.expression());
+        if res.has_error() {
+            return (None, res.error().clone());
+        }
+
+        if !res.has_error() {
+            return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected statements!")));
+        }
+
+        return (expr, None);
     }
 
     // region Helper functions
@@ -639,6 +678,11 @@ impl Parser {
         res.register_advancement();
         self.advance();
 
+        if self.current_token().token_type() == TokenType::Newline {
+            res.success(Box::new(FunctionDeclarationNode::new(func_name, args, return_type, pos_start, self.current_token().pos_end().clone())));
+            return res;
+        }
+
         if self.current_token().token_type() != TokenType::Lcurly {
             res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected '{'!"));
             return res;
@@ -899,12 +943,35 @@ impl Parser {
                     return res;
                 }
 
-                let module_path = Path::join(Path::new(self.current_token().pos_start().file_name()).parent().unwrap(), Path::new(self.current_token().token_value().as_ref().unwrap()));
+                let module_name = self.current_token().token_value().as_ref().unwrap().clone();
+                let mut module_path = Path::join(Path::new(self.current_token().pos_start().file_name()).parent().unwrap(), Path::new(&module_name));
 
                 res.register_advancement();
                 self.advance();
 
-                let file_text = fs::read_to_string(module_path.clone()).unwrap();
+                let mut include_paths = self.include_paths.clone();
+                include_paths.reverse();
+
+                while (!module_path.exists() || !module_path.is_file()) && !include_paths.is_empty() {
+                    let ip = include_paths.pop().unwrap();
+                    module_path = Path::new(ip.as_str()).join(&module_name);
+                }
+
+                if !module_path.exists() || !module_path.is_file() {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Module '{}' not found!", &module_name).as_str()));
+                    return res;
+                }
+
+                let file_text_res = fs::read_to_string(module_path.clone());
+
+                if file_text_res.is_err() {
+                    res.failure(error::semantic_error_with_parent(pos_start.clone(), self.current_token().pos_end().clone(), "Failed to import module!",
+                        error::file_not_found_error(pos_start, self.current_token().pos_end().clone(), format!("File '{}' couldn't be opened!\n\t{}", module_path.to_str().unwrap(), file_text_res.err().unwrap().to_string()).as_str())
+                    ));
+                    return res;
+                }
+
+                let file_text = file_text_res.unwrap();
 
                 let mut l = Lexer::new(module_path.clone(), file_text);
                 let (tokens, lexing_error) = l.make_tokens();
@@ -914,7 +981,7 @@ impl Parser {
                     return res;
                 }
 
-                let mut p = Parser::new(tokens);
+                let mut p = Parser::new_with_macros(tokens, self.macros.clone(), self.include_paths.clone());
                 let (root_node, parse_error) = p.parse();
 
                 if let Some(parse_error) = parse_error {
@@ -922,7 +989,38 @@ impl Parser {
                     return res;
                 }
 
+                self.macros = p.macros.clone();
+
                 res.success(Box::new(ImportNode::new(root_node.unwrap())));
+                return res;
+            }
+
+            if self.current_token().matches_keyword("macro") {
+                let pos_start = self.current_token().pos_start().clone();
+
+                res.register_advancement();
+                self.advance();
+
+                if self.current_token().token_type() != TokenType::Identifier {
+                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
+                    return res;
+                }
+
+                let name = self.current_token().token_value().as_ref().unwrap().clone();
+
+                // for now allow macro redifinition
+
+                res.register_advancement();
+                self.advance();
+
+                let macro_body = res.register_res(self.expression());
+                if res.has_error() {
+                    return res;
+                }
+
+                self.macros.insert(name, macro_body.as_ref().unwrap().clone());
+
+                res.success(Box::new(MacroDefNode::new(pos_start, self.current_token().pos_end().clone())));
                 return res;
             }
 
@@ -1312,7 +1410,7 @@ impl Parser {
                 return res;
             }
 
-            res.success(Box::new(UnaryOpNode::new(token, factor.unwrap())));
+            res.success(Box::new(DereferenceNode::new(factor.unwrap())));
             return res;
         }
 
@@ -1455,16 +1553,16 @@ impl Parser {
             node = Box::new(CharNode::new(actual_char, pos_start, pos_end));
         } else if self.current_token().token_type() == TokenType::Identifier {
 
-            if self.current_token().token_type() != TokenType::Identifier {
-                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected identifier!"));
-                return res;
-            }
-
             let var_name = self.current_token().token_value().as_ref().unwrap().clone();
             let pos_start = self.current_token().pos_start().clone();
 
             res.register_advancement();
             self.advance();
+
+            if self.macros.contains_key(&var_name) {
+                res.success(self.macros[&var_name].clone());
+                return res;
+            }
 
             if self.current_token().has_flag(TOKEN_FLAGS_IS_ASSIGN) && (self.current_token().token_type() == TokenType::Plus
                 || self.current_token().token_type() == TokenType::Minus

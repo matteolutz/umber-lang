@@ -4,15 +4,13 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
 #[derive(Clone)]
-pub struct ImportNode {
-    node: Box<dyn Node>
+pub struct DereferenceNode {
+    node: Box<dyn Node>,
 }
 
-impl ImportNode {
+impl DereferenceNode {
     pub fn new(node: Box<dyn Node>) -> Self {
-        Self {
-            node
-        }
+        Self { node }
     }
 
     pub fn node(&self) -> &Box<dyn Node> {
@@ -21,19 +19,19 @@ impl ImportNode {
 
 }
 
-impl NodeToAny for ImportNode {
+impl NodeToAny for DereferenceNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Display for ImportNode {
+impl Display for DereferenceNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "<ImportNode>[Node: {}]", self.node)
+        write!(f, "<DereferenceNode>[Node: {}]", self.node)
     }
 }
 
-impl Node for ImportNode {
+impl Node for DereferenceNode {
     fn pos_start(&self) -> &Position {
         self.node.pos_start()
     }
@@ -43,7 +41,7 @@ impl Node for ImportNode {
     }
 
     fn node_type(&self) -> NodeType {
-        NodeType::Import
+        NodeType::Dereference
     }
 
     fn box_clone(&self) -> Box<dyn Node> {

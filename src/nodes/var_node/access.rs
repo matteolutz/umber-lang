@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct VarAccessNode {
     var_name: String,
     reference: bool,
@@ -65,5 +66,9 @@ impl Node for VarAccessNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::VarAccess
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

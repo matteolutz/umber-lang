@@ -4,6 +4,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
 
+#[derive(Clone)]
 pub struct CastNode {
     node: Box<dyn Node>,
     cast_type: Box<dyn ValueType>,
@@ -50,5 +51,9 @@ impl Node for CastNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::Cast
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

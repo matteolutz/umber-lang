@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct StatementsNode {
     statement_nodes: Vec<Box<dyn Node>>,
     pos_start: Position,
@@ -47,5 +48,9 @@ impl Node for StatementsNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::Statements
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

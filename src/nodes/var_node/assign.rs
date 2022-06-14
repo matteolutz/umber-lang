@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct VarAssignNode {
     var_name: String,
     value_node: Box<dyn Node>,
@@ -55,5 +56,9 @@ impl Node for VarAssignNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::VarAssign
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

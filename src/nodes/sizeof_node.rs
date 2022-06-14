@@ -4,6 +4,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
 
+#[derive(Clone)]
 pub struct SizeOfNode {
     value_type: Box<dyn ValueType>,
     pos_start: Position,
@@ -48,5 +49,9 @@ impl Node for SizeOfNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::SizeOf
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

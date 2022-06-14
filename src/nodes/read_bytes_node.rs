@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct ReadBytesNode {
     node: Box<dyn Node>,
     bytes: u64,
@@ -50,5 +51,9 @@ impl Node for ReadBytesNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::ReadBytes
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

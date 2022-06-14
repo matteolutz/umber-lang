@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct WhileNode {
     condition_node: Box<dyn Node>,
     body_node: Box<dyn Node>,
@@ -51,5 +52,9 @@ impl Node for WhileNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::While
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

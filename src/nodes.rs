@@ -28,12 +28,16 @@ pub mod static_def_node;
 pub mod struct_def_node;
 pub mod read_bytes_node;
 pub mod import_node;
+pub mod dereference_node;
+pub mod macro_def_node;
+pub mod functiondecl_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
     BinOp,
     Call,
     FunctionDef,
+    FunctionDecl,
     List,
     Break,
     Continue,
@@ -57,7 +61,9 @@ pub enum NodeType {
     StaticDef,
     StructDef,
     ReadBytes,
-    Import
+    Dereference,
+    Import,
+    MacroDef
 }
 
 pub trait NodeToAny: 'static {
@@ -68,4 +74,11 @@ pub trait Node: NodeToAny + Display {
     fn pos_start(&self) -> &Position;
     fn pos_end(&self) -> &Position;
     fn node_type(&self) -> NodeType;
+    fn box_clone(&self) -> Box<dyn Node>;
+}
+
+impl Clone for Box<dyn Node> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
 }

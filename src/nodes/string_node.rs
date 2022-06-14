@@ -5,6 +5,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::token::Token;
 
+#[derive(Clone)]
 pub struct StringNode {
     token: Token,
 }
@@ -46,5 +47,9 @@ impl Node for StringNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::String
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

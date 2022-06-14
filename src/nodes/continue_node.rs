@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct ContinueNode {
     pos_start: Position,
     pos_end: Position
@@ -43,5 +44,9 @@ impl Node for ContinueNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::Continue
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct ForNode {
     init_stmt: Box<dyn Node>,
     condition: Box<dyn Node>,
@@ -63,5 +64,9 @@ impl Node for ForNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::For
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

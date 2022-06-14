@@ -5,6 +5,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
 
+#[derive(Clone)]
 pub struct VarDeclarationNode {
     var_name: String,
     var_type: Box<dyn ValueType>,
@@ -61,5 +62,9 @@ impl Node for VarDeclarationNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::VarDeclaration
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

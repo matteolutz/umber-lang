@@ -5,6 +5,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
 
+#[derive(Clone)]
 pub struct StructDefinitionNode {
     name: String,
     fields: Vec<(String, Box<dyn ValueType>)>,
@@ -54,5 +55,9 @@ impl Node for StructDefinitionNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::StructDef
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

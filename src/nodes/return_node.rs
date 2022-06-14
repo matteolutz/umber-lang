@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct ReturnNode {
     node_to_return: Option<Box<dyn Node>>,
     pos_start: Position,
@@ -51,5 +52,9 @@ impl Node for ReturnNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::Return
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

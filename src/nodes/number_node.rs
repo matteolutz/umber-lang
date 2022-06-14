@@ -5,6 +5,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::token::Token;
 
+#[derive(Clone)]
 pub struct NumberNode {
     token: Token,
 }
@@ -46,5 +47,9 @@ impl Node for NumberNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::Number
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

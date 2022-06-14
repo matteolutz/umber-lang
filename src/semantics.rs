@@ -10,7 +10,9 @@ use crate::nodes::call_node::CallNode;
 use crate::nodes::cast_node::CastNode;
 use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::continue_node::ContinueNode;
+use crate::nodes::dereference_node::DereferenceNode;
 use crate::nodes::for_node::ForNode;
+use crate::nodes::functiondecl_node::FunctionDeclarationNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::import_node::ImportNode;
@@ -26,6 +28,7 @@ use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::while_node::WhileNode;
+use crate::position::Position;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
 use crate::token::TokenType;
@@ -49,7 +52,7 @@ enum ScopeType {
 }
 
 pub struct Validator {
-    type_stack: Vec<HashMap<String, Symbol>>,
+    type_stack: Vec<HashMap<String, (Symbol, Position)>>,
     scope_stack: Vec<ScopeType>,
 
     current_function_return_type: Option<Box<dyn ValueType>>,
@@ -82,13 +85,13 @@ impl Validator {
         let s = self.get_symbol(name);
 
         if s.is_some() {
-            return s.unwrap().is_mutable();
+            return s.unwrap().0.is_mutable();
         }
 
         false
     }
 
-    fn get_symbol(&self, name: &str) -> Option<&Symbol> {
+    fn get_symbol(&self, name: &str) -> Option<&(Symbol, Position)> {
         for s in self.type_stack.iter().rev() {
             if s.contains_key(name) {
                 return s.get(name);
@@ -98,7 +101,7 @@ impl Validator {
         None
     }
 
-    fn declare_symbol(&mut self, name: String, sym: Symbol) {
+    fn declare_symbol(&mut self, name: String, sym: Symbol, pos: Position) {
         if self.type_stack.is_empty() {
             return;
         }
@@ -107,7 +110,7 @@ impl Validator {
             return;
         }
 
-        (self.type_stack.index_mut(self.type_stack.len() - 1)).insert(name, sym);
+        (self.type_stack.index_mut(self.type_stack.len() - 1)).insert(name, (sym, pos));
     }
 
     fn push_child_scope(&mut self, scope_type: ScopeType) {
@@ -157,6 +160,7 @@ impl Validator {
             NodeType::VarAssign => self.validate_var_assign_node(node.as_any().downcast_ref::<VarAssignNode>().unwrap()),
             NodeType::VarAccess => self.validate_var_access_node(node.as_any().downcast_ref::<VarAccessNode>().unwrap()),
             NodeType::FunctionDef => self.validate_function_def_node(node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap()),
+            NodeType::FunctionDecl => self.validate_function_decl_node(node.as_any().downcast_ref::<FunctionDeclarationNode>().unwrap()),
             NodeType::Call => self.validate_call_node(node.as_any().downcast_ref::<CallNode>().unwrap()),
             NodeType::Return => self.validate_return_node(node.as_any().downcast_ref::<ReturnNode>().unwrap()),
             NodeType::Break => self.validate_break_node(node.as_any().downcast_ref::<BreakNode>().unwrap()),
@@ -171,7 +175,9 @@ impl Validator {
             NodeType::StaticDef => self.validate_static_def_node(node.as_any().downcast_ref::<StaticDefinitionNode>().unwrap()),
             NodeType::StructDef => self.validate_struct_def_node(node.as_any().downcast_ref::<StructDefinitionNode>().unwrap()),
             NodeType::ReadBytes => self.validate_read_bytes_node(node.as_any().downcast_ref::<ReadBytesNode>().unwrap()),
+            NodeType::Dereference => self.validate_dereference_node(node.as_any().downcast_ref::<DereferenceNode>().unwrap()),
             NodeType::Import => self.validate_import_node(node.as_any().downcast_ref::<ImportNode>().unwrap()),
+            NodeType::MacroDef => ValidationResult::new(),
             _ => self.validate_empty()
         }
     }
@@ -286,7 +292,11 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if self.has_symbol(node.var_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' was already declared in this scope!", node.var_name()).as_str()));
+            let (_, decl_pos) = self.get_symbol(node.var_name()).unwrap();
+            res.failure(error::semantic_error_with_parent(
+                node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' was already declared in this scope!", node.var_name()).as_str(),
+                error::semantic_error(decl_pos.clone(), decl_pos.clone(), format!("Previous declaration of '{}'", node.var_name()).as_str())
+            ));
             return res;
         }
 
@@ -302,7 +312,7 @@ impl Validator {
             return res;
         }
 
-        self.declare_symbol(node.var_name().to_string(), Symbol::new(symbol_type.clone(), node.is_mutable()));
+        self.declare_symbol(node.var_name().to_string(), Symbol::new(symbol_type.clone(), node.is_mutable()), node.pos_start().clone());
         res.success(symbol_type);
         res
     }
@@ -342,8 +352,8 @@ impl Validator {
             return res;
         }*/
 
-        if !self.get_symbol(node.var_name()).unwrap().value_type().eq(&symbol_type) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable type {} does not match assign type {}!", self.get_symbol(node.var_name()).unwrap().value_type(), &symbol_type).as_str()));
+        if !self.get_symbol(node.var_name()).unwrap().0.value_type().eq(&symbol_type) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable type {} does not match assign type {}!", self.get_symbol(node.var_name()).unwrap().0.value_type(), &symbol_type).as_str()));
             return res;
         }
 
@@ -364,7 +374,7 @@ impl Validator {
             return res;
         }
 
-        let base_type = self.get_symbol(node.var_name()).unwrap().value_type().clone();
+        let base_type = self.get_symbol(node.var_name()).unwrap().0.value_type().clone();
 
         if *node.reference() {
             if *node.mutable_reference() && !self.is_symbol_mut(node.var_name()) {
@@ -421,6 +431,7 @@ impl Validator {
         self.declare_symbol(
             node.var_name().to_string(),
             Symbol::new(Box::new(FunctionType::new(arg_types.clone(), node.return_type().clone())), false),
+            node.pos_start().clone(),
         );
 
         self.push_child_scope(ScopeType::Function);
@@ -428,7 +439,7 @@ impl Validator {
         self.current_function_return_type = Some(node.return_type().clone());
 
         for (name, value_type) in node.args() {
-            self.declare_symbol(name.clone(), Symbol::new(value_type.clone(), true));
+            self.declare_symbol(name.clone(), Symbol::new(value_type.clone(), true), node.pos_start().clone());
         }
 
         res.register_res(self.validate(node.body_node()));
@@ -454,6 +465,30 @@ impl Validator {
         res
     }
 
+    fn validate_function_decl_node(&mut self, node: &FunctionDeclarationNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        if self.has_symbol(node.var_name()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Function or variable with name '{}' was already declared in this scope!", node.var_name()).as_str()));
+            return res;
+        }
+
+        let mut arg_types: Vec<Box<dyn ValueType>> = vec![];
+        arg_types.reserve(node.args().len());
+
+        for (_, value_type) in node.args() {
+            arg_types.push(value_type.clone());
+        }
+
+        self.declare_symbol(
+            node.var_name().to_string(),
+            Symbol::new(Box::new(FunctionType::new(arg_types.clone(), node.return_type().clone())), false),
+            node.pos_start().clone()
+        );
+
+        res
+    }
+
     fn validate_call_node(&mut self, node: &CallNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
@@ -462,8 +497,8 @@ impl Validator {
             return res;
         }
 
-        if self.get_symbol(node.func_to_call()).unwrap().value_type().value_type() != ValueTypes::Function {
-            if self.get_symbol(node.func_to_call()).unwrap().value_type().value_type() == ValueTypes::Extern {
+        if self.get_symbol(node.func_to_call()).unwrap().0.value_type().value_type() != ValueTypes::Function {
+            if self.get_symbol(node.func_to_call()).unwrap().0.value_type().value_type() == ValueTypes::Extern {
                 res.success(Box::new(VoidType::new()));
                 return res;
             }
@@ -472,7 +507,7 @@ impl Validator {
             return res;
         }
 
-        let symbol_type = self.get_symbol(node.func_to_call()).unwrap().value_type().clone();
+        let symbol_type = self.get_symbol(node.func_to_call()).unwrap().0.value_type().clone();
         let function_type = symbol_type.as_any().downcast_ref::<FunctionType>().unwrap();
 
         if function_type.arg_types().len() != node.arg_nodes().len() {
@@ -698,7 +733,7 @@ impl Validator {
         }
 
 
-        self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.unwrap(), false));
+        self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.unwrap(), false), node.pos_start().clone());
         res
     }
 
@@ -722,7 +757,7 @@ impl Validator {
             return res;
         }
 
-        self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.as_ref().unwrap().clone(), *node.is_mutable()));
+        self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.as_ref().unwrap().clone(), *node.is_mutable()), node.pos_start().clone());
 
         res.success(assign_type.unwrap());
         res
@@ -742,6 +777,23 @@ impl Validator {
 
         if node_type.as_ref().unwrap().value_type() != ValueTypes::Pointer {
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't read bytes from non-pointer type!"));
+            return res;
+        }
+
+        res.success(node_type.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().clone());
+        res
+    }
+
+    fn validate_dereference_node(&mut self, node: &DereferenceNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let node_type = res.register_res(self.validate(node.node()));
+        if res.has_error() {
+            return res;
+        }
+
+        if node_type.as_ref().unwrap().value_type() != ValueTypes::Pointer {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't dereference non-pointer type!"));
             return res;
         }
 
@@ -771,17 +823,17 @@ mod tests {
     pub fn semantics_symbol_stack() {
         let mut v = Validator::new();
 
-        v.declare_symbol("a".to_string(), Symbol::new(Box::new(VoidType::new()), false));
+        v.declare_symbol("a".to_string(), Symbol::new(Box::new(VoidType::new()), false), Position::empty());
 
         assert_eq!(v.has_symbol("a"), true);
-        assert_eq!(v.get_symbol("a").unwrap().value_type().value_type(), ValueTypes::Void);
+        assert_eq!(v.get_symbol("a").unwrap().0.value_type().value_type(), ValueTypes::Void);
         assert_eq!(v.is_symbol_mut("a"), false);
 
         v.push_child_scope(ScopeType::Block);
 
         assert_eq!(v.has_symbol("a"), true);
         assert_eq!(v.has_symbol("b"), false);
-        v.declare_symbol("b".to_string(), Symbol::new(Box::new(VoidType::new()), false));
+        v.declare_symbol("b".to_string(), Symbol::new(Box::new(VoidType::new()), false), Position::empty());
         assert_eq!(v.has_symbol("b"), true);
 
         v.pop_child_scope();

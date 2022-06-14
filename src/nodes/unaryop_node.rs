@@ -5,6 +5,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::token::Token;
 
+#[derive(Clone)]
 pub struct UnaryOpNode {
     op_token: Token,
     node: Box<dyn Node>,
@@ -50,5 +51,9 @@ impl Node for UnaryOpNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::UnaryOp
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

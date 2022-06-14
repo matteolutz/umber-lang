@@ -4,6 +4,7 @@ use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
 
+#[derive(Clone)]
 pub struct ConstDefinitionNode {
     name: String,
     value: Box<dyn Node>,
@@ -56,5 +57,9 @@ impl Node for ConstDefinitionNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::ConstDef
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

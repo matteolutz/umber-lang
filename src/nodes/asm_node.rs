@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
+#[derive(Clone)]
 pub struct AssemblyNode {
     content: String,
     pos_start: Position,
@@ -47,5 +48,9 @@ impl Node for AssemblyNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::Assembly
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

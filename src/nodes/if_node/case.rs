@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::nodes::Node;
 
+#[derive(Clone)]
 pub struct IfCase {
     condition: Box<dyn Node>,
     statements: Box<dyn Node>

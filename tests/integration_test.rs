@@ -40,7 +40,10 @@ pub fn test_file() {
     }
 
     println!("Parsing file...");
-    let mut parser = umber_lang::parser::Parser::new(tokens);
+    let mut parser = umber_lang::parser::Parser::new(tokens, vec![
+        "E:\\Coding\\Umber\\include\\".to_string()
+    ]);
+
     let (root_node, parse_error) = parser.parse();
 
     if let Some(error) = parse_error {
@@ -49,8 +52,6 @@ pub fn test_file() {
     }
 
     let ast_root = root_node.as_ref().unwrap();
-
-    println!("ast_root: {}", ast_root);
 
     println!("Validating file...");
     let mut validator = umber_lang::semantics::Validator::new();

@@ -36,7 +36,9 @@ fn main() {
         return;
     }
 
-    let mut parser = umber_lang::parser::Parser::new(tokens);
+    let mut parser = umber_lang::parser::Parser::new(tokens, vec![
+        "/usr/bin/umber/include".to_string()
+    ]);
     let (root_node, parse_error) = parser.parse();
 
     if let Some(error) = parse_error {

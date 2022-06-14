@@ -9,6 +9,7 @@ use crate::position::Position;
 pub mod case;
 pub mod elsecase;
 
+#[derive(Clone)]
 pub struct IfNode {
     cases: Vec<IfCase>,
     else_case: Option<ElseCase>,
@@ -64,5 +65,9 @@ impl Node for IfNode {
 
     fn node_type(&self) -> NodeType {
         NodeType::If
+    }
+
+    fn box_clone(&self) -> Box<dyn Node> {
+        Box::new(self.clone())
     }
 }

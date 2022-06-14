@@ -72,10 +72,6 @@ impl ValueType for PointerType {
     }
 
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
-        if op.token_type() == TokenType::Dereference {
-            return Some(self.pointee_type.clone());
-        }
-
         None
     }
 

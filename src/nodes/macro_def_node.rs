@@ -1,40 +1,31 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
-
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 
 #[derive(Clone)]
-pub struct BreakNode {
+pub struct MacroDefNode {
     pos_start: Position,
     pos_end: Position
 }
 
-impl BreakNode {
-
-    pub fn new(pos_start: Position, pos_end: Position) -> Self {
-        BreakNode {
-            pos_start,
-            pos_end
-        }
-    }
-
+impl MacroDefNode {
+    pub fn new(pos_start: Position, pos_end: Position) -> Self { Self {pos_start, pos_end} }
 }
 
-impl Display for BreakNode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<BreakNode>[]")
-    }
-}
-
-impl NodeToAny for BreakNode {
+impl NodeToAny for MacroDefNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Node for BreakNode {
+impl Display for MacroDefNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<MacroDefNode>[]")
+    }
+}
 
+impl Node for MacroDefNode {
     fn pos_start(&self) -> &Position {
         &self.pos_start
     }
@@ -44,7 +35,7 @@ impl Node for BreakNode {
     }
 
     fn node_type(&self) -> NodeType {
-        NodeType::Break
+        NodeType::MacroDef
     }
 
     fn box_clone(&self) -> Box<dyn Node> {
