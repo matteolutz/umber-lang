@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use same_file::is_same_file;
 
 use crate::error;
 use crate::error::Error;
@@ -22,6 +23,7 @@ use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::case::IfCase;
 use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
+use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::macro_def_node::MacroDefNode;
@@ -73,6 +75,7 @@ pub struct Parser {
     tokens: Vec<Token>,
     token_index: usize,
     macros: HashMap<String, Box<dyn Node>>,
+    already_included: Vec<PathBuf>,
     include_paths: Vec<String>,
 }
 
@@ -86,11 +89,12 @@ impl Parser {
             tokens,
             token_index: 0,
             macros: HashMap::new(),
+            already_included: Vec::new(),
             include_paths
         }
     }
 
-    pub fn new_with_macros(tokens: Vec<Token>, macros: HashMap<String, Box<dyn Node>>, include_paths: Vec<String>) -> Self {
+    pub fn new_with_macros(tokens: Vec<Token>, macros: HashMap<String, Box<dyn Node>>, already_included: Vec<PathBuf>, include_paths: Vec<String>) -> Self {
         if tokens.is_empty() {
             panic!("No tokens were provided!");
         }
@@ -99,12 +103,17 @@ impl Parser {
             tokens,
             token_index: 0,
             macros,
+            already_included,
             include_paths
         }
     }
 
     pub fn macros(&self) -> &HashMap<String, Box<dyn Node>> {
         &self.macros
+    }
+
+    pub fn already_included(&self) -> &Vec<PathBuf> {
+        &self.already_included
     }
 
     fn current_token(&self) -> &Token { return &self.tokens[self.token_index]; }
@@ -962,6 +971,13 @@ impl Parser {
                     return res;
                 }
 
+                for ai in self.already_included.iter() {
+                    if is_same_file(ai, &module_path).unwrap_or(true) {
+                        res.success(Box::new(IgnoredNode::new(self.current_token().pos_start().clone(), self.current_token().pos_end().clone())));
+                        return res;
+                    }
+                }
+
                 let file_text_res = fs::read_to_string(module_path.clone());
 
                 if file_text_res.is_err() {
@@ -981,7 +997,7 @@ impl Parser {
                     return res;
                 }
 
-                let mut p = Parser::new_with_macros(tokens, self.macros.clone(), self.include_paths.clone());
+                let mut p = Parser::new_with_macros(tokens, self.macros.clone(), self.already_included.clone(), self.include_paths.clone());
                 let (root_node, parse_error) = p.parse();
 
                 if let Some(parse_error) = parse_error {
@@ -990,6 +1006,9 @@ impl Parser {
                 }
 
                 self.macros = p.macros.clone();
+
+                self.already_included = p.already_included.clone();
+                self.already_included.push(module_path.clone());
 
                 res.success(Box::new(ImportNode::new(root_node.unwrap())));
                 return res;
