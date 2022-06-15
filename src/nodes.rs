@@ -31,6 +31,7 @@ pub mod import_node;
 pub mod dereference_node;
 pub mod macro_def_node;
 pub mod functiondecl_node;
+pub mod ignored_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -63,7 +64,8 @@ pub enum NodeType {
     ReadBytes,
     Dereference,
     Import,
-    MacroDef
+    MacroDef,
+    Ignored,
 }
 
 pub trait NodeToAny: 'static {
