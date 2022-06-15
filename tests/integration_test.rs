@@ -19,19 +19,19 @@ pub fn test_file() {
 
     let file_contents = fs::read_to_string(&file).expect("Failed to read file");
 
-    println!("Preprocessing file...");
+    /*println!("Preprocessing file...");
     let (preprocessed, preprocess_error) = preprocessor::preprocess(file.to_str().unwrap(), file_contents, &vec![
         "E:\\Coding\\Umber\\include\\"
     ], &mut vec![], &mut HashMap::new());
 
     if let Some(error) = preprocess_error {
         panic!("{}", error);
-    }
+    }*/
 
     // println!("preprocessed: {}", preprocessed.as_ref().unwrap());
 
     println!("Lexing file...");
-    let mut lexer = umber_lang::lexer::Lexer::new(file.to_path_buf(), preprocessed.unwrap());
+    let mut lexer = umber_lang::lexer::Lexer::new(file.to_path_buf(), file_contents);
     let (tokens, error) = lexer.make_tokens();
 
     if let Some(error) = error {
