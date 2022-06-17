@@ -43,6 +43,7 @@ use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::while_node::WhileNode;
 use crate::results::parse::ParseResult;
 use crate::token::{Token, TOKEN_FLAGS_IS_ASSIGN, TokenType};
+use crate::values::value_size::ValueSize;
 use crate::values::value_type::array_type::ArrayType;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
@@ -1335,10 +1336,18 @@ impl Parser {
                 return res;
             }
 
+            let size: ValueSize = match bytes {
+                1 => ValueSize::BYTE,
+                2 => ValueSize::WORD,
+                4 => ValueSize::DWORD,
+                8 => ValueSize::QWORD,
+                _ => unreachable!(),
+            };
+
             res.register_advancement();
             self.advance();
 
-            res.success(Box::new(ReadBytesNode::new(node.unwrap(), bytes, self.current_token().pos_end().clone())));
+            res.success(Box::new(ReadBytesNode::new(node.unwrap(), size, self.current_token().pos_end().clone())));
             return res;
         }
 
@@ -1418,8 +1427,6 @@ impl Parser {
         if self.current_token().token_type() == TokenType::Mul {
             // NOTE: When using the `*` operator, the compiler won't check for the actual pointee type size, but rather always use the size of a quadword (8 bytes, 64bits).
             // NOTE: as a temporary solution, we'll use the '@' operator instead. This will be fixed in the future.
-
-            let token = Token::new_without_value(TokenType::Dereference, self.current_token().pos_start().clone(), self.current_token().pos_end().clone());
 
             res.register_advancement();
             self.advance();
@@ -1515,7 +1522,7 @@ impl Parser {
             }
 
             if self.current_token().token_type() != TokenType::Rsquare {
-                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after ofnet expression!"));
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after offset expression!"));
                 return res;
             }
 

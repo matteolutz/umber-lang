@@ -2,6 +2,7 @@ use std::any::Any;
 use std::fmt::{Display, Formatter};
 
 use crate::token::Token;
+use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 // TODO: deprecate this
@@ -63,7 +64,7 @@ impl ValueType for ArrayType {
         Box::new(self.clone())
     }
 
-    fn get_size(&self) -> u64 {
+    fn get_size(&self) -> ValueSize {
         // self.size as u64 * self.children_type.get_size()
         self.children_type.get_size()
     }

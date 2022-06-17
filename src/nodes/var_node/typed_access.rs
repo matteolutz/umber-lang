@@ -3,20 +3,23 @@ use std::fmt::{Display, Formatter};
 
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use crate::values::value_type::ValueType;
 
 #[derive(Clone)]
-pub struct VarAccessNode {
+pub struct VarTypedAccessNode {
     var_name: String,
+    value_type: Box<dyn ValueType>,
     mutable_reference: bool,
     pos_start: Position,
     pos_end: Position
 }
 
-impl VarAccessNode {
+impl VarTypedAccessNode {
 
-    pub fn new(var_name: String, pos_start: Position, pos_end: Position) -> Self {
-        VarAccessNode {
+    pub fn new(var_name: String, value_type: Box<dyn ValueType>, pos_start: Position, pos_end: Position) -> Self {
+        Self {
             var_name,
+            value_type,
             mutable_reference: false,
             pos_start,
             pos_end
@@ -26,6 +29,7 @@ impl VarAccessNode {
     pub fn var_name(&self) -> &str {
         &self.var_name
     }
+    pub fn value_type(&self) -> &Box<dyn ValueType> { &self.value_type }
     pub fn mutable_reference(&self) -> &bool {
         &self.mutable_reference
     }
@@ -38,19 +42,19 @@ impl VarAccessNode {
 
 }
 
-impl Display for VarAccessNode {
+impl Display for VarTypedAccessNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<VarAccessNode>[{}]", self.var_name)
+        write!(f, "<VarSizedAccess>[{}]", self.var_name)
     }
 }
 
-impl NodeToAny for VarAccessNode {
+impl NodeToAny for VarTypedAccessNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Node for VarAccessNode {
+impl Node for VarTypedAccessNode {
     fn pos_start(&self) -> &Position {
         &self.pos_start
     }
@@ -60,7 +64,7 @@ impl Node for VarAccessNode {
     }
 
     fn node_type(&self) -> NodeType {
-        NodeType::VarAccess
+        NodeType::VarSizedAccess
     }
 
     fn box_clone(&self) -> Box<dyn Node> {

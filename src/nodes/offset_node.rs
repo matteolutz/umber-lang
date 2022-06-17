@@ -2,56 +2,59 @@ use std::any::Any;
 use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
-use crate::values::value_size::ValueSize;
+use crate::values::value_type::ValueType;
 
 #[derive(Clone)]
-pub struct ReadBytesNode {
+pub struct OffsetNode {
     node: Box<dyn Node>,
-    bytes: ValueSize,
-    pos_end: Position
+    offset_node: Box<dyn Node>,
+    pointee_type: Box<dyn ValueType>
 }
 
-impl ReadBytesNode {
-    pub fn new(node: Box<dyn Node>, bytes: ValueSize, pos_end: Position) -> Self {
+impl OffsetNode {
+    pub fn new(node: Box<dyn Node>, offset_node: Box<dyn Node>, pointee_type: Box<dyn ValueType>) -> Self {
         Self {
             node,
-            bytes,
-            pos_end
+            offset_node,
+            pointee_type
         }
     }
 
     pub fn node(&self) -> &Box<dyn Node> {
         &self.node
     }
-    pub fn bytes(&self) -> &ValueSize {
-        &self.bytes
+    pub fn offset_node(&self) -> &Box<dyn Node> {
+        &self.offset_node
+    }
+    pub fn pointee_type(&self) -> &Box<dyn ValueType> {
+        &self.pointee_type
     }
 
 }
 
-impl NodeToAny for ReadBytesNode {
+impl NodeToAny for OffsetNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Display for ReadBytesNode {
+impl Display for OffsetNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<ReadBytesNode>[Node: {}, Bytes: {}]", self.node, self.bytes)
+        write!(f, "<OffsetNode>")
     }
 }
 
-impl Node for ReadBytesNode {
+impl Node for OffsetNode {
     fn pos_start(&self) -> &Position {
         self.node.pos_start()
     }
 
     fn pos_end(&self) -> &Position {
-        &self.pos_end
+        self.offset_node.pos_end()
     }
 
     fn node_type(&self) -> NodeType {
-        NodeType::ReadBytes
+        NodeType::Offset
     }
 
     fn box_clone(&self) -> Box<dyn Node> {

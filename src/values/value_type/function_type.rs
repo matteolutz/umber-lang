@@ -2,6 +2,7 @@ use std::any::Any;
 use std::fmt::{Display, Formatter};
 
 use crate::token::Token;
+use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 // TODO: deprecate this
@@ -66,7 +67,7 @@ impl ValueType for FunctionType {
         Box::new(self.clone())
     }
 
-    fn get_size(&self) -> u64 {
-        0
+    fn get_size(&self) -> ValueSize {
+        ValueSize::QWORD
     }
 }

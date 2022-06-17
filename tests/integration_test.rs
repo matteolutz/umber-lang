@@ -51,7 +51,7 @@ pub fn test_file() {
         return;
     }
 
-    let ast_root = root_node.as_ref().unwrap();
+    let mut ast_root = root_node.as_ref().unwrap();
 
     println!("Validating file...");
     let mut validator = umber_lang::semantics::Validator::new();
@@ -61,6 +61,8 @@ pub fn test_file() {
         eprintln!("{}", error);
         return;
     }
+
+    ast_root = validation_res.node().as_ref().unwrap();
 
     println!("Compiling file...");
     let mut compiler = umber_lang::compiler::Compiler::new();

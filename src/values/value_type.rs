@@ -2,6 +2,7 @@ use std::any::Any;
 use std::fmt::Display;
 
 use crate::token::Token;
+use crate::values::value_size::ValueSize;
 
 pub mod number_type;
 pub mod bool_type;
@@ -13,6 +14,7 @@ pub mod extern_type;
 pub mod pointer_type;
 pub mod char_type;
 pub mod struct_type;
+pub mod ignored_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
@@ -25,7 +27,8 @@ pub enum ValueTypes {
     Array,
     Extern,
     Pointer,
-    Struct
+    Struct,
+    Ignored,
 }
 
 pub trait ValueTypeAsAny {
@@ -42,7 +45,7 @@ pub trait ValueType: ValueTypeAsAny + Display {
 
     fn box_clone(&self) -> Box<dyn ValueType>;
 
-    fn get_size(&self) -> u64;
+    fn get_size(&self) -> ValueSize;
 }
 
 impl Clone for Box<dyn ValueType> {

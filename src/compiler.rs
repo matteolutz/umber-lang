@@ -15,6 +15,8 @@ use crate::nodes::if_node::IfNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::number_node::NumberNode;
+use crate::nodes::offset_node::OffsetNode;
+use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
@@ -29,10 +31,21 @@ use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::while_node::WhileNode;
 use crate::token::TokenType;
 use crate::utils;
+use crate::values::value_size::ValueSize;
 
-const SCRATCH_REGS: [&str; 7] = [
+const QW_SCRATCH_REGS: [&str; 7] = [
     "rbx", "r10", "r11", "r12", "r13", "r14", "r15"
 ];
+const DW_SCRATCH_REGS: [&str; 7] = [
+    "ebx", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d"
+];
+const W_SCRATCH_REGS: [&str; 7] = [
+    "bx", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w"
+];
+const B_SCRATCH_REGS: [&str; 7] = [
+    "bl", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b"
+];
+
 
 const NUMBER_ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
 
@@ -52,11 +65,11 @@ pub struct Compiler {
     constants: HashMap<String, String>,
 
     base_offset: u64,
-    offset_table: HashMap<String, (u64, u64)>,
+    offset_table: HashMap<String, (u64, ValueSize)>,
 
     externs: Vec<String>,
 
-    statics: HashMap<String, u64>
+    statics: HashMap<String, ValueSize>
 }
 
 impl Compiler {
@@ -94,7 +107,16 @@ impl Compiler {
         i
     }
 
-    fn scratch_name(&self, i: u8) -> &str { SCRATCH_REGS[i as usize] }
+    fn scratch_name_lower_sized(&self, i: u8, size: &ValueSize) -> &str {
+        match size {
+            ValueSize::BYTE => B_SCRATCH_REGS[i as usize],
+            ValueSize::WORD => W_SCRATCH_REGS[i as usize],
+            ValueSize::DWORD => DW_SCRATCH_REGS[i as usize],
+            ValueSize::QWORD => QW_SCRATCH_REGS[i as usize],
+        }
+    }
+
+    fn scratch_name(&self, i: u8) -> &str { self.scratch_name_lower_sized(i, &ValueSize::QWORD) }
 
     fn free_scratch(&mut self, reg: u8) {
         self.scratch_regs = !(!self.scratch_regs | (1 << reg));
@@ -127,12 +149,12 @@ impl Compiler {
         self.strings[&string].clone()
     }
 
-    fn register_var(&mut self, name: String, size: u64) {
-        self.base_offset += size;
+    fn register_var(&mut self, name: String, size: ValueSize) {
+        self.base_offset += size.get_size_in_bytes() as u64;
         self.offset_table.insert(name, (self.base_offset, size));
     }
 
-    fn get_var(&self, name: &str) -> (u64, u64) {
+    fn get_var(&self, name: &str) -> (u64, ValueSize) {
         self.offset_table[name]
     }
 
@@ -145,7 +167,7 @@ impl Compiler {
         self.externs.push(s);
     }
 
-    fn add_static(&mut self, s: String, size: u64) {
+    fn add_static(&mut self, s: String, size: ValueSize) {
         self.statics.insert(s, size);
     }
 
@@ -153,7 +175,7 @@ impl Compiler {
         self.statics.contains_key(s)
     }
 
-    fn get_static(&self, s: &str) -> u64 {
+    fn get_static(&self, s: &str) -> ValueSize {
         self.statics[s]
     }
 
@@ -199,6 +221,8 @@ impl Compiler {
         }
 
         if node.node_type() == NodeType::Syscall {
+            // TODO: push syscall regs
+
             let syscall_node = node.as_any().downcast_ref::<SyscallNode>().unwrap();
             writeln!(w, "\n;; Syscall injected");
             for i in 0..4 {
@@ -239,23 +263,23 @@ impl Compiler {
             let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
 
             if !*list_node.has_elements()  {
-                let first_elem_offset = self.base_offset + list_node.element_type().get_size();
+                let first_elem_offset = self.base_offset + list_node.element_type().get_size().get_size_in_bytes() as u64;
 
                 /*for i in 0..*list_node.length() {
                     self.base_offset += list_node.element_type().get_size();
                     writeln!(w, "\tmov     QWORD [rbp - ({})], 0", self.base_offset);
                 }*/
-                self.base_offset += *list_node.length() as u64 * list_node.element_type().get_size();
+                self.base_offset += *list_node.length() as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64;
 
                 let reg = self.res_scratch();
                 writeln!(w, "\tlea     {}, [rbp - {}]", self.scratch_name(reg), first_elem_offset);
                 return Some(reg);
             }
 
-            let first_element_offset = self.base_offset + list_node.element_type().get_size();
+            let first_element_offset = self.base_offset + list_node.element_type().get_size().get_size_in_bytes() as u64;
 
             for element in list_node.element_nodes() {
-                self.base_offset += list_node.element_type().get_size();
+                self.base_offset += list_node.element_type().get_size().get_size_in_bytes() as u64;
 
                 let reg = self.code_gen(element, w).unwrap();
                 writeln!(w, "\tmov     [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
@@ -414,10 +438,6 @@ impl Compiler {
                 writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
 
                 writeln!(w, "{}:", self.label_name(&label_after));
-            } else if bin_op_node.op_token().token_type() == TokenType::PointerAssign {
-                writeln!(w, "\tmov     [{}], {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
-            } else if bin_op_node.op_token().token_type() == TokenType::Offset {
-                writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
             }
@@ -637,11 +657,7 @@ impl Compiler {
             let (var_offset, _) = self.get_var(var_access_node.var_name());
             let reg = self.res_scratch();
 
-            if *var_access_node.reference() {
-                writeln!(w, "\tlea     {}, QWORD [rbp - ({})]", self.scratch_name(reg), var_offset);
-            } else {
-                writeln!(w, "\tmov     {}, QWORD [rbp - ({})]", self.scratch_name(reg), var_offset);
-            }
+            writeln!(w, "\tmov     {}, QWORD [rbp - ({})]", self.scratch_name(reg), var_offset);
 
             return Some(reg);
         }
@@ -770,7 +786,7 @@ impl Compiler {
             let size_of_node = node.as_any().downcast_ref::<SizeOfNode>().unwrap();
 
             let res_reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, {}", self.scratch_name(res_reg), size_of_node.value_type().get_size());
+            writeln!(w, "\tmov     {}, {}", self.scratch_name(res_reg), size_of_node.value_type().get_size().get_size_in_bytes());
 
             return Some(res_reg);
         }
@@ -790,12 +806,63 @@ impl Compiler {
 
             let res_reg = self.res_scratch();
 
-            if *read_bytes_node.bytes() == 8 {
+            if *read_bytes_node.bytes() == ValueSize::QWORD {
                 writeln!(w, "\tmov     {}, QWORD [{}]", self.scratch_name(res_reg), self.scratch_name(from_reg));
             } else {
-                writeln!(w, "\tmovsx   {}, {} [{}]", self.scratch_name(res_reg), utils::get_asm_size_name(read_bytes_node.bytes()), self.scratch_name(from_reg));
+                writeln!(w, "\tpush    rax");
+                writeln!(w, "\tmov     rax, {}", self.scratch_name(from_reg));
+                writeln!(w, "\tmovzx   rax, {} [{}]", read_bytes_node.bytes(), self.scratch_name(from_reg));
+                writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
+                writeln!(w, "\tpop     rax");
             }
             self.free_scratch(from_reg);
+
+            return Some(res_reg);
+        }
+
+        if node.node_type() == NodeType::PointerAssign {
+            let pointer_assign_node = node.as_any().downcast_ref::<PointerAssignNode>().unwrap();
+            let left_reg = self.code_gen(pointer_assign_node.ptr(), w).unwrap();
+            let right_reg = self.code_gen(pointer_assign_node.value(), w).unwrap();
+
+            if pointer_assign_node.pointee_type().get_size() == ValueSize::QWORD {
+                writeln!(w, "\tmov     [{}], {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+            } else {
+                writeln!(w, "\tmov     {} [{}], {}", pointer_assign_node.pointee_type().get_size(), self.scratch_name(left_reg), self.scratch_name_lower_sized(right_reg, &pointer_assign_node.pointee_type().get_size()));
+            }
+
+            self.free_scratch(left_reg);
+            return Some(right_reg);
+        }
+
+        if node.node_type() == NodeType::Offset {
+            let offset_node = node.as_any().downcast_ref::<OffsetNode>().unwrap();
+            let left_reg = self.code_gen(offset_node.node(), w).unwrap();
+            let right_reg = self.code_gen(offset_node.offset_node(), w).unwrap();
+            let res_reg = self.res_scratch();
+
+            writeln!(w, "\tpush    rax");
+            writeln!(w, "\tpush    rdx");
+
+            writeln!(w, "\tmov     rax, {}", self.scratch_name(right_reg));
+            writeln!(w, "\tmov     {}, {}", self.scratch_name(right_reg), offset_node.pointee_type().get_size().get_size_in_bytes());
+            writeln!(w, "\timul    {}", self.scratch_name(right_reg));
+
+            writeln!(w, "\tmov     {}, rax", self.scratch_name(right_reg));
+
+            writeln!(w, "\tpop     rdx");
+            writeln!(w, "\tpop     rax");
+
+            writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+
+            if offset_node.pointee_type().get_size() == ValueSize::QWORD {
+                writeln!(w, "\tmov     {}, QWORD [{}]", self.scratch_name(res_reg), self.scratch_name(left_reg));
+            } else {
+                writeln!(w, "\tmovzx   {}, {} [{}]", self.scratch_name(res_reg), offset_node.pointee_type().get_size(), self.scratch_name(left_reg));
+            }
+
+            self.free_scratch(left_reg);
+            self.free_scratch(right_reg);
 
             return Some(res_reg);
         }
@@ -847,7 +914,7 @@ impl Compiler {
         writeln!(res, "section .bss");
         writeln!(res, "\t;; Other statics");
         for (name, size) in &self.statics {
-            writeln!(res, "\t{}  RESB {}", self.get_static_name(name), size);
+            writeln!(res, "\t{}  RESB {}", self.get_static_name(name), size.get_size_in_bytes());
         }
 
         res

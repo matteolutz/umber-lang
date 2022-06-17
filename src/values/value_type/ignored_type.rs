@@ -1,51 +1,49 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
-
 use crate::token::Token;
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 #[derive(Clone)]
-pub struct VoidType {}
+pub struct IgnoredType {}
 
-impl VoidType {
 
+impl IgnoredType {
     pub fn new() -> Self {
-        VoidType {}
+        Self {}
     }
-
 }
 
-impl ValueTypeAsAny for VoidType {
+impl ValueTypeAsAny for IgnoredType {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Display for VoidType {
+impl Display for IgnoredType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "void")
+        write!(f, "IgnoredType")
     }
 }
 
-impl ValueType for VoidType {
+impl ValueType for IgnoredType {
     fn value_type(&self) -> ValueTypes {
-        ValueTypes::Void
+        ValueTypes::Ignored
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
-        self.value_type() == other.value_type()
+        other.value_type() == ValueTypes::Ignored
     }
 
-    fn is_valid_bin_op(&self, _op: &Token, _t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
+    fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
         None
     }
 
-    fn is_valid_unary_op(&self, _op: &Token) -> Option<Box<dyn ValueType>> {
+    fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
         None
     }
 
-    fn is_valid_cast(&self, _t: &Box<dyn ValueType>) -> bool {
+    fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
         false
     }
 

@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::token::Token;
+use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 #[derive(Clone)]
@@ -61,7 +62,7 @@ impl ValueType for StructType {
         Box::new(self.clone())
     }
 
-    fn get_size(&self) -> u64 {
-        0
+    fn get_size(&self) -> ValueSize {
+        ValueSize::QWORD
     }
 }
