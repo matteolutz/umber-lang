@@ -42,12 +42,12 @@ impl ParseResult {
         return res.node;
     }
 
-    pub fn try_register_res(&mut self, res: ParseResult) -> Option<Box<dyn Node>> {
+    pub fn try_register_res(&mut self, res: ParseResult) -> (Option<Box<dyn Node>>, Option<Error>) {
         if res.has_error() {
             self.to_reverse_count = res.to_reverse_count;
-            return None;
+            return (None, Some(res.error.unwrap()));
         }
-        return self.register_res(res);
+        return (self.register_res(res), None);
     }
 
     pub fn success(&mut self, node: Box<dyn Node>) -> () {

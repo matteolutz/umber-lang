@@ -806,15 +806,11 @@ impl Compiler {
 
             let res_reg = self.res_scratch();
 
-            if *read_bytes_node.bytes() == ValueSize::QWORD {
-                writeln!(w, "\tmov     {}, QWORD [{}]", self.scratch_name(res_reg), self.scratch_name(from_reg));
-            } else {
-                writeln!(w, "\tpush    rax");
-                writeln!(w, "\tmov     rax, {}", self.scratch_name(from_reg));
-                writeln!(w, "\tmovzx   rax, {} [{}]", read_bytes_node.bytes(), self.scratch_name(from_reg));
-                writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
-                writeln!(w, "\tpop     rax");
+            if *read_bytes_node.bytes() != ValueSize::QWORD {
+                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg));
             }
+            writeln!(w, "\tmov     {}, {} [{}]", self.scratch_name_lower_sized(res_reg, read_bytes_node.bytes()), read_bytes_node.bytes(), self.scratch_name(from_reg));
+
             self.free_scratch(from_reg);
 
             return Some(res_reg);
@@ -839,7 +835,7 @@ impl Compiler {
             let offset_node = node.as_any().downcast_ref::<OffsetNode>().unwrap();
             let left_reg = self.code_gen(offset_node.node(), w).unwrap();
             let right_reg = self.code_gen(offset_node.offset_node(), w).unwrap();
-            let res_reg = self.res_scratch();
+            // let res_reg = self.res_scratch();
 
             writeln!(w, "\tpush    rax");
             writeln!(w, "\tpush    rdx");
@@ -855,16 +851,17 @@ impl Compiler {
 
             writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
 
-            if offset_node.pointee_type().get_size() == ValueSize::QWORD {
-                writeln!(w, "\tmov     {}, QWORD [{}]", self.scratch_name(res_reg), self.scratch_name(left_reg));
-            } else {
-                writeln!(w, "\tmovzx   {}, {} [{}]", self.scratch_name(res_reg), offset_node.pointee_type().get_size(), self.scratch_name(left_reg));
-            }
 
-            self.free_scratch(left_reg);
+            /*if offset_node.pointee_type().get_size() != ValueSize::QWORD {
+                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg));
+            }
+            writeln!(w, "\tmov     {}, {} [{}]", self.scratch_name_lower_sized(res_reg, &offset_node.pointee_type().get_size()), offset_node.pointee_type().get_size(), self.scratch_name(left_reg));
+             */
+
+            // self.free_scratch(left_reg);
             self.free_scratch(right_reg);
 
-            return Some(res_reg);
+            return Some(left_reg);
         }
 
         if node.node_type() == NodeType::Import {

@@ -66,7 +66,7 @@ impl ValueType for PointerType {
         }
 
         if op.token_type() == TokenType::Offset && t.value_type() == ValueTypes::Number {
-            return Some(self.pointee_type.clone());
+            return Some(self.box_clone());
         }
 
         None

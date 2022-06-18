@@ -1,7 +1,7 @@
 use std::env;
 use std::fs;
 use std::fs::remove_file;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::collections::HashMap;
 
@@ -36,9 +36,13 @@ fn main() {
         return;
     }
 
-    let mut parser = umber_lang::parser::Parser::new(tokens, vec![
-        "/usr/bin/umber/include".to_string()
-    ]);
+    let include_paths = vec![
+        "/usr/bin/umber/include".to_string(),
+    ];
+    let mut macros = HashMap::new();
+    let mut already_included: Vec<PathBuf> = vec![];
+
+    let mut parser = umber_lang::parser::Parser::new(tokens, &include_paths, &mut macros, &mut already_included);
     let (root_node, parse_error) = parser.parse();
 
     if let Some(error) = parse_error {

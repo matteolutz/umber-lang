@@ -277,11 +277,11 @@ impl Validator {
         }
 
         if node.op_token().token_type() == TokenType::PointerAssign {
-            res.success(result_type.unwrap(), Box::new(PointerAssignNode::new(node.left_node().clone(), left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone(), node.right_node().clone())));
+            res.success(result_type.unwrap(), Box::new(PointerAssignNode::new(left_node.unwrap(), left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone(), right_node.unwrap())));
             return res;
         }
         if node.op_token().token_type() == TokenType::Offset {
-            res.success(result_type.unwrap(), Box::new(OffsetNode::new(node.left_node().clone(), node.right_node().clone(), left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone())));
+            res.success(result_type.unwrap(), Box::new(OffsetNode::new(left_node.unwrap(), right_node.unwrap(), left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone())));
             return res;
         }
 
@@ -745,8 +745,8 @@ impl Validator {
             return res;
         }
 
-        if !node_type.unwrap().is_valid_cast(node.cast_type()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Invalid cast!"));
+        if !node_type.as_ref().unwrap().is_valid_cast(node.cast_type()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Invalid cast! Cannot cast from type '{}' to type '{}'!", node_type.as_ref().unwrap(), node.cast_type()).as_str()));
             return res;
         }
 

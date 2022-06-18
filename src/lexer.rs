@@ -17,10 +17,10 @@ impl Lexer {
 
     pub fn new(file_path: PathBuf, file_text: String) -> Self {
         Self {
-            file_path: file_path.clone(),
-            file_text: file_text.clone(),
             pos: Position::new(file_path.clone()),
-            current_char: if file_text.len() > 0 { file_text.chars().nth(0) } else { None },
+            current_char: if file_text.len() > 0 { Some(file_text.chars().nth(0).unwrap()) } else { None },
+            file_path,
+            file_text
         }
     }
 
@@ -36,15 +36,13 @@ impl Lexer {
     }
 
     pub fn make_tokens(&mut self) -> (Vec<Token>, Option<Error>) {
-        let mut tokens: Vec<Token> = vec![Token::new_without_value(TokenType::Bof, self.pos.clone(), self.pos.clone())];
+        let mut tokens: Vec<Token> = vec![Token::new_without_value(TokenType::Lcurly, self.pos.clone(), self.pos.clone())];
 
         while self.current_char.is_some() {
             let current = self.current_char.unwrap();
 
             if current == ' ' || current == '\t' || current == '\n' || current == '\r' {
                 self.advance();
-            } else if current == '#' {
-                panic!("unallowed character");
             } else if current == ';' {
                 tokens.push(Token::new_without_value(TokenType::Newline, self.pos.clone(), self.pos.clone()));
                 self.advance();
@@ -142,6 +140,7 @@ impl Lexer {
             }
         }
 
+        tokens.push(Token::new_without_value(TokenType::Rcurly, self.pos.clone(), self.pos.clone()));
         tokens.push(Token::new_without_value(TokenType::Eof, self.pos.clone(), self.pos.clone()));
         (tokens, None)
     }

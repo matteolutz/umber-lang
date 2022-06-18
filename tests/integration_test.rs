@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use umber_lang;
 use umber_lang::compiler::Compiler;
@@ -40,9 +40,14 @@ pub fn test_file() {
     }
 
     println!("Parsing file...");
-    let mut parser = umber_lang::parser::Parser::new(tokens, vec![
+
+    let included_paths = vec![
         "E:\\Coding\\Umber\\include\\".to_string()
-    ]);
+    ];
+    let mut macros = HashMap::new();
+    let mut already_included: Vec<PathBuf> = vec![];
+
+    let mut parser = umber_lang::parser::Parser::new(tokens, &included_paths, &mut macros, &mut already_included);
 
     let (root_node, parse_error) = parser.parse();
 
