@@ -54,6 +54,6 @@ impl ValueType for VoidType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::QWORD
+        ValueSize::Qword
     }
 }

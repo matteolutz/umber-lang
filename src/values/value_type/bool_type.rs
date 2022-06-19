@@ -58,7 +58,7 @@ impl ValueType for BoolType {
     }
 
     fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
-        if t.value_type() == ValueTypes::Number {
+        if t.value_type() == ValueTypes::U64 {
             return true;
         }
 
@@ -70,6 +70,6 @@ impl ValueType for BoolType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::QWORD
+        ValueSize::Byte
     }
 }

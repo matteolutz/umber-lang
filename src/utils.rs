@@ -40,23 +40,13 @@ pub fn is_alpha(c: &char) -> bool {
     (*c as u32 >= 65 && *c as u32 <= 90) || (*c as u32 >= 97 && *c as u32 <= 122)
 }
 
-pub fn escape_char(c: &char) -> char {
+pub fn escape_char(c: &char) -> Option<char> {
     match c {
-        '\'' => '\'',
-        '\\' => '\\',
-        '0' => '\0',
-        'n' => '\n',
-        't' => '\t',
-        _ => panic!("Cant escape char: {}", c),
-    }
-}
-
-pub fn get_asm_size_name(s: &u64) -> String {
-    match s {
-        1 => "BYTE".to_string(),
-        2 => "WORD".to_string(),
-        4 => "DWORD".to_string(),
-        8 => "QWORD".to_string(),
-        _ => panic!("Invalid size: {}", s),
+        '\'' => Some('\''),
+        '\\' => Some('\\'),
+        '0' => Some('\0'),
+        'n' => Some('\n'),
+        't' => Some('\t'),
+        _ => None,
     }
 }

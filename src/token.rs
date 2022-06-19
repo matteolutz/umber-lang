@@ -168,7 +168,7 @@ pub static KEYWORDS: [&'static str; 26] = [
     "asm",
     "sizeof",
     "syscall",
-    "number",
+    "u64",
     "u32",
     "string",
     "bool",

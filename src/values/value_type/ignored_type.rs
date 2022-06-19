@@ -52,6 +52,6 @@ impl ValueType for IgnoredType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::QWORD
+        ValueSize::Qword
     }
 }

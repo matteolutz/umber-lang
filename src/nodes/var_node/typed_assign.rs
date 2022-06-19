@@ -6,60 +6,62 @@ use crate::position::Position;
 use crate::values::value_type::ValueType;
 
 #[derive(Clone)]
-pub struct VarTypedAccessNode {
+pub struct VarTypedAssignNode {
     var_name: String,
+    value_node: Box<dyn Node>,
     value_type: Box<dyn ValueType>,
-    pos_start: Position,
-    pos_end: Position
+    pos_start: Position
 }
 
-impl VarTypedAccessNode {
+impl VarTypedAssignNode {
 
-    pub fn new(var_name: String, value_type: Box<dyn ValueType>, pos_start: Position, pos_end: Position) -> Self {
+    pub fn new(var_name: String, value_node: Box<dyn Node>, value_type: Box<dyn ValueType>, pos_start: Position) -> Self {
         Self {
             var_name,
+            value_node,
             value_type,
-            pos_start,
-            pos_end
+            pos_start
         }
     }
 
     pub fn var_name(&self) -> &str {
         &self.var_name
     }
-    pub fn value_type(&self) -> &Box<dyn ValueType> { &self.value_type }
+    pub fn value_node(&self) -> &Box<dyn Node> {
+        &self.value_node
+    }
+    pub fn value_type(&self) -> &Box<dyn ValueType> {
+        &self.value_type
+    }
     pub fn pos_start(&self) -> &Position {
         &self.pos_start
     }
-    pub fn pos_end(&self) -> &Position {
-        &self.pos_end
-    }
 
 }
 
-impl Display for VarTypedAccessNode {
+impl Display for VarTypedAssignNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<VarSizedAccess>[{}]", self.var_name)
+        write!(f, "<VarTypedAssignNode>[Name: {}, Value: {}]", self.var_name, self.value_node)
     }
 }
 
-impl NodeToAny for VarTypedAccessNode {
+impl NodeToAny for VarTypedAssignNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Node for VarTypedAccessNode {
+impl Node for VarTypedAssignNode {
     fn pos_start(&self) -> &Position {
         &self.pos_start
     }
 
     fn pos_end(&self) -> &Position {
-        &self.pos_end
+        self.value_node.pos_end()
     }
 
     fn node_type(&self) -> NodeType {
-        NodeType::VarTypedAccess
+        NodeType::VarTypedAssign
     }
 
     fn box_clone(&self) -> Box<dyn Node> {

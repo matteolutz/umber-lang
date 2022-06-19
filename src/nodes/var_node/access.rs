@@ -7,7 +7,6 @@ use crate::position::Position;
 #[derive(Clone)]
 pub struct VarAccessNode {
     var_name: String,
-    mutable_reference: bool,
     pos_start: Position,
     pos_end: Position
 }
@@ -17,7 +16,6 @@ impl VarAccessNode {
     pub fn new(var_name: String, pos_start: Position, pos_end: Position) -> Self {
         VarAccessNode {
             var_name,
-            mutable_reference: false,
             pos_start,
             pos_end
         }
@@ -25,9 +23,6 @@ impl VarAccessNode {
 
     pub fn var_name(&self) -> &str {
         &self.var_name
-    }
-    pub fn mutable_reference(&self) -> &bool {
-        &self.mutable_reference
     }
     pub fn pos_start(&self) -> &Position {
         &self.pos_start

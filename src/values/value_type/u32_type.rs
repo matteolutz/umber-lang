@@ -59,7 +59,7 @@ impl ValueType for U32Type {
         if t.value_type() == ValueTypes::Bool
             || t.value_type() == ValueTypes::Pointer
             || t.value_type() == ValueTypes::Char
-            || t.value_type() == ValueTypes::Number {
+            || t.value_type() == ValueTypes::U64 {
             return true;
         }
 
@@ -71,6 +71,6 @@ impl ValueType for U32Type {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::DWORD
+        ValueSize::Dword
     }
 }

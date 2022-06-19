@@ -22,7 +22,7 @@ use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::macro_def_node::MacroDefNode;
-use crate::nodes::NodeType::{BinOp, Syscall};
+use crate::nodes::NodeType::{BinOp, Syscall, VarTypedAssign};
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
@@ -39,6 +39,7 @@ use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::var_node::typed_access::VarTypedAccessNode;
+use crate::nodes::var_node::typed_assign::VarTypedAssignNode;
 use crate::nodes::while_node::WhileNode;
 use crate::position::Position;
 use crate::results::validation::ValidationResult;
@@ -50,7 +51,7 @@ use crate::values::value_type::char_type::CharType;
 use crate::values::value_type::extern_type::ExternType;
 use crate::values::value_type::function_type::FunctionType;
 use crate::values::value_type::ignored_type::IgnoredType;
-use crate::values::value_type::number_type::NumberType;
+use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::ValueTypes::Void;
@@ -219,7 +220,7 @@ impl Validator {
     fn validate_number_node(&self, node: &NumberNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        res.success(Box::new(NumberType::new()), node.box_clone());
+        res.success(Box::new(U64Type::new()), node.box_clone());
         res
     }
 
@@ -349,30 +350,8 @@ impl Validator {
             return res;
         }
 
-        let symbol_type = assign_type.unwrap();
-
-        /*if *node.reference_assign() {
-            if self.get_symbol(node.var_name()).unwrap().value_type().value_type() != ValueTypes::Pointer {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' is not a pointer!", node.var_name()).as_str()));
-                return res;
-            }
-
-            if !symbol_type.eq(self.get_symbol(node.var_name()).unwrap().value_type().as_any().downcast_ref::<PointerType>().unwrap().pointee_type()) {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type '{}' can't be assigned to type '{}'!", &symbol_type, self.get_symbol(node.var_name()).unwrap().value_type().as_any().downcast_ref::<PointerType>().unwrap().pointee_type()).as_str()));
-                return res;
-            }
-
-            if !self.get_symbol(node.var_name()).unwrap().value_type().as_any().downcast_ref::<PointerType>().unwrap().is_mutable() {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Pointer '{}' was not defined as mutable pointer, so you can't use '&=' to assign a value to the pointee!", node.var_name()).as_str()));
-                return res;
-            }
-
-            res.success(self.get_symbol(node.var_name()).unwrap().value_type().clone());
-            return res;
-        }*/
-
-        if !self.get_symbol(node.var_name()).unwrap().0.value_type().eq(&symbol_type) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable type {} does not match assign type {}!", self.get_symbol(node.var_name()).unwrap().0.value_type(), &symbol_type).as_str()));
+        if !self.get_symbol(node.var_name()).unwrap().0.value_type().eq(assign_type.as_ref().unwrap()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable type {} does not match assign type {}!", self.get_symbol(node.var_name()).unwrap().0.value_type(), assign_type.as_ref().unwrap()).as_str()));
             return res;
         }
 
@@ -381,7 +360,8 @@ impl Validator {
             return res;
         }
 
-        res.success(symbol_type, Box::new(VarAssignNode::new(node.var_name().to_string(), assign_node.unwrap(), node.pos_start().clone())));
+        res.success(assign_type.as_ref().unwrap().clone(), Box::new(VarTypedAssignNode::new(node.var_name().to_string(), assign_node.unwrap(), assign_type.unwrap(), node.pos_start().clone())));
+        // res.success(symbol_type, Box::new(VarAssignNode::new(node.var_name().to_string(), assign_node.unwrap(), node.pos_start().clone())));
         res
     }
 
@@ -395,8 +375,8 @@ impl Validator {
 
         let base_type = self.get_symbol(node.var_name()).unwrap().0.value_type().clone();
 
-        // res.success(base_type.clone(), Box::new(VarTypedAccessNode::new(node.var_name().to_string(), base_type, node.pos_start().clone(), node.pos_end().clone())));
-        res.success(base_type, node.box_clone());
+        res.success(base_type.clone(), Box::new(VarTypedAccessNode::new(node.var_name().to_string(), base_type, node.pos_start().clone(), node.pos_end().clone())));
+        // res.success(base_type, node.box_clone());
         res
     }
 
@@ -409,7 +389,7 @@ impl Validator {
         }
 
         if node.var_name() == "main" {
-            if node.return_type().value_type() != ValueTypes::Number {
+            if node.return_type().value_type() != ValueTypes::U64 {
                 res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Main function must return type 'number'!").as_str()));
                 return res;
             }
@@ -419,7 +399,7 @@ impl Validator {
                 return res;
             }
 
-            if node.args()[0].1.value_type() != ValueTypes::Number {
+            if node.args()[0].1.value_type() != ValueTypes::U64 {
                 res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("First parameter of main function must be of type 'number'!").as_str()));
                 return res;
             }
@@ -511,7 +491,7 @@ impl Validator {
 
         if self.get_symbol(node.func_to_call()).unwrap().0.value_type().value_type() != ValueTypes::Function {
             if self.get_symbol(node.func_to_call()).unwrap().0.value_type().value_type() == ValueTypes::Extern {
-                res.success(Box::new(NumberType::new()), node.box_clone());
+                res.success(Box::new(U64Type::new()), node.box_clone());
                 return res;
             }
 
@@ -619,7 +599,7 @@ impl Validator {
             arg_nodes.push(arg_node.unwrap());
         }
 
-        res.success(Box::new(NumberType::new()), Box::new(SyscallNode::new(arg_nodes, node.pos_start().clone(), node.pos_end().clone())));
+        res.success(Box::new(U64Type::new()), Box::new(SyscallNode::new(arg_nodes, node.pos_start().clone(), node.pos_end().clone())));
         res
     }
 
@@ -777,7 +757,7 @@ impl Validator {
     fn validate_sizeof_node(&self, node: &SizeOfNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        res.success(Box::new(NumberType::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::Int, node.value_type().get_size().get_size_in_bytes().to_string(), node.pos_start().clone(), node.pos_end().clone()))));
+        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::Int, node.value_type().get_size().get_size_in_bytes().to_string(), node.pos_start().clone(), node.pos_end().clone()))));
         res
     }
 

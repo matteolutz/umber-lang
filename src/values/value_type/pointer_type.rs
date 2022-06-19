@@ -50,13 +50,13 @@ impl ValueType for PointerType {
     }
 
     fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
-        if (t.value_type() == ValueTypes::Number || t.value_type() == ValueTypes::Pointer)
+        if (t.value_type() == ValueTypes::U64 || t.value_type() == ValueTypes::Pointer)
             && (op.token_type() == TokenType::Plus || op.token_type() == TokenType::Minus
         ) {
             return Some(self.box_clone());
         }
 
-        if (t.value_type() == ValueTypes::Number || t.value_type() == ValueTypes::Pointer)
+        if (t.value_type() == ValueTypes::U64 || t.value_type() == ValueTypes::Pointer)
             && (op.token_type() == TokenType::Ee || op.token_type() == TokenType::Ne || op.token_type() == TokenType::Gt || op.token_type() == TokenType::Lt || op.token_type() == TokenType::Gte || op.token_type() == TokenType::Lte) {
             return Some(Box::new(BoolType::new()));
         }
@@ -65,7 +65,7 @@ impl ValueType for PointerType {
             return Some(self.pointee_type.box_clone());
         }
 
-        if op.token_type() == TokenType::Offset && t.value_type() == ValueTypes::Number {
+        if op.token_type() == TokenType::Offset && t.value_type() == ValueTypes::U64 {
             return Some(self.box_clone());
         }
 
@@ -78,7 +78,7 @@ impl ValueType for PointerType {
 
     fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
         // TODO: maybe add conversion to number
-        if t.value_type() == ValueTypes::Number {
+        if t.value_type() == ValueTypes::U64 {
             return true;
         }
 
@@ -100,6 +100,6 @@ impl ValueType for PointerType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::QWORD
+        ValueSize::Qword
     }
 }

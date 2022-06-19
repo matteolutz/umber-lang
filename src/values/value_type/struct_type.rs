@@ -63,6 +63,6 @@ impl ValueType for StructType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::QWORD
+        ValueSize::Qword
     }
 }

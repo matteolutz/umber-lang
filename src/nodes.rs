@@ -34,6 +34,7 @@ pub mod functiondecl_node;
 pub mod ignored_node;
 pub mod pointer_assign_node;
 pub mod offset_node;
+pub mod util;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -53,8 +54,9 @@ pub enum NodeType {
     Char,
     UnaryOp,
     VarAccess,
-    VarSizedAccess,
+    VarTypedAccess,
     VarAssign,
+    VarTypedAssign,
     VarDeclaration,
     Statements,
     Assembly,
@@ -70,7 +72,8 @@ pub enum NodeType {
     MacroDef,
     Ignored,
     PointerAssign,
-    Offset
+    Offset,
+    TypeCarrier,
 }
 
 pub trait NodeToAny: 'static {

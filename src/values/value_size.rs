@@ -2,19 +2,19 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum ValueSize {
-    BYTE,
-    WORD,
-    DWORD,
-    QWORD,
+    Byte,
+    Word,
+    Dword,
+    Qword,
 }
 
 impl ValueSize {
     pub fn get_size_in_bytes(&self) -> u8 {
         match self {
-            ValueSize::BYTE => 1,
-            ValueSize::WORD => 2,
-            ValueSize::DWORD => 4,
-            ValueSize::QWORD => 8,
+            ValueSize::Byte => 1,
+            ValueSize::Word => 2,
+            ValueSize::Dword => 4,
+            ValueSize::Qword => 8,
         }
     }
 }
@@ -22,10 +22,10 @@ impl ValueSize {
 impl Display for ValueSize {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValueSize::BYTE => write!(f, "BYTE"),
-            ValueSize::WORD => write!(f, "WORD"),
-            ValueSize::DWORD => write!(f, "DWORD"),
-            ValueSize::QWORD => write!(f, "QWORD"),
+            ValueSize::Byte => write!(f, "BYTE"),
+            ValueSize::Word => write!(f, "WORD"),
+            ValueSize::Dword => write!(f, "DWORD"),
+            ValueSize::Qword => write!(f, "QWORD"),
         }
     }
 }

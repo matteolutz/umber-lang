@@ -4,12 +4,11 @@ use std::fmt::Display;
 use crate::token::Token;
 use crate::values::value_size::ValueSize;
 
-pub mod number_type;
+pub mod u64_type;
 pub mod bool_type;
 pub mod string_type;
 pub mod function_type;
 pub mod void_type;
-pub mod array_type;
 pub mod extern_type;
 pub mod pointer_type;
 pub mod char_type;
@@ -19,13 +18,12 @@ pub mod u32_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
-    Number,
+    U64,
     Bool,
     Char,
     String,
     Function,
     Void,
-    Array,
     Extern,
     Pointer,
     Struct,

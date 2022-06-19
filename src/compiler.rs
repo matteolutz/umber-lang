@@ -28,6 +28,8 @@ use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
+use crate::nodes::var_node::typed_access::VarTypedAccessNode;
+use crate::nodes::var_node::typed_assign::VarTypedAssignNode;
 use crate::nodes::while_node::WhileNode;
 use crate::token::TokenType;
 use crate::utils;
@@ -109,14 +111,14 @@ impl Compiler {
 
     fn scratch_name_lower_sized(&self, i: u8, size: &ValueSize) -> &str {
         match size {
-            ValueSize::BYTE => B_SCRATCH_REGS[i as usize],
-            ValueSize::WORD => W_SCRATCH_REGS[i as usize],
-            ValueSize::DWORD => DW_SCRATCH_REGS[i as usize],
-            ValueSize::QWORD => QW_SCRATCH_REGS[i as usize],
+            ValueSize::Byte => B_SCRATCH_REGS[i as usize],
+            ValueSize::Word => W_SCRATCH_REGS[i as usize],
+            ValueSize::Dword => DW_SCRATCH_REGS[i as usize],
+            ValueSize::Qword => QW_SCRATCH_REGS[i as usize],
         }
     }
 
-    fn scratch_name(&self, i: u8) -> &str { self.scratch_name_lower_sized(i, &ValueSize::QWORD) }
+    fn scratch_name(&self, i: u8) -> &str { self.scratch_name_lower_sized(i, &ValueSize::Qword) }
 
     fn free_scratch(&mut self, reg: u8) {
         self.scratch_regs = !(!self.scratch_regs | (1 << reg));
@@ -253,7 +255,8 @@ impl Compiler {
 
         if node.node_type() == NodeType::Char {
             let reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, QWORD {}", self.scratch_name(reg), *node.as_any().downcast_ref::<CharNode>().unwrap().value() as u8);
+            writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg));
+            writeln!(w, "\tmov     {}, BYTE {}", self.scratch_name_lower_sized(reg, &ValueSize::Byte), *node.as_any().downcast_ref::<CharNode>().unwrap().value() as u8);
             return Some(reg);
         }
 
@@ -616,13 +619,13 @@ impl Compiler {
 
             self.register_var(var_declaration_node.var_name().to_string(), var_declaration_node.var_type().get_size());
 
-            writeln!(w, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(result_reg));
+            writeln!(w, "\tmov     {} [rbp - ({})], {}", var_declaration_node.var_type().get_size(), self.base_offset, self.scratch_name_lower_sized(result_reg, &var_declaration_node.var_type().get_size()));
 
             return Some(result_reg);
         }
 
-        if node.node_type() == NodeType::VarAssign {
-            let var_assign_node = node.as_any().downcast_ref::<VarAssignNode>().unwrap();
+        if node.node_type() == NodeType::VarTypedAssign {
+            let var_assign_node = node.as_any().downcast_ref::<VarTypedAssignNode>().unwrap();
 
             let reg = self.code_gen(var_assign_node.value_node(), w).unwrap();
 
@@ -633,13 +636,13 @@ impl Compiler {
 
             let (var_offset, _) = self.get_var(var_assign_node.var_name());
 
-            writeln!(w, "\tmov     QWORD [rbp - ({})], {}", var_offset, self.scratch_name(reg));
+            writeln!(w, "\tmov     {} [rbp - ({})], {}", var_assign_node.value_type().get_size(), var_offset, self.scratch_name_lower_sized(reg, &var_assign_node.value_type().get_size()));
 
             return Some(reg);
         }
 
-        if node.node_type() == NodeType::VarAccess {
-            let var_access_node = node.as_any().downcast_ref::<VarAccessNode>().unwrap();
+        if node.node_type() == NodeType::VarTypedAccess {
+            let var_access_node = node.as_any().downcast_ref::<VarTypedAccessNode>().unwrap();
 
             if self.is_constant(var_access_node.var_name()) {
                 todo!("Constants!");
@@ -657,7 +660,13 @@ impl Compiler {
             let (var_offset, _) = self.get_var(var_access_node.var_name());
             let reg = self.res_scratch();
 
-            writeln!(w, "\tmov     {}, QWORD [rbp - ({})]", self.scratch_name(reg), var_offset);
+            let var_size = var_access_node.value_type().get_size();
+
+            if var_size != ValueSize::Qword {
+                writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg));
+            }
+
+            writeln!(w, "\tmov     {}, {} [rbp - ({})]", self.scratch_name_lower_sized(reg, &var_size), var_size, var_offset);
 
             return Some(reg);
         }
@@ -773,7 +782,18 @@ impl Compiler {
         }
 
         if node.node_type() == NodeType::Cast {
-            return Some(self.code_gen(node.as_any().downcast_ref::<CastNode>().unwrap().node(), w).unwrap());
+            let cast_node = node.as_any().downcast_ref::<CastNode>().unwrap();
+            let from_reg = self.code_gen(cast_node.node(), w).unwrap();
+            let res_reg = self.res_scratch();
+
+            if cast_node.cast_type().get_size() != ValueSize::Qword {
+                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg));
+            }
+
+            writeln!(w, "\tmov     {}, {}", self.scratch_name_lower_sized(res_reg, &cast_node.cast_type().get_size()), self.scratch_name_lower_sized(from_reg, &cast_node.cast_type().get_size()));
+            self.free_scratch(from_reg);
+
+            return Some(res_reg);
         }
 
         if node.node_type() == NodeType::ConstDef {
@@ -806,7 +826,7 @@ impl Compiler {
 
             let res_reg = self.res_scratch();
 
-            if *read_bytes_node.bytes() != ValueSize::QWORD {
+            if *read_bytes_node.bytes() != ValueSize::Qword {
                 writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg));
             }
             writeln!(w, "\tmov     {}, {} [{}]", self.scratch_name_lower_sized(res_reg, read_bytes_node.bytes()), read_bytes_node.bytes(), self.scratch_name(from_reg));
@@ -821,7 +841,7 @@ impl Compiler {
             let left_reg = self.code_gen(pointer_assign_node.ptr(), w).unwrap();
             let right_reg = self.code_gen(pointer_assign_node.value(), w).unwrap();
 
-            if pointer_assign_node.pointee_type().get_size() == ValueSize::QWORD {
+            if pointer_assign_node.pointee_type().get_size() == ValueSize::Qword {
                 writeln!(w, "\tmov     [{}], {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
             } else {
                 writeln!(w, "\tmov     {} [{}], {}", pointer_assign_node.pointee_type().get_size(), self.scratch_name(left_reg), self.scratch_name_lower_sized(right_reg, &pointer_assign_node.pointee_type().get_size()));

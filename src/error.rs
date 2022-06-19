@@ -101,7 +101,6 @@ pub fn semantic_error_with_parent(pos_start: Position, pos_end: Position, detail
 }
 // endregion
 
-
 // region FileNotFound
 pub fn file_not_found_error(pos_start: Position, pos_end: Position, details: &str) -> Error {
     Error::new(pos_start, pos_end, String::from("FileNotFoundError"), String::from(details))

@@ -52,7 +52,7 @@ impl ValueType for CharType {
     }
 
     fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
-        if t.value_type() == ValueTypes::Number {
+        if t.value_type() == ValueTypes::U64 {
             return true;
         }
 
@@ -64,6 +64,6 @@ impl ValueType for CharType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::BYTE
+        ValueSize::Byte
     }
 }

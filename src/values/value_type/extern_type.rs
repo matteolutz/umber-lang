@@ -56,6 +56,6 @@ impl ValueType for ExternType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::QWORD
+        ValueSize::Qword
     }
 }

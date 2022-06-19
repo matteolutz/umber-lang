@@ -7,29 +7,29 @@ use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::value_type::bool_type::BoolType;
 
 #[derive(Clone)]
-pub struct NumberType {}
+pub struct U64Type {}
 
-impl NumberType {
+impl U64Type {
     pub fn new() -> Self {
-        NumberType {}
+        U64Type {}
     }
 }
 
-impl ValueTypeAsAny for NumberType {
+impl ValueTypeAsAny for U64Type {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Display for NumberType {
+impl Display for U64Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "number")
+        write!(f, "u64")
     }
 }
 
-impl ValueType for NumberType {
+impl ValueType for U64Type {
     fn value_type(&self) -> ValueTypes {
-        ValueTypes::Number
+        ValueTypes::U64
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
@@ -37,12 +37,12 @@ impl ValueType for NumberType {
     }
 
     fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
-        if t.value_type() != ValueTypes::Number {
+        if t.value_type() != ValueTypes::U64 {
             return None;
         }
 
         match op.token_type() {
-            TokenType::Minus | TokenType::Plus | TokenType::Mul | TokenType::Div | TokenType::Modulo | TokenType::BitOr | TokenType::BitAnd | TokenType::BitXor | TokenType::BitShl | TokenType::BitShr => Some(Box::new(NumberType::new())),
+            TokenType::Minus | TokenType::Plus | TokenType::Mul | TokenType::Div | TokenType::Modulo | TokenType::BitOr | TokenType::BitAnd | TokenType::BitXor | TokenType::BitShl | TokenType::BitShr => Some(Box::new(U64Type::new())),
             TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::new(BoolType::new())),
             _ => None,
         }
@@ -50,7 +50,7 @@ impl ValueType for NumberType {
 
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
         match op.token_type() {
-            TokenType::Minus | TokenType::Plus | TokenType::BitNot => Some(Box::new(NumberType::new())),
+            TokenType::Minus | TokenType::Plus | TokenType::BitNot => Some(Box::new(U64Type::new())),
             _ => None
         }
     }
@@ -71,6 +71,6 @@ impl ValueType for NumberType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::QWORD
+        ValueSize::Qword
     }
 }

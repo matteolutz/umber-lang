@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::{error, utils};
 use crate::error::Error;
 use crate::position::Position;
-use crate::token::{KEYWORDS, Token, TOKEN_FLAGS_IS_ASSIGN, TOKEN_FLAGS_NULL     , TokenType};
+use crate::token::{KEYWORDS, Token, TOKEN_FLAGS_IS_ASSIGN, TOKEN_FLAGS_NULL, TokenType};
 use crate::token::TokenType::Lcurly;
 
 pub struct Lexer {
@@ -256,7 +256,14 @@ impl Lexer {
             return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected escaped character, after '''!")));
         }
 
-        new_char = if escaped { utils::escape_char(self.current_char.as_ref().unwrap()) } else { self.current_char.unwrap() };
+        new_char = self.current_char.unwrap();
+        if escaped {
+            if let Some(c) = utils::escape_char(&new_char) {
+                new_char = c;
+            } else {
+                return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Invalid escaped character!")));
+            }
+        }
 
         self.advance();
 

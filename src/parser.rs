@@ -37,6 +37,7 @@ use crate::nodes::string_node::StringNode;
 use crate::nodes::struct_def_node::StructDefinitionNode;
 use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
+use crate::nodes::util::type_carrier_node::TypeCarrierNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
@@ -44,10 +45,9 @@ use crate::nodes::while_node::WhileNode;
 use crate::results::parse::ParseResult;
 use crate::token::{Token, TOKEN_FLAGS_IS_ASSIGN, TokenType};
 use crate::values::value_size::ValueSize;
-use crate::values::value_type::array_type::ArrayType;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
-use crate::values::value_type::number_type::NumberType;
+use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::struct_type::StructType;
@@ -65,7 +65,7 @@ macro_rules! advance {
 macro_rules! expect_token {
     ($self:ident, $res:ident, $token_type:expr, $repr:literal) => {
         if $self.current_token().token_type() != $token_type {
-            $res.failure(error::invalid_syntax_error($self.current_token().pos_start().clone(), $self.current_token().pos_end().clone(), format!("Expected token '{}' of type {:?}!", $repr, $token_type).as_str()));
+            $res.failure(error::invalid_syntax_error($self.current_token().pos_start().clone(), $self.current_token().pos_end().clone(), format!("Expected token '{}' of type '{:?}'!", $repr, $token_type).as_str()));
             return $res;
         }
     };
@@ -172,75 +172,51 @@ impl<'a> Parser<'a> {
 
     // region Helper functions
 
-    fn parse_intrinsic_type(&mut self) -> (Option<Box<dyn ValueType>>, Option<Error>) {
-        if self.current_token().token_type() != TokenType::Keyword {
-            panic!("TokenType '{:?}' can't be handled in function `get_intrinsic_type``!", self.current_token().token_type());
-        }
+    fn parse_intrinsic_type(&mut self) -> ParseResult {
+        let mut res = ParseResult::new();
+
+        expect_token!(self, res, TokenType::Keyword, "intrinsic type");
 
         let s = self.current_token().token_value().as_ref().unwrap().as_str();
 
         let base_type: Box<dyn ValueType> = match s {
-            "number" => Box::new(NumberType::new()),
+            "u64" => Box::new(U64Type::new()),
             "u32" => Box::new(U32Type::new()),
             "string" => Box::new(StringType::new()),
             "bool" => Box::new(BoolType::new()),
             "char" => Box::new(CharType::new()),
             "void" => Box::new(VoidType::new()),
             "struct" => {
-                self.advance();
+                advance!(self, res);
 
-                if self.current_token().token_type() != TokenType::Identifier {
-                    return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected struct name!")));
-                }
+                expect_token!(self, res, TokenType::Identifier, "struct name");
 
                 let struct_name = self.current_token().token_value().as_ref().unwrap().clone();
 
                 Box::new(StructType::new(struct_name))
             }
-            _ => return (None, Some(Error::new(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "NotAnIntrinsicType".to_string(), format!("'{}' is not an intrinsic type!", self.current_token().token_value().as_ref().unwrap()))))
+            _ => {
+                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected intrinsic type!"));
+                return res;
+            }
         };
 
-        self.advance();
-
-        if self.current_token().token_type() == TokenType::Lsquare {
-            self.advance();
-
-            if self.current_token().token_type() != TokenType::Int {
-                self.reverse(2);
-                return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected integer after '[' on an array type!")));
-            }
-
-            // TODO: error handling
-            let size: usize = self.current_token().token_value().as_ref().unwrap().parse::<usize>().unwrap();
-
-            self.advance();
-
-            if self.current_token().token_type() != TokenType::Rsquare {
-                self.reverse(3);
-                return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected ']' after integer on an array type!")));
-            }
-
-            return (Some(Box::new(ArrayType::new(size, base_type))), None);
-        }
+        advance!(self, res);
 
         let mut final_type = base_type;
         while self.current_token().token_type() == TokenType::Mul {
-            self.advance();
+            advance!(self, res);
 
             if self.current_token().matches_keyword("mut") {
-                self.advance();
+                advance!(self, res);
                 final_type = Box::new(PointerType::new(final_type, true));
             } else {
                 final_type = Box::new(PointerType::new(final_type, false));
             }
-
-            // self.reverse(1);
-            // return (Some(Box::new(PointerType::new(base_type, false))), None);
         }
 
-        self.reverse(1);
-
-        (Some(final_type), None)
+        res.success(Box::new(TypeCarrierNode::new(final_type)));
+        return res;
     }
 
     // endregion
@@ -362,13 +338,11 @@ impl<'a> Parser<'a> {
 
         advance!(self, res);
 
-        let (element_type, intr_parse_err) = self.parse_intrinsic_type();
-        if intr_parse_err.is_some() {
-            res.failure(intr_parse_err.unwrap());
+        let type_carrier = res.register_res(self.parse_intrinsic_type());
+        if res.has_error() {
             return res;
         }
-
-        advance!(self, res);
+        let element_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
         expect_token!(self, res, TokenType::Gt, ">");
 
@@ -387,7 +361,7 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            res.success(Box::new(ListNode::new(length, vec![], false, element_type.unwrap(), pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(ListNode::new(length, vec![], false, element_type, pos_start, self.current_token().pos_end().clone())));
             return res;
         }
 
@@ -417,7 +391,7 @@ impl<'a> Parser<'a> {
 
         advance!(self, res);
 
-        res.success(Box::new(ListNode::new(elements.len(), elements, true, element_type.unwrap(), pos_start, self.current_token().pos_end().clone())));
+        res.success(Box::new(ListNode::new(elements.len(), elements, true, element_type, pos_start, self.current_token().pos_end().clone())));
         res
     }
 
@@ -461,15 +435,13 @@ impl<'a> Parser<'a> {
 
             expect_token!(self, res, TokenType::Keyword, "type");
 
-            let (arg_type, intr_type_error) = self.parse_intrinsic_type();
-            if intr_type_error.is_some() {
-                res.failure(intr_type_error.unwrap());
+            let type_carrier = res.register_res(self.parse_intrinsic_type());
+            if res.has_error() {
                 return res;
             }
+            let arg_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
-            args.push((arg_name, arg_type.unwrap()));
-
-            advance!(self, res);
+            args.push((arg_name, arg_type));
 
             while self.current_token().token_type() == TokenType::Comma {
                 advance!(self, res);
@@ -493,15 +465,13 @@ impl<'a> Parser<'a> {
 
                 expect_token!(self, res, TokenType::Keyword, "type");
 
-                let (arg_type, intr_type_error) = self.parse_intrinsic_type();
-                if intr_type_error.is_some() {
-                    res.failure(intr_type_error.unwrap());
+                let type_carrier = res.register_res(self.parse_intrinsic_type());
+                if res.has_error() {
                     return res;
                 }
+                let arg_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
-                args.push((arg_name, arg_type.unwrap()));
-
-                advance!(self, res);
+                args.push((arg_name, arg_type));
             }
         }
 
@@ -515,16 +485,14 @@ impl<'a> Parser<'a> {
 
         expect_token!(self, res, TokenType::Keyword, "type");
 
-        let (return_type, intr_type_error) = self.parse_intrinsic_type();
-        if intr_type_error.is_some() {
-            res.failure(intr_type_error.unwrap());
+        let type_carrier = res.register_res(self.parse_intrinsic_type());
+        if res.has_error() {
             return res;
         }
-
-        advance!(self, res);
+        let return_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
         if self.current_token().token_type() == TokenType::Newline {
-            res.success(Box::new(FunctionDeclarationNode::new(func_name, args, return_type.unwrap(), pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(FunctionDeclarationNode::new(func_name, args, return_type, pos_start, self.current_token().pos_end().clone())));
             return res;
         }
 
@@ -533,7 +501,7 @@ impl<'a> Parser<'a> {
             return res;
         }
 
-        res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type.unwrap(), func_body.unwrap(), pos_start)));
+        res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, func_body.unwrap(), pos_start)));
         res
     }
 
@@ -641,13 +609,11 @@ impl<'a> Parser<'a> {
 
                 advance!(self, res);
 
-                let (const_type, const_type_error) = self.parse_intrinsic_type();
-                if const_type_error.is_some() {
-                    res.failure(const_type_error.unwrap());
+                let type_carrier = res.register_res(self.parse_intrinsic_type());
+                if res.has_error() {
                     return res;
                 }
-
-                advance!(self, res);
+                let const_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
                 expect_token!(self, res, TokenType::Eq, "=");
 
@@ -658,7 +624,7 @@ impl<'a> Parser<'a> {
                     return res;
                 }
 
-                res.success(Box::new(ConstDefinitionNode::new(name, value_node.unwrap(), const_type.unwrap(), pos_start)));
+                res.success(Box::new(ConstDefinitionNode::new(name, value_node.unwrap(), const_type, pos_start)));
                 return res;
             }
 
@@ -687,15 +653,14 @@ impl<'a> Parser<'a> {
 
                     advance!(self, res);
 
-                    let (field_type, field_type_error) = self.parse_intrinsic_type();
-                    if field_type_error.is_some() {
-                        res.failure(field_type_error.unwrap());
+                    let type_carrier = res.register_res(self.parse_intrinsic_type());
+                    if res.has_error() {
                         return res;
                     }
 
-                    advance!(self, res);
+                    let field_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
-                    fields.push((field_name, field_type.unwrap()));
+                    fields.push((field_name, field_type));
 
                     if self.current_token().token_type() != TokenType::Comma {
                         break;
@@ -820,13 +785,11 @@ impl<'a> Parser<'a> {
 
                 advance!(self, res);
 
-                let (in_type, in_type_error) = self.parse_intrinsic_type();
-                if in_type_error.is_some() {
-                    res.failure(in_type_error.unwrap());
+                let type_carrier = res.register_res(self.parse_intrinsic_type());
+                if res.has_error() {
                     return res;
                 }
-
-                advance!(self, res);
+                let in_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
                 expect_token!(self, res, TokenType::Eq, "=");
 
@@ -837,7 +800,7 @@ impl<'a> Parser<'a> {
                     return res;
                 }
 
-                res.success(Box::new(StaticDefinitionNode::new(static_name, in_type.unwrap(), expr.unwrap(), is_mutable, pos_start)));
+                res.success(Box::new(StaticDefinitionNode::new(static_name, in_type, expr.unwrap(), is_mutable, pos_start)));
                 return res;
             }
 
@@ -939,13 +902,11 @@ impl<'a> Parser<'a> {
 
             expect_token!(self, res, TokenType::Keyword, "type");
 
-            let (var_type, var_type_err, ) = self.parse_intrinsic_type();
-            if var_type_err.is_some() {
-                res.failure(var_type_err.unwrap());
+            let type_carrier = res.register_res(self.parse_intrinsic_type());
+            if res.has_error() {
                 return res;
             }
-
-            advance!(self, res);
+            let var_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
             expect_token!(self, res, TokenType::Eq, "=");
 
@@ -956,7 +917,7 @@ impl<'a> Parser<'a> {
                 return res;
             }
 
-            res.success(Box::new(VarDeclarationNode::new(var_name, var_type.unwrap(), expr.unwrap(), is_mutable, pos_start)));
+            res.success(Box::new(VarDeclarationNode::new(var_name, var_type, expr.unwrap(), is_mutable, pos_start)));
             return res;
         }
 
@@ -1014,10 +975,10 @@ impl<'a> Parser<'a> {
             }
 
             let size: ValueSize = match bytes {
-                1 => ValueSize::BYTE,
-                2 => ValueSize::WORD,
-                4 => ValueSize::DWORD,
-                8 => ValueSize::QWORD,
+                1 => ValueSize::Byte,
+                2 => ValueSize::Word,
+                4 => ValueSize::Dword,
+                8 => ValueSize::Qword,
                 _ => unreachable!(),
             };
 
@@ -1195,15 +1156,13 @@ impl<'a> Parser<'a> {
         if self.current_token().matches_keyword("as") {
             advance!(self, res);
 
-            let (cast_type, cast_type_error) = self.parse_intrinsic_type();
-            if cast_type_error.is_some() {
-                res.failure(cast_type_error.unwrap());
+            let type_carrier = res.register_res(self.parse_intrinsic_type());
+            if res.has_error() {
                 return res;
             }
+            let cast_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
-            advance!(self, res);
-
-            atom = Some(Box::new(CastNode::new(atom.unwrap(), cast_type.unwrap(), self.current_token().pos_end().clone())));
+            atom = Some(Box::new(CastNode::new(atom.unwrap(), cast_type, self.current_token().pos_end().clone())));
         }
 
         res.success(atom.unwrap());
@@ -1335,19 +1294,17 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            let (in_type, in_type_error) = self.parse_intrinsic_type();
-            if in_type_error.is_some() {
-                res.failure(in_type_error.unwrap());
+            let type_carrier = res.register_res(self.parse_intrinsic_type());
+            if res.has_error() {
                 return res;
             }
-
-            advance!(self, res);
+            let in_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
             expect_token!(self, res, TokenType::Rsquare, "]");
 
             advance!(self, res);
 
-            node = Box::new(SizeOfNode::new(in_type.unwrap(), token.pos_start().clone(), self.current_token().pos_end().clone()));
+            node = Box::new(SizeOfNode::new(in_type, token.pos_start().clone(), self.current_token().pos_end().clone()));
         } else {
             res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
             return res

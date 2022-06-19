@@ -68,6 +68,6 @@ impl ValueType for FunctionType {
     }
 
     fn get_size(&self) -> ValueSize {
-        ValueSize::QWORD
+        ValueSize::Qword
     }
 }
