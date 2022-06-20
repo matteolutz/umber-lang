@@ -15,10 +15,15 @@ pub mod char_type;
 pub mod struct_type;
 pub mod ignored_type;
 pub mod u32_type;
+pub mod u16_type;
+pub mod u8_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
     U64,
+    U32,
+    U16,
+    U8,
     Bool,
     Char,
     String,
@@ -28,7 +33,6 @@ pub enum ValueTypes {
     Pointer,
     Struct,
     Ignored,
-    U32,
 }
 
 pub trait ValueTypeAsAny {

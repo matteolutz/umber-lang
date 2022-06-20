@@ -59,7 +59,9 @@ impl ValueType for U64Type {
         if t.value_type() == ValueTypes::Bool
             || t.value_type() == ValueTypes::Pointer
             || t.value_type() == ValueTypes::Char
-            || t.value_type() == ValueTypes::U32 {
+            || t.value_type() == ValueTypes::U32
+            || t.value_type() == ValueTypes::U16
+            || t.value_type() == ValueTypes::U8 {
             return true;
         }
 

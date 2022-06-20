@@ -51,7 +51,9 @@ use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::struct_type::StructType;
+use crate::values::value_type::u16_type::U16Type;
 use crate::values::value_type::u32_type::U32Type;
+use crate::values::value_type::u8_type::U8Type;
 use crate::values::value_type::ValueType;
 use crate::values::value_type::void_type::VoidType;
 
@@ -182,6 +184,8 @@ impl<'a> Parser<'a> {
         let base_type: Box<dyn ValueType> = match s {
             "u64" => Box::new(U64Type::new()),
             "u32" => Box::new(U32Type::new()),
+            "u16" => Box::new(U16Type::new()),
+            "u8" => Box::new(U8Type::new()),
             "string" => Box::new(StringType::new()),
             "bool" => Box::new(BoolType::new()),
             "char" => Box::new(CharType::new()),
