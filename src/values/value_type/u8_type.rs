@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
 
-use crate::token::{Token, TokenType};
+use crate::token::{OldToken, TokenType};
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::value_type::bool_type::BoolType;
@@ -36,7 +36,7 @@ impl ValueType for U8Type {
         self.value_type() == other.value_type()
     }
 
-    fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
+    fn is_valid_bin_op(&self, op: &OldToken, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
         if t.value_type() != ValueTypes::U8 {
             return None;
         }
@@ -48,7 +48,7 @@ impl ValueType for U8Type {
         }
     }
 
-    fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
+    fn is_valid_unary_op(&self, op: &OldToken) -> Option<Box<dyn ValueType>> {
         match op.token_type() {
             TokenType::Minus | TokenType::Plus | TokenType::BitNot => Some(Box::new(U8Type::new())),
             _ => None

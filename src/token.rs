@@ -7,7 +7,7 @@ pub const TOKEN_FLAGS_NULL: u8 = 0;
 pub const TOKEN_FLAGS_IS_ASSIGN: u8 = 1 << 0;
 
 #[derive(Clone)]
-pub struct Token {
+pub struct OldToken {
     tok_type: TokenType,
     tok_value: Option<String>,
     pos_start: Position,
@@ -15,26 +15,26 @@ pub struct Token {
     flags: u8,
 }
 
-impl Token {
+impl OldToken {
 
-    pub fn new_without_value(tok_type: TokenType, pos_start: Position, pos_end: Position) -> Token {
-        Token::new(tok_type, None, pos_start, pos_end, TOKEN_FLAGS_NULL)
+    pub fn new_without_value(tok_type: TokenType, pos_start: Position, pos_end: Position) -> OldToken {
+        OldToken::new(tok_type, None, pos_start, pos_end, TOKEN_FLAGS_NULL)
     }
 
-    pub fn new_with_value(tok_type: TokenType, tok_value: String, pos_start: Position, pos_end: Position) -> Token {
-        Token::new(tok_type, Some(tok_value), pos_start, pos_end, TOKEN_FLAGS_NULL)
+    pub fn new_with_value(tok_type: TokenType, tok_value: String, pos_start: Position, pos_end: Position) -> OldToken {
+        OldToken::new(tok_type, Some(tok_value), pos_start, pos_end, TOKEN_FLAGS_NULL)
     }
 
-    pub fn new_with_flags(tok_type: TokenType, tok_value: String, pos_start: Position, pos_end: Position, flags: u8) -> Token {
-        Token::new(tok_type, Some(tok_value), pos_start, pos_end, flags)
+    pub fn new_with_flags(tok_type: TokenType, tok_value: String, pos_start: Position, pos_end: Position, flags: u8) -> OldToken {
+        OldToken::new(tok_type, Some(tok_value), pos_start, pos_end, flags)
     }
 
-    pub fn new_with_flags_no_value(tok_type: TokenType, pos_start: Position, pos_end: Position, flags: u8) -> Token {
-        Token::new(tok_type, None, pos_start, pos_end, flags)
+    pub fn new_with_flags_no_value(tok_type: TokenType, pos_start: Position, pos_end: Position, flags: u8) -> OldToken {
+        OldToken::new(tok_type, None, pos_start, pos_end, flags)
     }
 
-    pub fn new(tok_type: TokenType, tok_value: Option<String>, pos_start: Position, pos_end: Position, flags: u8) -> Token {
-        Token {
+    pub fn new(tok_type: TokenType, tok_value: Option<String>, pos_start: Position, pos_end: Position, flags: u8) -> OldToken {
+        OldToken {
             tok_type,
             tok_value,
             pos_start,
@@ -79,18 +79,71 @@ impl Token {
 
 }
 
-impl PartialEq for Token {
+impl PartialEq for OldToken {
     fn eq(&self, other: &Self) -> bool {
         self.matches(other.token_type(), other.token_value().as_ref().unwrap().as_str())
     }
 }
 
-impl Display for Token {
+impl Display for OldToken {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}:{}", self.tok_type, self.tok_value.as_ref().unwrap_or(&String::from("<NULL>")))
     }
 }
 
+enum Token {
+
+    // control tokens
+    Bof,
+    Eof,
+
+    // lexed tokens
+    U64(u64),
+    String(String),
+    Char(char),
+    Identifier(String),
+    Keyword(String),
+    Plus,
+    Minus,
+    Mul,
+    Div,
+    Modulo,
+    Eq,
+    PlusPlus,
+    MinusMinus,
+    Colon,
+    Lparen,
+    Rparen,
+    Lsquare,
+    Rsquare,
+    Lcruly,
+    Rcurly,
+    Ee,
+    Ne,
+    Lt,
+    Gt,
+    Lte,
+    Gte,
+    LogicAnd,
+    LogicOr,
+    LogicNot,
+    BitAnd,
+    BitOr,
+    BitXor,
+    BitShl,
+    BitShr,
+    BitNot,
+    Comma,
+    Dot,
+    Arrow,
+    ReadBytes,
+    PointerAssign,
+    Newline,
+
+    // non lexed tokens
+    Dereference,
+    Offset,
+}
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum TokenType {
@@ -105,11 +158,6 @@ pub enum TokenType {
     Div,
     Modulo,
     Eq,
-    PlusAssign,
-    MinusAssign,
-    MulAssign,
-    DivAssign,
-    ModuloAssign,
     PlusPlus,
     MinusMinus,
     Colon,
@@ -128,17 +176,11 @@ pub enum TokenType {
     And,
     Or,
     BitAnd,
-    BitAndAssign,
     BitOr,
-    BitOrAssign,
     BitXor,
-    BitXorAssign,
     BitShl,
-    BitShlAssign,
     BitShr,
-    BitShrAssign,
     BitNot,
-    BitNotAssign,
     Not,
     Comma,
     Arrow,

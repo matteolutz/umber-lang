@@ -45,7 +45,7 @@ use crate::nodes::while_node::WhileNode;
 use crate::position::Position;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
-use crate::token::{Token, TokenType};
+use crate::token::{OldToken, TokenType};
 use crate::token::TokenType::U64;
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypes};
@@ -779,7 +779,7 @@ impl Validator {
             }
         }
 
-        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, size.to_string(), node.pos_start().clone(), node.pos_end().clone()), Box::new(U64Type::new()))));
+        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(OldToken::new_with_value(TokenType::U64, size.to_string(), node.pos_start().clone(), node.pos_end().clone()), Box::new(U64Type::new()))));
         res
     }
 
@@ -929,8 +929,8 @@ impl Validator {
 
         res.success(Box::new(PointerType::new(f_field_type.unwrap().clone(), *pointer_type.is_mutable())), Box::new(BinOpNode::new(
             value_node.unwrap(),
-            Token::new_without_value(TokenType::Plus, Position::empty(), Position::empty()),
-            Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, offset.to_string(), Position::empty(), Position::empty()), Box::new(U64Type::new()))))));
+            OldToken::new_without_value(TokenType::Plus, Position::empty(), Position::empty()),
+            Box::new(NumberNode::new(OldToken::new_with_value(TokenType::U64, offset.to_string(), Position::empty(), Position::empty()), Box::new(U64Type::new()))))));
         res
     }
 

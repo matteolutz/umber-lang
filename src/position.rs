@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 #[derive(Clone)]
 pub struct Position {
@@ -28,11 +29,11 @@ impl Position {
         }
     }
 
-    pub fn advance(&mut self, current_char: char) {
+    pub fn advance(&mut self, current_char: &char) {
         self.index += 1;
         self.col += 1;
 
-        if current_char == '\n' {
+        if current_char == &'\n' {
             self.line += 1;
             self.col = 0;
         }

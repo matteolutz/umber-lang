@@ -3,16 +3,16 @@ use std::fmt::{Display, Formatter};
 
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
-use crate::token::Token;
+use crate::token::OldToken;
 
 #[derive(Clone)]
 pub struct StringNode {
-    token: Token,
+    token: OldToken,
 }
 
 impl StringNode {
 
-    pub fn new(token: Token) -> Self {
+    pub fn new(token: OldToken) -> Self {
         StringNode {
             token
         }
