@@ -35,6 +35,7 @@ pub mod ignored_node;
 pub mod pointer_assign_node;
 pub mod offset_node;
 pub mod util;
+pub mod accessor_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -74,6 +75,7 @@ pub enum NodeType {
     PointerAssign,
     Offset,
     TypeCarrier,
+    Accessor
 }
 
 pub trait NodeToAny: 'static {

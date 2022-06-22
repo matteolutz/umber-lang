@@ -144,6 +144,7 @@ pub enum TokenType {
     Arrow,
     Newline,
     Dereference,
+    Dot,
     Offset,
     ReadBytes,
     PointerAssign,

@@ -8,6 +8,7 @@ use crate::error;
 use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::nodes::{Node, NodeType};
+use crate::nodes::accessor_node::AccessorNode;
 use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
@@ -1140,21 +1141,31 @@ impl<'a> Parser<'a> {
             atom = Some(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().to_string(), arg_nodes, atom.as_ref().unwrap().pos_start().clone())))
         }
 
-        while self.current_token().token_type() == TokenType::Lsquare {
+        while self.current_token().token_type() == TokenType::Lsquare || self.current_token().token_type() == TokenType::Dot {
+            let token = self.current_token().clone();
+
             let s_pos_start = self.current_token().pos_start().clone();
 
             advance!(self, res);
 
-            let expr = res.register_res(self.expression());
-            if res.has_error() {
-                return res;
+            if token.token_type() == TokenType::Lsquare {
+                let expr = res.register_res(self.expression());
+                if res.has_error() {
+                    return res;
+                }
+
+                expect_token!(self, res, TokenType::Rsquare, "]");
+
+                atom = Some(Box::new(BinOpNode::new(atom.unwrap(), Token::new_without_value(TokenType::Offset, s_pos_start, self.current_token().pos_end().clone()), expr.unwrap())));
+            } else if token.token_type() == TokenType::Dot {
+                expect_token!(self, res, TokenType::Identifier, "accessor");
+                expect_token_value!(self, res);
+
+                let accessor = self.current_token().token_value().as_ref().unwrap().clone();
+                atom = Some(Box::new(AccessorNode::new(atom.unwrap(), accessor, self.current_token().pos_end().clone())));
             }
 
-            expect_token!(self, res, TokenType::Rsquare, "]");
-
-            atom = Some(Box::new(BinOpNode::new(atom.unwrap(), Token::new_without_value(TokenType::Offset, s_pos_start, self.current_token().pos_end().clone()), expr.unwrap())));
-
-            advance!(self, res);;
+            advance!(self, res);
         }
 
         if self.current_token().matches_keyword("as") {

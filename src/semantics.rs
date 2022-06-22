@@ -4,6 +4,7 @@ use std::ops::IndexMut;
 
 use crate::error;
 use crate::nodes::{Node, NodeType};
+use crate::nodes::accessor_node::AccessorNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
@@ -45,6 +46,8 @@ use crate::position::Position;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
 use crate::token::{Token, TokenType};
+use crate::token::TokenType::U64;
+use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypes};
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
@@ -54,6 +57,7 @@ use crate::values::value_type::ignored_type::IgnoredType;
 use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
+use crate::values::value_type::struct_type::StructType;
 use crate::values::value_type::ValueTypes::Void;
 use crate::values::value_type::void_type::VoidType;
 
@@ -70,6 +74,8 @@ pub struct Validator {
     scope_stack: Vec<ScopeType>,
 
     current_function_return_type: Option<Box<dyn ValueType>>,
+
+    structs: HashMap<String, Vec<(String, Box<dyn ValueType>)>>
 }
 
 impl Validator {
@@ -82,6 +88,7 @@ impl Validator {
                 ScopeType::Global,
             ],
             current_function_return_type: None,
+            structs: HashMap::new(),
         }
     }
 
@@ -193,6 +200,7 @@ impl Validator {
             NodeType::Import => self.validate_import_node(node.as_any().downcast_ref::<ImportNode>().unwrap()),
             NodeType::MacroDef => self.validate_macro_def_node(node.as_any().downcast_ref::<MacroDefNode>().unwrap()),
             NodeType::Ignored => self.validate_ignored_node(node.as_any().downcast_ref::<IgnoredNode>().unwrap()),
+            NodeType::Accessor => self.validate_accessor_node(node.as_any().downcast_ref::<AccessorNode>().unwrap()),
             _ => panic!("Unsupported node type: {:?}", node.node_type()),
         }
     }
@@ -757,7 +765,21 @@ impl Validator {
     fn validate_sizeof_node(&self, node: &SizeOfNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, node.value_type().get_size().get_size_in_bytes().to_string(), node.pos_start().clone(), node.pos_end().clone()), Box::new(U64Type::new()))));
+        let mut size = node.value_type().get_size().get_size_in_bytes();
+        if node.value_type().value_type() == ValueTypes::Struct {
+            let struct_type = node.value_type().as_any().downcast_ref::<StructType>().unwrap();
+            if !self.structs.contains_key(struct_type.name()) {
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Struct '{}' is not defined!", struct_type.name()).as_str()));
+                return res;
+            }
+
+            size = 0;
+            for (_, field_type) in self.structs[struct_type.name()].iter() {
+                size += field_type.get_size().get_size_in_bytes();
+            }
+        }
+
+        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, size.to_string(), node.pos_start().clone(), node.pos_end().clone()), Box::new(U64Type::new()))));
         res
     }
 
@@ -780,8 +802,18 @@ impl Validator {
         res
     }
 
-    fn validate_struct_def_node(&mut self, _node: &StructDefinitionNode) -> ValidationResult {
-        panic!("Structs are not supported yet!");
+    fn validate_struct_def_node(&mut self, node: &StructDefinitionNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        if self.structs.contains_key(node.name()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Structure with the name '{}' was already defined!", node.name()).as_str()));
+            return res;
+        }
+
+        self.structs.insert(node.name().to_string(), node.fields().clone());
+
+        res.success(Box::new(IgnoredType::new()), node.box_clone());
+        res
     }
 
     fn validate_read_bytes_node(&mut self, node: &ReadBytesNode) -> ValidationResult {
@@ -853,6 +885,55 @@ impl Validator {
         res.success(Box::new(IgnoredType::new()), node.box_clone());
         res
     }
+
+    fn validate_accessor_node(&mut self, node: &AccessorNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        let (node_type, value_node) = res.register_res(self.validate(node.node()));
+        if res.has_error() {
+            return res;
+        }
+
+        if node_type.as_ref().unwrap().value_type() != ValueTypes::Pointer || node_type.as_ref().unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().value_type() != ValueTypes::Struct {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't access fields of non-pointer-to-struct type!"));
+            return res;
+        }
+
+        let pointer_type = node_type.as_ref().unwrap().as_any().downcast_ref::<PointerType>().unwrap();
+        let struct_type = pointer_type.pointee_type().as_any().downcast_ref::<StructType>().unwrap();
+
+        if !self.structs.contains_key(struct_type.name()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Structure with the name '{}' was not defined!", struct_type.name()).as_str()));
+            return res;
+        }
+
+        let s_struct = &self.structs[struct_type.name()];
+
+        let mut offset: usize = 0;
+        let mut f_field_type: Option<&Box<dyn ValueType>> = None;
+        let mut found: bool = false;
+        for (field_name, field_type) in s_struct {
+            if field_name == node.accessor() {
+                found = true;
+                f_field_type = Some(field_type);
+                break;
+            }
+
+            offset += field_type.get_size().get_size_in_bytes() as usize;
+        }
+
+        if !found {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Field '{}' was not found in structure '{}'!", node.accessor(), struct_type.name()).as_str()));
+            return res;
+        }
+
+        res.success(Box::new(PointerType::new(f_field_type.unwrap().clone(), *pointer_type.is_mutable())), Box::new(BinOpNode::new(
+            value_node.unwrap(),
+            Token::new_without_value(TokenType::Plus, Position::empty(), Position::empty()),
+            Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, offset.to_string(), Position::empty(), Position::empty()), Box::new(U64Type::new()))))));
+        res
+    }
+
 }
 
 #[cfg(test)]

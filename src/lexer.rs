@@ -132,6 +132,9 @@ impl Lexer {
             } else if current == ',' {
                 tokens.push(Token::new_without_value(TokenType::Comma, self.pos.clone(), self.pos.clone()));
                 self.advance();
+            } else if current == '.' {
+                tokens.push(Token::new_without_value(TokenType::Dot, self.pos.clone(), self.pos.clone()));
+                self.advance();
             } else {
                 let pos_start = self.pos.clone();
                 self.advance();
