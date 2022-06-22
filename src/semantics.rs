@@ -503,7 +503,7 @@ impl Validator {
         let function_type = symbol_type.as_any().downcast_ref::<FunctionType>().unwrap();
 
         if function_type.arg_types().len() != node.arg_nodes().len() {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Function expected {} arguments. Passed {}!", function_type.arg_types().len(), node.arg_nodes().len()).as_str()));
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Function expected {} arguments. {} were passed!", function_type.arg_types().len(), node.arg_nodes().len()).as_str()));
             return res;
         }
 
@@ -757,7 +757,7 @@ impl Validator {
     fn validate_sizeof_node(&self, node: &SizeOfNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::Int, node.value_type().get_size().get_size_in_bytes().to_string(), node.pos_start().clone(), node.pos_end().clone()))));
+        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, node.value_type().get_size().get_size_in_bytes().to_string(), node.pos_start().clone(), node.pos_end().clone()), Box::new(U64Type::new()))));
         res
     }
 

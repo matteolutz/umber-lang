@@ -4,22 +4,29 @@ use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::token::Token;
+use crate::values::value_type::ValueType;
 
 #[derive(Clone)]
 pub struct NumberNode {
     token: Token,
+    size: Box<dyn ValueType>,
 }
 
 impl NumberNode {
 
-    pub fn new(token: Token) -> Self {
+    pub fn new(token: Token, size: Box<dyn ValueType>) -> Self {
         NumberNode {
-            token
+            token,
+            size,
         }
     }
 
     pub fn get_number(&self) -> u64 {
         self.token.token_value().as_ref().unwrap().parse::<u64>().unwrap()
+    }
+
+    pub fn size(&self) -> &Box<dyn ValueType> {
+        &self.size
     }
 
 }

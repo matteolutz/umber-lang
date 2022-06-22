@@ -49,7 +49,10 @@ const B_SCRATCH_REGS: [&str; 7] = [
 ];
 
 
-const NUMBER_ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+const QW_NUMBER_ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+const DW_NUMBER_ARG_REGS: [&str; 6] = ["edi", "esi", "edx", "ecx", "r8d", "r9d"];
+const W_NUMBER_ARG_REGS: [&str; 6] = ["di", "si", "dx", "cx", "r8w", "r9w"];
+const B_NUMBER_ARG_REGS: [&str; 6] = ["dil", "sil", "dl", "cl", "r8b", "r9b"];
 
 const SYSCALL_REGS: [&str; 4] = ["rax", "rdi", "rsi", "rdx"];
 
@@ -119,6 +122,15 @@ impl Compiler {
     }
 
     fn scratch_name(&self, i: u8) -> &str { self.scratch_name_lower_sized(i, &ValueSize::Qword) }
+
+    fn number_arg_reg_name(&self, i: u8, size: &ValueSize) -> &str {
+        match size {
+            ValueSize::Byte => B_NUMBER_ARG_REGS[i as usize],
+            ValueSize::Word => W_NUMBER_ARG_REGS[i as usize],
+            ValueSize::Dword => DW_NUMBER_ARG_REGS[i as usize],
+            ValueSize::Qword => QW_NUMBER_ARG_REGS[i as usize],
+        }
+    }
 
     fn free_scratch(&mut self, reg: u8) {
         self.scratch_regs = !(!self.scratch_regs | (1 << reg));
@@ -241,8 +253,13 @@ impl Compiler {
         }
 
         if node.node_type() == NodeType::Number {
+            let number_node = node.as_any().downcast_ref::<NumberNode>().unwrap();
+
             let reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, QWORD {}", self.scratch_name(reg), node.as_any().downcast_ref::<NumberNode>().unwrap().get_number());
+            if number_node.size().get_size() != ValueSize::Qword {
+                writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg));
+            }
+            writeln!(w, "\tmov     {}, {} {}", self.scratch_name_lower_sized(reg, &number_node.size().get_size()), number_node.size().get_size(), number_node.get_number());
             return Some(reg);
         }
 
@@ -499,14 +516,14 @@ impl Compiler {
             }
 
             for i in 0..call_node.arg_nodes().len() {
-                if i >= NUMBER_ARG_REGS.len() { break };
-                writeln!(w, "\tpop     {}", NUMBER_ARG_REGS[i]);
+                if i >= QW_NUMBER_ARG_REGS.len() { break };
+                writeln!(w, "\tpop     {}", QW_NUMBER_ARG_REGS[i]);
             }
 
             writeln!(w, "\tcall    {}", func_label);
 
-            if call_node.arg_nodes().len() > NUMBER_ARG_REGS.len() {
-                writeln!(w, "\tadd     rsp, {}", (call_node.arg_nodes().len() - NUMBER_ARG_REGS.len()) * 8);
+            if call_node.arg_nodes().len() > QW_NUMBER_ARG_REGS.len() {
+                writeln!(w, "\tadd     rsp, {}", (call_node.arg_nodes().len() - QW_NUMBER_ARG_REGS.len()) * 8);
             }
 
             writeln!(w, "\tpop     r11");
@@ -518,7 +535,6 @@ impl Compiler {
             return Some(reg);
         }
 
-        // TODO: handle ignorance of 7th+ parameters! (push of rbp and then pop it right after -> should pop actual parameters before pushing rbp)
         if node.node_type() == NodeType::FunctionDef {
             let func_def_node = node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap();
             let func_epilogue_label = self.label_create();
@@ -537,16 +553,17 @@ impl Compiler {
 
                 self.register_var(key.clone(), arg_type.get_size());
 
-                if number_reg_index >= NUMBER_ARG_REGS.len() {
+
+                if number_reg_index >= QW_NUMBER_ARG_REGS.len() {
                     let reg = self.res_scratch();
 
-                    let mut non_reg_index = number_reg_index - NUMBER_ARG_REGS.len() + 1;
+                    let mut non_reg_index = number_reg_index - QW_NUMBER_ARG_REGS.len() + 1;
 
                     writeln!(&mut function_body, "\tmov     {}, QWORD [rbp + {}]", self.scratch_name(reg), (non_reg_index * 8) + 8);
-                    writeln!(&mut function_body, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
+                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.scratch_name_lower_sized(reg, &arg_type.get_size()));
                     self.free_scratch(reg);
                 } else {
-                    writeln!(&mut function_body, "\tmov     QWORD [rbp - ({})], {}", self.base_offset, NUMBER_ARG_REGS[number_reg_index]);
+                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.number_arg_reg_name(number_reg_index as u8, &arg_type.get_size()));
                 }
 
                 number_reg_index += 1;

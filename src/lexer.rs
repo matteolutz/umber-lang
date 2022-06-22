@@ -124,7 +124,7 @@ impl Lexer {
                 }
 
                 let number = self.make_number();
-                if number.token_type() != TokenType::Int {
+                if number.token_type() != TokenType::U64 {
                     return (vec![], Some(error::illegal_character_error(pos_start, self.pos.clone(), "Expected integer number after '@'!")));
                 }
 
@@ -198,7 +198,7 @@ impl Lexer {
         }
 
         if dot_count == 0 {
-            Token::new_with_value(TokenType::Int, num_str, pos_start, self.pos.clone())
+            Token::new_with_value(TokenType::U64, num_str, pos_start, self.pos.clone())
         } else {
             panic!("Floats are not supported for now!");
         }
@@ -521,7 +521,7 @@ mod tests {
 
         assert_eq!(tokens[5].token_type(), TokenType::Eq);
 
-        assert_eq!(tokens[6].token_type(), TokenType::Int);
+        assert_eq!(tokens[6].token_type(), TokenType::U64);
         assert!(tokens[6].token_value().is_some());
         assert_eq!(tokens[6].token_value().as_ref().unwrap(), "5");
 

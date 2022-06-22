@@ -94,8 +94,7 @@ impl Display for Token {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum TokenType {
-    Int,
-    Float,
+    U64,
     String,
     Char,
     Identifier,

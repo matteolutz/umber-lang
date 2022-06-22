@@ -355,7 +355,7 @@ impl<'a> Parser<'a> {
         if self.current_token().token_type() == TokenType::Newline {
             advance!(self, res);
 
-            expect_token!(self, res, TokenType::Int, "size");
+            expect_token!(self, res, TokenType::U64, "size");
 
             let length = self.current_token().token_value().as_ref().unwrap().parse::<usize>().unwrap();
 
@@ -1179,10 +1179,10 @@ impl<'a> Parser<'a> {
 
         let mut node: Box<dyn Node>;
 
-        if token.token_type() == TokenType::Int || token.token_type() == TokenType::Float {
+        if token.token_type() == TokenType::U64 {
             advance!(self, res);
 
-            node = Box::new(NumberNode::new(token));
+            node = Box::new(NumberNode::new(token, Box::new(U64Type::new())));
         } else if token.token_type() == TokenType::String {
             advance!(self, res);
 

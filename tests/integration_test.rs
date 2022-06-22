@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use umber_lang;
 use umber_lang::compiler::Compiler;
@@ -13,10 +14,13 @@ use umber_lang::semantics::Validator;
 
 #[test]
 pub fn test_file() {
+    let now = Instant::now();
+
     let file = Path::new("E:\\Coding\\Assembly Projects\\umber-output\\test.ub");
 
     let asm_path = file.parent().unwrap().join(format!("{}.asm", file.file_stem().unwrap().to_str().unwrap()));
 
+    println!("Opening file: {}", file.to_str().unwrap());
     let file_contents = fs::read_to_string(&file).expect("Failed to read file");
 
     /*println!("Preprocessing file...");
@@ -78,5 +82,5 @@ pub fn test_file() {
     }
     fs::write(&asm_path, asm).expect("Failed to write file");
 
-    println!("Done!");
+    println!("Done! Took: {:.2}s", now.elapsed().as_secs_f64());
 }
