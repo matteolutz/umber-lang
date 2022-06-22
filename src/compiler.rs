@@ -548,25 +548,22 @@ impl Compiler {
 
             let mut function_body = String::new();
 
-            let mut number_reg_index: usize = 0;
-            for (key, arg_type) in func_def_node.args() {
+            for (i, (key, arg_type)) in func_def_node.args().iter().enumerate() {
 
                 self.register_var(key.clone(), arg_type.get_size());
 
 
-                if number_reg_index >= QW_NUMBER_ARG_REGS.len() {
+                if i >= QW_NUMBER_ARG_REGS.len() {
                     let reg = self.res_scratch();
 
-                    let mut non_reg_index = number_reg_index - QW_NUMBER_ARG_REGS.len() + 1;
+                    let mut non_reg_index = i - QW_NUMBER_ARG_REGS.len() + 1;
 
                     writeln!(&mut function_body, "\tmov     {}, QWORD [rbp + {}]", self.scratch_name(reg), (non_reg_index * 8) + 8);
                     writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.scratch_name_lower_sized(reg, &arg_type.get_size()));
                     self.free_scratch(reg);
                 } else {
-                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.number_arg_reg_name(number_reg_index as u8, &arg_type.get_size()));
+                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.number_arg_reg_name(i as u8, &arg_type.get_size()));
                 }
-
-                number_reg_index += 1;
             }
 
             self.current_function_epilogue = Some(func_epilogue_label);
