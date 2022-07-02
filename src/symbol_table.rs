@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::values::value_type::ValueType;
 
 pub struct Symbol {

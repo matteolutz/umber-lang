@@ -1,5 +1,4 @@
-use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::path::{PathBuf};
 
 #[derive(Clone, Debug)]
 pub struct Position {

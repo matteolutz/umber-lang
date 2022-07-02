@@ -3,18 +3,18 @@ use std::fmt::{Display, Formatter};
 
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
-use crate::token::OldToken;
+use crate::token::Token;
 use crate::values::value_type::ValueType;
 
 #[derive(Clone)]
 pub struct NumberNode {
-    token: OldToken,
+    token: Token,
     size: Box<dyn ValueType>,
 }
 
 impl NumberNode {
 
-    pub fn new(token: OldToken, size: Box<dyn ValueType>) -> Self {
+    pub fn new(token: Token, size: Box<dyn ValueType>) -> Self {
         NumberNode {
             token,
             size,

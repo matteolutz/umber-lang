@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::env::var;
+use std::fmt;
 use std::fmt::Write;
 
 use crate::nodes::{Node, NodeType};
@@ -25,14 +25,11 @@ use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
-use crate::nodes::var_node::access::VarAccessNode;
-use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::var_node::typed_access::VarTypedAccessNode;
 use crate::nodes::var_node::typed_assign::VarTypedAssignNode;
 use crate::nodes::while_node::WhileNode;
 use crate::token::TokenType;
-use crate::utils;
 use crate::values::value_size::ValueSize;
 
 const QW_SCRATCH_REGS: [&str; 7] = [
@@ -178,6 +175,7 @@ impl Compiler {
         self.offset_table.clear();
     }
 
+    #[allow(dead_code)]
     fn add_extern(&mut self, s: String) {
         self.externs.push(s);
     }
@@ -190,6 +188,7 @@ impl Compiler {
         self.statics.contains_key(s)
     }
 
+    #[allow(dead_code)]
     fn get_static(&self, s: &str) -> ValueSize {
         self.statics[s]
     }
@@ -219,38 +218,38 @@ impl Compiler {
 }
 
 impl Compiler {
-    fn code_gen(&mut self, node: &Box<dyn Node>, w: &mut String) -> Option<u8> {
+    fn code_gen(&mut self, node: &Box<dyn Node>, w: &mut String) -> Result<Option<u8>, fmt::Error> {
         if node.node_type() == NodeType::Statements {
             for n in node.as_any().downcast_ref::<StatementsNode>().unwrap().statement_nodes() {
-                let reg = self.code_gen(n, w);
+                let reg = self.code_gen(n, w)?;
                 if reg.is_some() {
                     self.free_scratch(reg.unwrap());
                 }
             }
-            return None;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::Assembly {
             let assembly_node = node.as_any().downcast_ref::<AssemblyNode>().unwrap();
-            writeln!(w, "\n;; Assembly injected im asm[\"...\"]\n\t{}\n;; End\n", assembly_node.content());
+            writeln!(w, "\n;; Assembly injected im asm[\"...\"]\n\t{}\n;; End\n", assembly_node.content())?;
         }
 
         if node.node_type() == NodeType::Syscall {
             // TODO: push syscall regs
 
             let syscall_node = node.as_any().downcast_ref::<SyscallNode>().unwrap();
-            writeln!(w, "\n;; Syscall injected");
+            writeln!(w, "\n;; Syscall injected")?;
             for i in 0..4 {
-                let reg = self.code_gen(&syscall_node.args()[i], w).unwrap();
-                writeln!(w, "\tmov     {}, {}", SYSCALL_REGS[i], self.scratch_name(reg));
+                let reg = self.code_gen(&syscall_node.args()[i], w)?.unwrap();
+                writeln!(w, "\tmov     {}, {}", SYSCALL_REGS[i], self.scratch_name(reg))?;
                 self.free_scratch(reg);
             }
-            writeln!(w, "\tsyscall\n;; End injected syscall\n");
+            writeln!(w, "\tsyscall\n;; End injected syscall\n")?;
 
             let result_reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, rax", self.scratch_name(result_reg));
+            writeln!(w, "\tmov     {}, rax", self.scratch_name(result_reg))?;
 
-            return Some(result_reg);
+            return Ok(Some(result_reg));
         }
 
         if node.node_type() == NodeType::Number {
@@ -258,59 +257,60 @@ impl Compiler {
 
             let reg = self.res_scratch();
             if number_node.size().get_size() != ValueSize::Qword {
-                writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg));
+                writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg))?;
             }
-            writeln!(w, "\tmov     {}, {} {}", self.scratch_name_lower_sized(reg, &number_node.size().get_size()), number_node.size().get_size(), number_node.get_number());
-            return Some(reg);
+            writeln!(w, "\tmov     {}, {} {}", self.scratch_name_lower_sized(reg, &number_node.size().get_size()), number_node.size().get_size(), number_node.get_number())?;
+            return Ok(Some(reg));
         }
 
         if node.node_type() == NodeType::String {
             let str_label = self.create_string_label(node.as_any().downcast_ref::<StringNode>().unwrap().get_string());
             let reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), str_label);
-            return Some(reg);
+            writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), str_label)?;
+            return Ok(Some(reg));
         }
 
         if node.node_type() == NodeType::Char {
             let reg = self.res_scratch();
-            writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg));
-            writeln!(w, "\tmov     {}, BYTE {}", self.scratch_name_lower_sized(reg, &ValueSize::Byte), *node.as_any().downcast_ref::<CharNode>().unwrap().value() as u8);
-            return Some(reg);
+            writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg))?;
+            writeln!(w, "\tmov     {}, BYTE {}", self.scratch_name_lower_sized(reg, &ValueSize::Byte), *node.as_any().downcast_ref::<CharNode>().unwrap().value() as u8)?;
+            return Ok(Some(reg));
         }
 
         if node.node_type() == NodeType::List {
-            todo!("not supported for now!");
+            todo!("List literals are not implemented yet");
+            #[allow(unreachable_code)] {
+                let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
 
-            let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
+                if !*list_node.has_elements() {
+                    let first_elem_offset = self.base_offset + list_node.element_type().get_size().get_size_in_bytes() as u64;
 
-            if !*list_node.has_elements()  {
-                let first_elem_offset = self.base_offset + list_node.element_type().get_size().get_size_in_bytes() as u64;
-
-                /*for i in 0..*list_node.length() {
+                    /*for i in 0..*list_node.length() {
                     self.base_offset += list_node.element_type().get_size();
                     writeln!(w, "\tmov     QWORD [rbp - ({})], 0", self.base_offset);
                 }*/
-                self.base_offset += *list_node.length() as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64;
+                    self.base_offset += *list_node.length() as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64;
 
-                let reg = self.res_scratch();
-                writeln!(w, "\tlea     {}, [rbp - {}]", self.scratch_name(reg), first_elem_offset);
-                return Some(reg);
+                    let reg = self.res_scratch();
+                    writeln!(w, "\tlea     {}, [rbp - {}]", self.scratch_name(reg), first_elem_offset)?;
+                    return Ok(Some(reg));
+                }
+
+                let first_element_offset = self.base_offset + list_node.element_type().get_size().get_size_in_bytes() as u64;
+
+                for element in list_node.element_nodes() {
+                    self.base_offset += list_node.element_type().get_size().get_size_in_bytes() as u64;
+
+                    let reg = self.code_gen(element, w)?.unwrap();
+                    writeln!(w, "\tmov     [rbp - ({})], {}", self.base_offset, self.scratch_name(reg))?;
+                    self.free_scratch(reg);
+                }
+
+                let first_elem_reg = self.res_scratch();
+                writeln!(w, "\tlea     {}, [rbp - ({})]", self.scratch_name(first_elem_reg), first_element_offset)?;
+
+                return Ok(Some(first_elem_reg));
             }
-
-            let first_element_offset = self.base_offset + list_node.element_type().get_size().get_size_in_bytes() as u64;
-
-            for element in list_node.element_nodes() {
-                self.base_offset += list_node.element_type().get_size().get_size_in_bytes() as u64;
-
-                let reg = self.code_gen(element, w).unwrap();
-                writeln!(w, "\tmov     [rbp - ({})], {}", self.base_offset, self.scratch_name(reg));
-                self.free_scratch(reg);
-            }
-
-            let first_elem_reg = self.res_scratch();
-            writeln!(w, "\tlea     {}, [rbp - ({})]", self.scratch_name(first_elem_reg), first_element_offset);
-
-            return Some(first_elem_reg);
         }
 
         if node.node_type() == NodeType::BinOp {
@@ -322,111 +322,111 @@ impl Compiler {
                 let label_false = self.label_create();
                 let label_end = self.label_create();
 
-                let left_reg = self.code_gen(&bin_op_node.left_node(), w).unwrap();
-                writeln!(w, "\tcmp     {}, 0", self.scratch_name(left_reg));
-                writeln!(w, "\tje      {}", self.label_name(&label_false));
+                let left_reg = self.code_gen(&bin_op_node.left_node(), w)?.unwrap();
+                writeln!(w, "\tcmp     {}, 0", self.scratch_name(left_reg))?;
+                writeln!(w, "\tje      {}", self.label_name(&label_false))?;
 
-                let right_reg = self.code_gen(&bin_op_node.right_node(), w).unwrap();
-                writeln!(w, "\tcmp     {}, 0", self.scratch_name(right_reg));
+                let right_reg = self.code_gen(&bin_op_node.right_node(), w)?.unwrap();
+                writeln!(w, "\tcmp     {}, 0", self.scratch_name(right_reg))?;
                 self.free_scratch(right_reg);
-                writeln!(w, "\tje      {}", self.label_name(&label_false));
+                writeln!(w, "\tje      {}", self.label_name(&label_false))?;
 
-                writeln!(w, "{}:", self.label_name(&label_true));
-                writeln!(w, "\tmov     {}, 1", self.scratch_name(left_reg));
-                writeln!(w, "\tjmp     {}", self.label_name(&label_end));
+                writeln!(w, "{}:", self.label_name(&label_true))?;
+                writeln!(w, "\tmov     {}, 1", self.scratch_name(left_reg))?;
+                writeln!(w, "\tjmp     {}", self.label_name(&label_end))?;
 
-                writeln!(w, "{}:", self.label_name(&label_false));
-                writeln!(w, "\tmov     {}, 0", self.scratch_name(left_reg));
+                writeln!(w, "{}:", self.label_name(&label_false))?;
+                writeln!(w, "\tmov     {}, 0", self.scratch_name(left_reg))?;
 
-                writeln!(w, "{}:", self.label_name(&label_end));
+                writeln!(w, "{}:", self.label_name(&label_end))?;
 
-                return Some(left_reg);
+                return Ok(Some(left_reg));
             } else if bin_op_node.op_token().token_type() == TokenType::Or {
                 let label_true = self.label_create();
                 let label_false = self.label_create();
                 let label_end = self.label_create();
 
-                let left_reg = self.code_gen(&bin_op_node.left_node(), w).unwrap();
-                writeln!(w, "\tcmp     {}, 0", self.scratch_name(left_reg));
-                writeln!(w, "\tjne     {}", self.label_name(&label_true));
+                let left_reg = self.code_gen(&bin_op_node.left_node(), w)?.unwrap();
+                writeln!(w, "\tcmp     {}, 0", self.scratch_name(left_reg))?;
+                writeln!(w, "\tjne     {}", self.label_name(&label_true))?;
 
-                let right_reg = self.code_gen(&bin_op_node.right_node(), w).unwrap();
-                writeln!(w, "\tcmp     {}, 0", self.scratch_name(right_reg));
+                let right_reg = self.code_gen(&bin_op_node.right_node(), w)?.unwrap();
+                writeln!(w, "\tcmp     {}, 0", self.scratch_name(right_reg))?;
                 self.free_scratch(right_reg);
-                writeln!(w, "\tje      {}", self.label_name(&label_false));
+                writeln!(w, "\tje      {}", self.label_name(&label_false))?;
 
-                writeln!(w, "{}:", self.label_name(&label_true));
-                writeln!(w, "\tmov     {}, 1", self.scratch_name(left_reg));
-                writeln!(w, "\tjmp     {}", self.label_name(&label_end));
+                writeln!(w, "{}:", self.label_name(&label_true))?;
+                writeln!(w, "\tmov     {}, 1", self.scratch_name(left_reg))?;
+                writeln!(w, "\tjmp     {}", self.label_name(&label_end))?;
 
-                writeln!(w, "{}:", self.label_name(&label_false));
-                writeln!(w, "\tmov     {}, 0", self.scratch_name(left_reg));
+                writeln!(w, "{}:", self.label_name(&label_false))?;
+                writeln!(w, "\tmov     {}, 0", self.scratch_name(left_reg))?;
 
-                writeln!(w, "{}:", self.label_name(&label_end));
+                writeln!(w, "{}:", self.label_name(&label_end))?;
 
-                return Some(left_reg);
+                return Ok(Some(left_reg));
             }
 
-            let left_reg = self.code_gen(bin_op_node.left_node(), w).unwrap();
-            let right_reg = self.code_gen(bin_op_node.right_node(), w).unwrap();
+            let left_reg = self.code_gen(bin_op_node.left_node(), w)?.unwrap();
+            let right_reg = self.code_gen(bin_op_node.right_node(), w)?.unwrap();
 
-            let mut res_reg = left_reg;
+            let res_reg = left_reg;
 
             if bin_op_node.op_token().token_type() == TokenType::Plus {
-                writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg))?;
             } else if bin_op_node.op_token().token_type() == TokenType::Minus {
-                writeln!(w, "\tsub     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\tsub     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg))?;
             } else if bin_op_node.op_token().token_type() == TokenType::Mul {
-                writeln!(w, "\tpush    rax");
-                writeln!(w, "\tpush    rdx");
+                writeln!(w, "\tpush    rax")?;
+                writeln!(w, "\tpush    rdx")?;
 
-                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
-                writeln!(w, "\timul    {}", self.scratch_name(right_reg));
+                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg))?;
+                writeln!(w, "\timul    {}", self.scratch_name(right_reg))?;
 
-                writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg));
+                writeln!(w, "\tmov     {}, rax", self.scratch_name(res_reg))?;
 
-                writeln!(w, "\tpop     rdx");
-                writeln!(w, "\tpop     rax");
+                writeln!(w, "\tpop     rdx")?;
+                writeln!(w, "\tpop     rax")?;
             } else if bin_op_node.op_token().token_type() == TokenType::Div {
-                writeln!(w, "\tpush    rax");
-                writeln!(w, "\tpush    rdx");
+                writeln!(w, "\tpush    rax")?;
+                writeln!(w, "\tpush    rdx")?;
 
-                writeln!(w, "\txor     rdx, rdx");
-                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
-                writeln!(w, "\tidiv    {}", self.scratch_name(right_reg));
+                writeln!(w, "\txor     rdx, rdx")?;
+                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg))?;
+                writeln!(w, "\tidiv    {}", self.scratch_name(right_reg))?;
 
-                writeln!(w, "\tmov     {}, rax", self.scratch_name(left_reg));
+                writeln!(w, "\tmov     {}, rax", self.scratch_name(left_reg))?;
 
-                writeln!(w, "\tpop     rdx");
-                writeln!(w, "\tpop     rax");
+                writeln!(w, "\tpop     rdx")?;
+                writeln!(w, "\tpop     rax")?;
             } else if bin_op_node.op_token().token_type() == TokenType::Modulo {
-                writeln!(w, "\tpush    rax");
-                writeln!(w, "\tpush    rdx");
+                writeln!(w, "\tpush    rax")?;
+                writeln!(w, "\tpush    rdx")?;
 
-                writeln!(w, "\txor     rdx, rdx");
-                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg));
-                writeln!(w, "\tidiv    {}", self.scratch_name(right_reg));
+                writeln!(w, "\txor     rdx, rdx")?;
+                writeln!(w, "\tmov     rax, {}", self.scratch_name(left_reg))?;
+                writeln!(w, "\tidiv    {}", self.scratch_name(right_reg))?;
 
-                writeln!(w, "\tmov     {}, rdx", self.scratch_name(left_reg));
+                writeln!(w, "\tmov     {}, rdx", self.scratch_name(left_reg))?;
 
-                writeln!(w, "\tpop     rdx");
-                writeln!(w, "\tpop     rax");
+                writeln!(w, "\tpop     rdx")?;
+                writeln!(w, "\tpop     rax")?;
             } else if bin_op_node.op_token().token_type() == TokenType::BitAnd {
-                writeln!(w, "\tand     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\tand     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg))?;
             } else if bin_op_node.op_token().token_type() == TokenType::BitOr {
-                writeln!(w, "\tor      {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\tor      {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg))?;
             } else if bin_op_node.op_token().token_type() == TokenType::BitXor {
-                writeln!(w, "\txor     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\txor     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg))?;
             } else if bin_op_node.op_token().token_type() == TokenType::BitShl {
-                writeln!(w, "\tpush    rcx");
-                writeln!(w, "\tmov     rcx, {}", self.scratch_name(right_reg));
-                writeln!(w, "\tsal     {}, cl", self.scratch_name(left_reg));
-                writeln!(w, "\tpop     rcx");
+                writeln!(w, "\tpush    rcx")?;
+                writeln!(w, "\tmov     rcx, {}", self.scratch_name(right_reg))?;
+                writeln!(w, "\tsal     {}, cl", self.scratch_name(left_reg))?;
+                writeln!(w, "\tpop     rcx")?;
             } else if bin_op_node.op_token().token_type() == TokenType::BitShr {
-                writeln!(w, "\tpush    rcx");
-                writeln!(w, "\tmov     rcx, {}", self.scratch_name(right_reg));
-                writeln!(w, "\tsar     {}, cl", self.scratch_name(left_reg));
-                writeln!(w, "\tpop     rcx");
+                writeln!(w, "\tpush    rcx")?;
+                writeln!(w, "\tmov     rcx, {}", self.scratch_name(right_reg))?;
+                writeln!(w, "\tsar     {}, cl", self.scratch_name(left_reg))?;
+                writeln!(w, "\tpop     rcx")?;
             } else if bin_op_node.op_token().token_type() == TokenType::Ee
                 || bin_op_node.op_token().token_type() == TokenType::Gt
                 || bin_op_node.op_token().token_type() == TokenType::Lt
@@ -434,106 +434,101 @@ impl Compiler {
                 || bin_op_node.op_token().token_type() == TokenType::Lte
                 || bin_op_node.op_token().token_type() == TokenType::Ne
             {
-                writeln!(w, "\tcmp     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\tcmp     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg))?;
                 let label_true = self.label_create();
                 let label_after = self.label_create();
 
                 if bin_op_node.op_token().token_type() == TokenType::Ee {
-                    writeln!(w, "\tje      {}", self.label_name(&label_true));
+                    writeln!(w, "\tje      {}", self.label_name(&label_true))?;
                 } else if bin_op_node.op_token().token_type() == TokenType::Lt {
-                    writeln!(w, "\tjl      {}", self.label_name(&label_true));
+                    writeln!(w, "\tjl      {}", self.label_name(&label_true))?;
                 } else if bin_op_node.op_token().token_type() == TokenType::Gt {
-                    writeln!(w, "\tjg      {}", self.label_name(&label_true));
+                    writeln!(w, "\tjg      {}", self.label_name(&label_true))?;
                 } else if bin_op_node.op_token().token_type() == TokenType::Lte {
-                    writeln!(w, "\tjle     {}", self.label_name(&label_true));
+                    writeln!(w, "\tjle     {}", self.label_name(&label_true))?;
                 } else if bin_op_node.op_token().token_type() == TokenType::Gte {
-                    writeln!(w, "\tjge     {}", self.label_name(&label_true));
+                    writeln!(w, "\tjge     {}", self.label_name(&label_true))?;
                 } else if bin_op_node.op_token().token_type() == TokenType::Ne {
-                    writeln!(w, "\tjne     {}", self.label_name(&label_true));
+                    writeln!(w, "\tjne     {}", self.label_name(&label_true))?;
                 }
 
-                writeln!(w, "\tmov     {}, QWORD 0", self.scratch_name(res_reg));
-                writeln!(w, "\tjmp     {}", self.label_name(&label_after));
+                writeln!(w, "\tmov     {}, QWORD 0", self.scratch_name(res_reg))?;
+                writeln!(w, "\tjmp     {}", self.label_name(&label_after))?;
 
-                writeln!(w, "{}:", self.label_name(&label_true));
-                writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
+                writeln!(w, "{}:", self.label_name(&label_true))?;
+                writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg))?;
 
-                writeln!(w, "{}:", self.label_name(&label_after));
+                writeln!(w, "{}:", self.label_name(&label_after))?;
             } else {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
             }
 
             self.free_scratch(right_reg);
 
-            return Some(res_reg);
+            return Ok(Some(res_reg));
         }
 
         if node.node_type() == NodeType::UnaryOp {
             let unary_op_node = node.as_any().downcast_ref::<UnaryOpNode>().unwrap();
 
-            let left = self.code_gen(unary_op_node.node(), w).unwrap();
+            let left = self.code_gen(unary_op_node.node(), w)?.unwrap();
             let mut res_reg = left;
 
-            if unary_op_node.op_token().token_type() == TokenType::Dereference {
-                res_reg = self.res_scratch();
-                // TODO: check for pointer pointee type and load the correct size
-                writeln!(w, "\tmov     QWORD {}, [{}]", self.scratch_name(res_reg), self.scratch_name(left));
-                self.free_scratch(left);
-            } else if unary_op_node.op_token().token_type() == TokenType::Minus {
+            if unary_op_node.op_token().token_type() == TokenType::Minus {
                 todo!("Unary minus");
             } else if unary_op_node.op_token().token_type() == TokenType::Not {
                 let label_true = self.label_create();
                 let label_after = self.label_create();
 
                 res_reg = self.res_scratch();
-                writeln!(w, "\tcmp     {}, QWORD 0", self.scratch_name(left));
+                writeln!(w, "\tcmp     {}, QWORD 0", self.scratch_name(left))?;
                 self.free_scratch(left);
-                writeln!(w, "\tje      {}", self.label_name(&label_true));
-                writeln!(w, "\tmov     {}, QWORD 0", self.scratch_name(res_reg));
-                writeln!(w, "\tjmp     {}", self.label_name(&label_after));
-                writeln!(w, "{}:", self.label_name(&label_true));
-                writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg));
-                writeln!(w, "{}:", self.label_name(&label_after));
+                writeln!(w, "\tje      {}", self.label_name(&label_true))?;
+                writeln!(w, "\tmov     {}, QWORD 0", self.scratch_name(res_reg))?;
+                writeln!(w, "\tjmp     {}", self.label_name(&label_after))?;
+                writeln!(w, "{}:", self.label_name(&label_true))?;
+                writeln!(w, "\tmov     {}, QWORD 1", self.scratch_name(res_reg))?;
+                writeln!(w, "{}:", self.label_name(&label_after))?;
             } else if unary_op_node.op_token().token_type() == TokenType::BitNot {
-                writeln!(w, "\tnot     {}", self.scratch_name(res_reg));
+                writeln!(w, "\tnot     {}", self.scratch_name(res_reg))?;
             } else {
                 panic!("Token '{:?}' not supported as an unary operation yet!", unary_op_node.op_token().token_type());
             }
 
-            return Some(res_reg);
+            return Ok(Some(res_reg));
         }
 
         if node.node_type() == NodeType::Call {
             let call_node = node.as_any().downcast_ref::<CallNode>().unwrap();
             let func_label = if self.externs.contains(&call_node.func_to_call().to_string()) { call_node.func_to_call().to_string() } else { self.function_label_name(call_node.func_to_call()) };
 
-            writeln!(w, "\tpush    r10");
-            writeln!(w, "\tpush    r11");
+            writeln!(w, "\tpush    r10")?;
+            writeln!(w, "\tpush    r11")?;
 
             for arg in call_node.arg_nodes().iter().rev() {
-                let reg = self.code_gen(arg, w).unwrap();
-                writeln!(w, "\tpush    {}", self.scratch_name(reg));
+                let reg = self.code_gen(arg, w)?.unwrap();
+                writeln!(w, "\tpush    {}", self.scratch_name(reg))?;
                 self.free_scratch(reg);
             }
 
             for i in 0..call_node.arg_nodes().len() {
                 if i >= QW_NUMBER_ARG_REGS.len() { break };
-                writeln!(w, "\tpop     {}", QW_NUMBER_ARG_REGS[i]);
+                writeln!(w, "\tpop     {}", QW_NUMBER_ARG_REGS[i])?;
             }
 
-            writeln!(w, "\tcall    {}", func_label);
+            writeln!(w, "\tcall    {}", func_label)?;
 
             if call_node.arg_nodes().len() > QW_NUMBER_ARG_REGS.len() {
-                writeln!(w, "\tadd     rsp, {}", (call_node.arg_nodes().len() - QW_NUMBER_ARG_REGS.len()) * 8);
+                writeln!(w, "\tadd     rsp, {}", (call_node.arg_nodes().len() - QW_NUMBER_ARG_REGS.len()) * 8)?;
             }
 
-            writeln!(w, "\tpop     r11");
-            writeln!(w, "\tpop     r10");
+            writeln!(w, "\tpop     r11")?;
+            writeln!(w, "\tpop     r10")?;
 
             let reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, rax", self.scratch_name(reg));
+            writeln!(w, "\tmov     {}, rax", self.scratch_name(reg))?;
 
-            return Some(reg);
+            return Ok(Some(reg));
         }
 
         if node.node_type() == NodeType::FunctionDef {
@@ -542,10 +537,10 @@ impl Compiler {
 
             self.clear_vars();
 
-            writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()));
+            writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()))?;
 
-            writeln!(w, "\tpush    rbp");
-            writeln!(w, "\tmov     rbp, rsp");
+            writeln!(w, "\tpush    rbp")?;
+            writeln!(w, "\tmov     rbp, rsp")?;
 
             let mut function_body = String::new();
 
@@ -557,45 +552,45 @@ impl Compiler {
                 if i >= QW_NUMBER_ARG_REGS.len() {
                     let reg = self.res_scratch();
 
-                    let mut non_reg_index = i - QW_NUMBER_ARG_REGS.len() + 1;
+                    let non_reg_index = i - QW_NUMBER_ARG_REGS.len() + 1;
 
-                    writeln!(&mut function_body, "\tmov     {}, QWORD [rbp + {}]", self.scratch_name(reg), (non_reg_index * 8) + 8);
-                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.scratch_name_lower_sized(reg, &arg_type.get_size()));
+                    writeln!(&mut function_body, "\tmov     {}, QWORD [rbp + {}]", self.scratch_name(reg), (non_reg_index * 8) + 8)?;
+                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.scratch_name_lower_sized(reg, &arg_type.get_size()))?;
                     self.free_scratch(reg);
                 } else {
-                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.number_arg_reg_name(i as u8, &arg_type.get_size()));
+                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.number_arg_reg_name(i as u8, &arg_type.get_size()))?;
                 }
             }
 
             self.current_function_epilogue = Some(func_epilogue_label);
 
-            self.code_gen(func_def_node.body_node(), &mut function_body);
+            self.code_gen(func_def_node.body_node(), &mut function_body)?;
 
             if self.base_offset > 0 {
-                writeln!(w, "\tsub     rsp, {}", self.base_offset);
+                writeln!(w, "\tsub     rsp, {}", self.base_offset)?;
             }
 
-            writeln!(w, "\tpush    rbx");
-            writeln!(w, "\tpush    r12");
-            writeln!(w, "\tpush    r13");
-            writeln!(w, "\tpush    r14");
-            writeln!(w, "\tpush    r15");
+            writeln!(w, "\tpush    rbx")?;
+            writeln!(w, "\tpush    r12")?;
+            writeln!(w, "\tpush    r13")?;
+            writeln!(w, "\tpush    r14")?;
+            writeln!(w, "\tpush    r15")?;
 
-            writeln!(w, "{}", function_body);
+            writeln!(w, "{}", function_body)?;
 
-            writeln!(w, "{}:", self.label_name(&func_epilogue_label));
+            writeln!(w, "{}:", self.label_name(&func_epilogue_label))?;
 
-            writeln!(w, "\tpop     r15");
-            writeln!(w, "\tpop     r14");
-            writeln!(w, "\tpop     r13");
-            writeln!(w, "\tpop     r12");
-            writeln!(w, "\tpop     rbx");
+            writeln!(w, "\tpop     r15")?;
+            writeln!(w, "\tpop     r14")?;
+            writeln!(w, "\tpop     r13")?;
+            writeln!(w, "\tpop     r12")?;
+            writeln!(w, "\tpop     rbx")?;
 
-            writeln!(w, "\tmov     rsp, rbp");
-            writeln!(w, "\tpop     rbp");
-            writeln!(w, "\tret\n");
+            writeln!(w, "\tmov     rsp, rbp")?;
+            writeln!(w, "\tpop     rbp")?;
+            writeln!(w, "\tret\n")?;
 
-            return None
+            return Ok(None)
         }
 
         if node.node_type() == NodeType::Return {
@@ -603,73 +598,75 @@ impl Compiler {
 
             let reg: u8;
             if return_node.node_to_return().is_some() {
-                reg = self.code_gen(return_node.node_to_return().as_ref().unwrap(), w).unwrap();
+                reg = self.code_gen(return_node.node_to_return().as_ref().unwrap(), w)?.unwrap();
             } else {
                 reg = self.res_scratch();
-                writeln!(w, "\tmov     {}, 0", self.scratch_name(reg));
+                writeln!(w, "\tmov     {}, 0", self.scratch_name(reg))?;
             }
 
-            writeln!(w, "\tmov     rax, {}", self.scratch_name(reg));
+            writeln!(w, "\tmov     rax, {}", self.scratch_name(reg))?;
             self.free_scratch(reg);
 
-            writeln!(w, "\tjmp     {}", self.label_name(self.current_function_epilogue.as_ref().unwrap()));
+            writeln!(w, "\tjmp     {}", self.label_name(self.current_function_epilogue.as_ref().unwrap()))?;
 
-            return None;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::Break {
-            writeln!(w, "\tjmp     {}", self.label_name(self.current_loop_break.as_ref().unwrap()));
-            return None;
+            writeln!(w, "\tjmp     {}", self.label_name(self.current_loop_break.as_ref().unwrap()))?;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::Continue {
-            writeln!(w, "\tjmp     {}", self.label_name(self.current_loop_start.as_ref().unwrap()));
-            return None;
+            writeln!(w, "\tjmp     {}", self.label_name(self.current_loop_start.as_ref().unwrap()))?;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::VarDeclaration {
             let var_declaration_node = node.as_any().downcast_ref::<VarDeclarationNode>().unwrap();
 
-            let result_reg = self.code_gen(var_declaration_node.value_node(), w).unwrap();
+            let result_reg = self.code_gen(var_declaration_node.value_node(), w)?.unwrap();
 
             self.register_var(var_declaration_node.var_name().to_string(), var_declaration_node.var_type().get_size());
 
-            writeln!(w, "\tmov     {} [rbp - ({})], {}", var_declaration_node.var_type().get_size(), self.base_offset, self.scratch_name_lower_sized(result_reg, &var_declaration_node.var_type().get_size()));
+            writeln!(w, "\tmov     {} [rbp - ({})], {}", var_declaration_node.var_type().get_size(), self.base_offset, self.scratch_name_lower_sized(result_reg, &var_declaration_node.var_type().get_size()))?;
 
-            return Some(result_reg);
+            return Ok(Some(result_reg));
         }
 
         if node.node_type() == NodeType::VarTypedAssign {
             let var_assign_node = node.as_any().downcast_ref::<VarTypedAssignNode>().unwrap();
 
-            let reg = self.code_gen(var_assign_node.value_node(), w).unwrap();
+            let reg = self.code_gen(var_assign_node.value_node(), w)?.unwrap();
 
             if self.is_static(var_assign_node.var_name()) {
-                writeln!(w, "\tmov     [{}], {}", self.get_static_name(var_assign_node.var_name()), self.scratch_name(reg));
-                return Some(reg);
+                writeln!(w, "\tmov     [{}], {}", self.get_static_name(var_assign_node.var_name()), self.scratch_name(reg))?;
+                return Ok(Some(reg));
             }
 
             let (var_offset, _) = self.get_var(var_assign_node.var_name());
 
-            writeln!(w, "\tmov     {} [rbp - ({})], {}", var_assign_node.value_type().get_size(), var_offset, self.scratch_name_lower_sized(reg, &var_assign_node.value_type().get_size()));
+            writeln!(w, "\tmov     {} [rbp - ({})], {}", var_assign_node.value_type().get_size(), var_offset, self.scratch_name_lower_sized(reg, &var_assign_node.value_type().get_size()))?;
 
-            return Some(reg);
+            return Ok(Some(reg));
         }
 
         if node.node_type() == NodeType::VarTypedAccess {
             let var_access_node = node.as_any().downcast_ref::<VarTypedAccessNode>().unwrap();
 
             if self.is_constant(var_access_node.var_name()) {
-                todo!("Constants!");
-                let reg = self.res_scratch();
-                writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), self.get_constant(var_access_node.var_name()));
-                return Some(reg);
+                todo!("constants are not implemented yet");
+                #[allow(unreachable_code)] {
+                    let reg = self.res_scratch();
+                    writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), self.get_constant(var_access_node.var_name()))?;
+                    return Ok(Some(reg));
+                }
             }
 
             if self.is_static(var_access_node.var_name()) {
                 let reg = self.res_scratch();
-                writeln!(w, "\tmov     {}, [{}]", self.scratch_name(reg), self.get_static_name(var_access_node.var_name()));
-                return Some(reg);
+                writeln!(w, "\tmov     {}, [{}]", self.scratch_name(reg), self.get_static_name(var_access_node.var_name()))?;
+                return Ok(Some(reg));
             }
 
             let (var_offset, _) = self.get_var(var_access_node.var_name());
@@ -678,12 +675,12 @@ impl Compiler {
             let var_size = var_access_node.value_type().get_size();
 
             if var_size != ValueSize::Qword {
-                writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg));
+                writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg))?;
             }
 
-            writeln!(w, "\tmov     {}, {} [rbp - ({})]", self.scratch_name_lower_sized(reg, &var_size), var_size, var_offset);
+            writeln!(w, "\tmov     {}, {} [rbp - ({})]", self.scratch_name_lower_sized(reg, &var_size), var_size, var_offset)?;
 
-            return Some(reg);
+            return Ok(Some(reg));
         }
 
         if node.node_type() == NodeType::While {
@@ -698,22 +695,22 @@ impl Compiler {
             self.current_loop_start = Some(label_start);
             self.current_loop_break = Some(label_end);
 
-            writeln!(w, "{}:", self.label_name(&label_start));
+            writeln!(w, "{}:", self.label_name(&label_start))?;
 
-            let condition_reg = self.code_gen(while_node.condition_node(), w).unwrap();
-            writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg));
+            let condition_reg = self.code_gen(while_node.condition_node(), w)?.unwrap();
+            writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg))?;
             self.free_scratch(condition_reg);
-            writeln!(w, "\tje      {}", self.label_name(&label_end));
+            writeln!(w, "\tje      {}", self.label_name(&label_end))?;
 
-            self.code_gen(while_node.body_node(), w);
-            writeln!(w, "\tjmp     {}", self.label_name(&label_start));
+            self.code_gen(while_node.body_node(), w)?;
+            writeln!(w, "\tjmp     {}", self.label_name(&label_start))?;
 
-            writeln!(w, "{}:", self.label_name(&label_end));
+            writeln!(w, "{}:", self.label_name(&label_end))?;
 
             self.current_loop_start = prev_loop_start;
             self.current_loop_break = prev_loop_break;
 
-            return None;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::For {
@@ -729,35 +726,35 @@ impl Compiler {
             self.current_loop_start = Some(label_next);
             self.current_loop_break = Some(label_end);
 
-            let init_reg = self.code_gen(for_node.init_stmt(), w);
+            let init_reg = self.code_gen(for_node.init_stmt(), w)?;
             if let Some(init_reg) = init_reg {
                 self.free_scratch(init_reg);
             }
 
-            writeln!(w, "{}:", self.label_name(&label_start));
-            let condition_reg = self.code_gen(for_node.condition(), w).unwrap();
-            writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg));
+            writeln!(w, "{}:", self.label_name(&label_start))?;
+            let condition_reg = self.code_gen(for_node.condition(), w)?.unwrap();
+            writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg))?;
             self.free_scratch(condition_reg);
-            writeln!(w, "\tje      {}", self.label_name(&label_end));
+            writeln!(w, "\tje      {}", self.label_name(&label_end))?;
 
-            let body_reg = self.code_gen(for_node.body(), w);
+            let body_reg = self.code_gen(for_node.body(), w)?;
             if let Some(body_reg) = body_reg {
                 self.free_scratch(body_reg);
             }
 
-            writeln!(w, "{}:", self.label_name(&label_next));
-            let next_reg = self.code_gen(for_node.next_expr(), w);
+            writeln!(w, "{}:", self.label_name(&label_next))?;
+            let next_reg = self.code_gen(for_node.next_expr(), w)?;
             if let Some(next_reg) = next_reg {
                 self.free_scratch(next_reg);
             }
 
-            writeln!(w, "\tjmp     {}", self.label_name(&label_start));
-            writeln!(w, "{}:", self.label_name(&label_end));
+            writeln!(w, "\tjmp     {}", self.label_name(&label_start))?;
+            writeln!(w, "{}:", self.label_name(&label_end))?;
 
             self.current_loop_start = prev_loop_start;
             self.current_loop_break = prev_loop_break;
 
-            return None;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::If {
@@ -776,54 +773,54 @@ impl Compiler {
             for i in 0..if_node.cases().len() {
                 let case = &if_node.cases()[i];
 
-                writeln!(w, "{}:", self.label_name(&case_labels[i]));
-                let condition_reg = self.code_gen(case.condition(), w).unwrap();
-                writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg));
+                writeln!(w, "{}:", self.label_name(&case_labels[i]))?;
+                let condition_reg = self.code_gen(case.condition(), w)?.unwrap();
+                writeln!(w, "\tcmp     {}, 0", self.scratch_name(condition_reg))?;
                 self.free_scratch(condition_reg);
 
-                writeln!(w, "\tje      {}", if i == if_node.cases().len() - 1 { self.label_name(&label_else) } else { self.label_name(&case_labels[i + 1]) });
-                self.code_gen(case.statements(), w);
-                writeln!(w, "\tjmp     {}", self.label_name(&label_end));
+                writeln!(w, "\tje      {}", if i == if_node.cases().len() - 1 { self.label_name(&label_else) } else { self.label_name(&case_labels[i + 1]) })?;
+                self.code_gen(case.statements(), w)?;
+                writeln!(w, "\tjmp     {}", self.label_name(&label_end))?;
             }
 
-            writeln!(w, "{}:", self.label_name(&label_else));
+            writeln!(w, "{}:", self.label_name(&label_else))?;
             if if_node.else_case().is_some() {
-                self.code_gen(if_node.else_case().as_ref().unwrap().statements(), w);
+                self.code_gen(if_node.else_case().as_ref().unwrap().statements(), w)?;
             }
 
-            writeln!(w, "{}:", self.label_name(&label_end));
+            writeln!(w, "{}:", self.label_name(&label_end))?;
 
-            return None;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::Cast {
             let cast_node = node.as_any().downcast_ref::<CastNode>().unwrap();
-            let from_reg = self.code_gen(cast_node.node(), w).unwrap();
+            let from_reg = self.code_gen(cast_node.node(), w)?.unwrap();
             let res_reg = self.res_scratch();
 
             if cast_node.cast_type().get_size() != ValueSize::Qword {
-                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg));
+                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg))?;
             }
 
-            writeln!(w, "\tmov     {}, {}", self.scratch_name_lower_sized(res_reg, &cast_node.cast_type().get_size()), self.scratch_name_lower_sized(from_reg, &cast_node.cast_type().get_size()));
+            writeln!(w, "\tmov     {}, {}", self.scratch_name_lower_sized(res_reg, &cast_node.cast_type().get_size()), self.scratch_name_lower_sized(from_reg, &cast_node.cast_type().get_size()))?;
             self.free_scratch(from_reg);
 
-            return Some(res_reg);
+            return Ok(Some(res_reg));
         }
 
         if node.node_type() == NodeType::ConstDef {
             let const_def_node = node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap();
             self.create_constant_label(const_def_node.name().to_string());
-            return None;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::SizeOf {
             let size_of_node = node.as_any().downcast_ref::<SizeOfNode>().unwrap();
 
             let res_reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, {}", self.scratch_name(res_reg), size_of_node.value_type().get_size().get_size_in_bytes());
+            writeln!(w, "\tmov     {}, {}", self.scratch_name(res_reg), size_of_node.value_type().get_size().get_size_in_bytes())?;
 
-            return Some(res_reg);
+            return Ok(Some(res_reg));
         }
 
         if node.node_type() == NodeType::StaticDef {
@@ -831,60 +828,60 @@ impl Compiler {
 
             self.add_static(static_def_node.name().to_string(), static_def_node.value_type().get_size());
 
-            return None;
+            return Ok(None);
         }
 
         if node.node_type() == NodeType::ReadBytes {
             let read_bytes_node = node.as_any().downcast_ref::<ReadBytesNode>().unwrap();
 
-            let from_reg = self.code_gen(read_bytes_node.node(), w).unwrap();
+            let from_reg = self.code_gen(read_bytes_node.node(), w)?.unwrap();
 
             let res_reg = self.res_scratch();
 
             if *read_bytes_node.bytes() != ValueSize::Qword {
-                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg));
+                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg))?;
             }
-            writeln!(w, "\tmov     {}, {} [{}]", self.scratch_name_lower_sized(res_reg, read_bytes_node.bytes()), read_bytes_node.bytes(), self.scratch_name(from_reg));
+            writeln!(w, "\tmov     {}, {} [{}]", self.scratch_name_lower_sized(res_reg, read_bytes_node.bytes()), read_bytes_node.bytes(), self.scratch_name(from_reg))?;
 
             self.free_scratch(from_reg);
 
-            return Some(res_reg);
+            return Ok(Some(res_reg));
         }
 
         if node.node_type() == NodeType::PointerAssign {
             let pointer_assign_node = node.as_any().downcast_ref::<PointerAssignNode>().unwrap();
-            let left_reg = self.code_gen(pointer_assign_node.ptr(), w).unwrap();
-            let right_reg = self.code_gen(pointer_assign_node.value(), w).unwrap();
+            let left_reg = self.code_gen(pointer_assign_node.ptr(), w)?.unwrap();
+            let right_reg = self.code_gen(pointer_assign_node.value(), w)?.unwrap();
 
             if pointer_assign_node.pointee_type().get_size() == ValueSize::Qword {
-                writeln!(w, "\tmov     [{}], {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+                writeln!(w, "\tmov     [{}], {}", self.scratch_name(left_reg), self.scratch_name(right_reg))?;
             } else {
-                writeln!(w, "\tmov     {} [{}], {}", pointer_assign_node.pointee_type().get_size(), self.scratch_name(left_reg), self.scratch_name_lower_sized(right_reg, &pointer_assign_node.pointee_type().get_size()));
+                writeln!(w, "\tmov     {} [{}], {}", pointer_assign_node.pointee_type().get_size(), self.scratch_name(left_reg), self.scratch_name_lower_sized(right_reg, &pointer_assign_node.pointee_type().get_size()))?;
             }
 
             self.free_scratch(left_reg);
-            return Some(right_reg);
+            return Ok(Some(right_reg));
         }
 
         if node.node_type() == NodeType::Offset {
             let offset_node = node.as_any().downcast_ref::<OffsetNode>().unwrap();
-            let left_reg = self.code_gen(offset_node.node(), w).unwrap();
-            let right_reg = self.code_gen(offset_node.offset_node(), w).unwrap();
+            let left_reg = self.code_gen(offset_node.node(), w)?.unwrap();
+            let right_reg = self.code_gen(offset_node.offset_node(), w)?.unwrap();
             // let res_reg = self.res_scratch();
 
-            writeln!(w, "\tpush    rax");
-            writeln!(w, "\tpush    rdx");
+            writeln!(w, "\tpush    rax")?;
+            writeln!(w, "\tpush    rdx")?;
 
-            writeln!(w, "\tmov     rax, {}", self.scratch_name(right_reg));
-            writeln!(w, "\tmov     {}, {}", self.scratch_name(right_reg), offset_node.pointee_type().get_size().get_size_in_bytes());
-            writeln!(w, "\timul    {}", self.scratch_name(right_reg));
+            writeln!(w, "\tmov     rax, {}", self.scratch_name(right_reg))?;
+            writeln!(w, "\tmov     {}, {}", self.scratch_name(right_reg), offset_node.pointee_type().get_size().get_size_in_bytes())?;
+            writeln!(w, "\timul    {}", self.scratch_name(right_reg))?;
 
-            writeln!(w, "\tmov     {}, rax", self.scratch_name(right_reg));
+            writeln!(w, "\tmov     {}, rax", self.scratch_name(right_reg))?;
 
-            writeln!(w, "\tpop     rdx");
-            writeln!(w, "\tpop     rax");
+            writeln!(w, "\tpop     rdx")?;
+            writeln!(w, "\tpop     rax")?;
 
-            writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg));
+            writeln!(w, "\tadd     {}, {}", self.scratch_name(left_reg), self.scratch_name(right_reg))?;
 
 
             /*if offset_node.pointee_type().get_size() != ValueSize::QWORD {
@@ -896,60 +893,60 @@ impl Compiler {
             // self.free_scratch(left_reg);
             self.free_scratch(right_reg);
 
-            return Some(left_reg);
+            return Ok(Some(left_reg));
         }
 
         if node.node_type() == NodeType::Import {
             let import_node = node.as_any().downcast_ref::<ImportNode>().unwrap();
-            self.code_gen(import_node.node(), w);
-            return None;
+            self.code_gen(import_node.node(), w)?;
+            return Ok(None);
         }
 
-        None
+        Ok(None)
     }
 
-    pub fn compile_to_str(&mut self, node: &Box<dyn Node>) -> String {
+    pub fn compile_to_str(&mut self, node: &Box<dyn Node>) -> Result<String, fmt::Error> {
         let mut res = String::new();
 
         let mut code = String::new();
 
-        writeln!(code, "{}:", ENTRY_SYMBOL);
-        writeln!(code, "\tpop     rdi");
-        writeln!(code, "\tpop     rsi");
+        writeln!(code, "{}:", ENTRY_SYMBOL)?;
+        writeln!(code, "\tpop     rdi")?;
+        writeln!(code, "\tpop     rsi")?;
 
-        writeln!(code, "\tcall    {}", self.function_label_name("main"));
+        writeln!(code, "\tcall    {}", self.function_label_name("main"))?;
 
-        writeln!(code, "\tmov     rdi, rax");
-        writeln!(code, "\tmov     rax, 60");
-        writeln!(code, "\tsyscall");
-        writeln!(code, "\tret\n");
+        writeln!(code, "\tmov     rdi, rax")?;
+        writeln!(code, "\tmov     rax, 60")?;
+        writeln!(code, "\tsyscall")?;
+        writeln!(code, "\tret\n")?;
 
-        self.code_gen(node, &mut code);
+        self.code_gen(node, &mut code)?;
 
-        writeln!(res, "global  {}\n", ENTRY_SYMBOL);
+        writeln!(res, "global  {}\n", ENTRY_SYMBOL)?;
 
-        writeln!(res, "section .text");
+        writeln!(res, "section .text")?;
 
         if self.externs.len() > 0 {
-            writeln!(res, "\textern {}", self.externs.join(","));
+            writeln!(res, "\textern {}", self.externs.join(","))?;
         }
 
-        writeln!(res, "\n{}\n", code);
+        writeln!(res, "\n{}\n", code)?;
 
-        writeln!(res, "section .data");
+        writeln!(res, "section .data")?;
 
-        writeln!(res, "\t;; Static strings");
+        writeln!(res, "\t;; Static strings")?;
         for (str, uuid) in &self.strings {
-            writeln!(res, "\t{}  DB `{}`, 0", uuid, str);
+            writeln!(res, "\t{}  DB `{}`, 0", uuid, str)?;
         }
 
-        writeln!(res, "section .bss");
-        writeln!(res, "\t;; Other statics");
+        writeln!(res, "section .bss")?;
+        writeln!(res, "\t;; Other statics")?;
         for (name, size) in &self.statics {
-            writeln!(res, "\t{}  RESB {}", self.get_static_name(name), size.get_size_in_bytes());
+            writeln!(res, "\t{}  RESB {}", self.get_static_name(name), size.get_size_in_bytes())?;
         }
 
-        res
+        Ok(res)
     }
 }
 

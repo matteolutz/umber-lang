@@ -2,7 +2,6 @@ use std::fmt::{Debug, Display, Formatter};
 use colored::Colorize;
 
 use crate::position::Position;
-use crate::utils;
 
 #[derive(Clone)]
 pub struct Error {

@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
 
-use crate::token::OldToken;
+use crate::token::Token;
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
@@ -51,11 +51,11 @@ impl ValueType for FunctionType {
         self.value_type() == other.value_type()
     }
 
-    fn is_valid_bin_op(&self, _op: &OldToken, _t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
+    fn is_valid_bin_op(&self, _op: &Token, _t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
         None
     }
 
-    fn is_valid_unary_op(&self, _op: &OldToken) -> Option<Box<dyn ValueType>> {
+    fn is_valid_unary_op(&self, _op: &Token) -> Option<Box<dyn ValueType>> {
         None
     }
 

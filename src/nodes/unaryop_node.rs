@@ -3,23 +3,23 @@ use std::fmt::{Display, Formatter};
 
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
-use crate::token::OldToken;
+use crate::token::Token;
 
 #[derive(Clone)]
 pub struct UnaryOpNode {
-    op_token: OldToken,
+    op_token: Token,
     node: Box<dyn Node>,
 }
 
 impl UnaryOpNode {
-    pub fn new(op_token: OldToken, node: Box<dyn Node>) -> Self {
+    pub fn new(op_token: Token, node: Box<dyn Node>) -> Self {
         UnaryOpNode {
             op_token,
             node,
         }
     }
 
-    pub fn op_token(&self) -> &OldToken {
+    pub fn op_token(&self) -> &Token {
         &self.op_token
     }
     pub fn node(&self) -> &Box<dyn Node> {

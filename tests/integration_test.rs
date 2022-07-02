@@ -4,13 +4,9 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use umber_lang;
-use umber_lang::compiler::Compiler;
+use umber_lang::error;
 use umber_lang::error::Error;
-use umber_lang::lexer::Lexer;
-use umber_lang::nodes::{Node, NodeType};
-use umber_lang::nodes::unaryop_node::UnaryOpNode;
-use umber_lang::parser::Parser;
-use umber_lang::semantics::Validator;
+use umber_lang::position::Position;
 
 #[test]
 pub fn test_file() -> Result<(), Error> {
@@ -53,10 +49,14 @@ pub fn test_file() -> Result<(), Error> {
     let mut compiler = umber_lang::compiler::Compiler::new();
     let asm = compiler.compile_to_str(ast_root);
 
+    if let Err(fmt_error) = asm {
+        return Err(error::io_error(Position::empty(), Position::empty(), format!("Could not format assembly: {}", fmt_error).as_str()));
+    }
+
     if asm_path.exists() {
         fs::remove_file(&asm_path).expect("Failed to remove file");
     }
-    fs::write(&asm_path, asm).expect("Failed to write file");
+    fs::write(&asm_path, asm.unwrap()).expect("Failed to write file");
 
     println!("Done! Took: {:.2}s", now.elapsed().as_secs_f64());
 

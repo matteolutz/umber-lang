@@ -1,10 +1,8 @@
-use std::env;
 use std::fs;
-use std::fs::remove_file;
 use std::path::{Path, PathBuf};
 use std::process::{Command, exit};
 use std::collections::HashMap;
-use std::time::{Instant, SystemTime};
+use std::time::Instant;
 use clap::{Parser, Subcommand, Args};
 use umber_lang::error;
 use umber_lang::error::Error;
@@ -88,6 +86,11 @@ fn compile(file: String, include: Option<String>) -> Result<(), Error> {
     print!("Generating assembly...");
     let mut compiler = umber_lang::compiler::Compiler::new();
     let asm = compiler.compile_to_str(ast_root);
+
+    if let Err(fmt_error) = asm {
+        return Err(error::io_error(Position::empty(), Position::empty(), format!("Could not format assembly: {}", fmt_error).as_str()));
+    }
+
     println!("Done");
 
     if !build_output.exists() || !build_output.is_dir() {
@@ -96,8 +99,8 @@ fn compile(file: String, include: Option<String>) -> Result<(), Error> {
         }
     }
 
-    if let Err(fs_error) = fs::write(&asm_path, asm) {
-        return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to write to assembly output file: {}", fs_error).as_str()));
+    if let Err(fs_error) = fs::write(&asm_path, asm.unwrap()) {
+        return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Could not format assembly: {}", fs_error).as_str()));
     }
 
     print!("Compiling assembly...");
@@ -127,8 +130,7 @@ fn main() {
     if let Err(err) = match args.command {
         Subcommands::Com(subcommand) => {
             compile(subcommand.name, subcommand.include)
-        },
-        _ => Ok(())
+        }
     } {
         println!("\n{}", err);
         exit(-1);

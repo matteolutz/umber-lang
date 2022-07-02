@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::fmt::Display;
 
-use crate::token::OldToken;
+use crate::token::Token;
 use crate::values::value_size::ValueSize;
 
 pub mod u64_type;
@@ -43,8 +43,8 @@ pub trait ValueType: ValueTypeAsAny + Display {
     fn value_type(&self) -> ValueTypes;
     fn eq(&self, other: &Box<dyn ValueType>) -> bool;
 
-    fn is_valid_bin_op(&self, op: &OldToken, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>>;
-    fn is_valid_unary_op(&self, op: &OldToken) -> Option<Box<dyn ValueType>>;
+    fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>>;
+    fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>>;
     fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool;
 
     fn box_clone(&self) -> Box<dyn ValueType>;

@@ -1,10 +1,8 @@
-use std::collections::HashMap;
 use crate::error;
 use crate::error::Error;
 use crate::nodes::Node;
 use crate::position::Position;
 use crate::values::value_type::{ValueType, ValueTypes};
-use crate::values::value_type::struct_type::StructType;
 
 pub struct ValidationResult {
     error: Option<Error>,

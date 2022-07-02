@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::fs;
 use std::path::{Path, PathBuf};
 use same_file::is_same_file;
@@ -44,7 +43,7 @@ use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::while_node::WhileNode;
 use crate::results::parse::ParseResult;
-use crate::token::{OldToken, TOKEN_FLAGS_IS_ASSIGN, TokenType};
+use crate::token::{Token, TOKEN_FLAGS_IS_ASSIGN, TokenType};
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
@@ -103,7 +102,7 @@ enum BinOpFunction {
 }
 
 pub struct Parser<'a> {
-    tokens: Vec<OldToken>,
+    tokens: Vec<Token>,
     token_index: usize,
     macros: &'a mut HashMap<String, Box<dyn Node>>,
     already_included: &'a mut Vec<PathBuf>,
@@ -111,7 +110,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: Vec<OldToken>, include_paths: &'a Vec<String>, macros: &'a mut HashMap<String, Box<dyn Node>>, already_included: &'a mut Vec<PathBuf>) -> Self {
+    pub fn new(tokens: Vec<Token>, include_paths: &'a Vec<String>, macros: &'a mut HashMap<String, Box<dyn Node>>, already_included: &'a mut Vec<PathBuf>) -> Self {
         if tokens.is_empty() {
             panic!("No tokens were provided!");
         }
@@ -133,7 +132,7 @@ impl<'a> Parser<'a> {
         &self.already_included
     }
 
-    fn current_token(&self) -> &OldToken { return &self.tokens[self.token_index]; }
+    fn current_token(&self) -> &Token { return &self.tokens[self.token_index]; }
 
     fn advance(&mut self) -> () {
         self.token_index += 1;
@@ -1143,7 +1142,7 @@ impl<'a> Parser<'a> {
 
                 expect_token!(self, res, TokenType::Rsquare, "]");
 
-                atom = Some(Box::new(BinOpNode::new(atom.unwrap(), OldToken::new_without_value(TokenType::Offset, s_pos_start, self.current_token().pos_end().clone()), expr.unwrap())));
+                atom = Some(Box::new(BinOpNode::new(atom.unwrap(), Token::new_without_value(TokenType::Offset, s_pos_start, self.current_token().pos_end().clone()), expr.unwrap())));
             } else if token.token_type() == TokenType::Dot {
                 expect_token!(self, res, TokenType::Identifier, "accessor");
                 expect_token_value!(self, res);
@@ -1175,7 +1174,7 @@ impl<'a> Parser<'a> {
         let mut res = ParseResult::new();
         let token = self.current_token().clone();
 
-        let mut node: Box<dyn Node>;
+        let node: Box<dyn Node>;
 
         if token.token_type() == TokenType::U64 {
             advance!(self, res);

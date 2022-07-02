@@ -1,9 +1,6 @@
 use std::any::Any;
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use crate::nodes::{Node, NodeToAny, NodeType};
-use crate::position::Position;
-use crate::token::OldToken;
+use crate::token::Token;
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
@@ -46,15 +43,15 @@ impl ValueType for StructType {
         self.value_type() == other.value_type()
     }
 
-    fn is_valid_bin_op(&self, op: &OldToken, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
+    fn is_valid_bin_op(&self, _: &Token, _: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
         None
     }
 
-    fn is_valid_unary_op(&self, op: &OldToken) -> Option<Box<dyn ValueType>> {
+    fn is_valid_unary_op(&self, _: &Token) -> Option<Box<dyn ValueType>> {
         None
     }
 
-    fn is_valid_cast(&self, t: &Box<dyn ValueType>) -> bool {
+    fn is_valid_cast(&self, _: &Box<dyn ValueType>) -> bool {
         false
     }
 

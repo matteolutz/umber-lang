@@ -3,17 +3,17 @@ use std::fmt::{Display, Formatter};
 
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
-use crate::token::OldToken;
+use crate::token::Token;
 
 #[derive(Clone)]
 pub struct BinOpNode {
     left_node: Box<dyn Node>,
-    op_token: OldToken,
+    op_token: Token,
     right_node: Box<dyn Node>,
 }
 
 impl BinOpNode {
-    pub fn new(left_node: Box<dyn Node>, op_token: OldToken, right_node: Box<dyn Node>) -> Self {
+    pub fn new(left_node: Box<dyn Node>, op_token: Token, right_node: Box<dyn Node>) -> Self {
         BinOpNode {
             right_node,
             op_token,
@@ -24,7 +24,7 @@ impl BinOpNode {
     pub fn left_node(&self) -> &Box<dyn Node> {
         &self.left_node
     }
-    pub fn op_token(&self) -> &OldToken {
+    pub fn op_token(&self) -> &Token {
         &self.op_token
     }
     pub fn right_node(&self) -> &Box<dyn Node> {

@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
 
-use crate::token::{OldToken, TokenType};
+use crate::token::{Token, TokenType};
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
@@ -37,7 +37,7 @@ impl ValueType for BoolType {
         self.value_type() == other.value_type()
     }
 
-    fn is_valid_bin_op(&self, op: &OldToken, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
+    fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
         if t.value_type() != ValueTypes::Bool {
             return None;
         }
@@ -49,7 +49,7 @@ impl ValueType for BoolType {
         }
     }
 
-    fn is_valid_unary_op(&self, op: &OldToken) -> Option<Box<dyn ValueType>> {
+    fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
         if op.token_type() == TokenType::Not {
             return Some(Box::new(BoolType::new()));
         }

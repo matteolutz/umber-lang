@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io::Read;
 use std::ops::IndexMut;
 
 use crate::error;
@@ -23,7 +22,6 @@ use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::list_node::ListNode;
 use crate::nodes::macro_def_node::MacroDefNode;
-use crate::nodes::NodeType::{BinOp, Syscall, VarTypedAssign};
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
@@ -45,20 +43,15 @@ use crate::nodes::while_node::WhileNode;
 use crate::position::Position;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
-use crate::token::{OldToken, TokenType};
-use crate::token::TokenType::U64;
-use crate::values::value_size::ValueSize;
+use crate::token::{Token, TokenType};
 use crate::values::value_type::{ValueType, ValueTypes};
-use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
-use crate::values::value_type::extern_type::ExternType;
 use crate::values::value_type::function_type::FunctionType;
 use crate::values::value_type::ignored_type::IgnoredType;
 use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::struct_type::StructType;
-use crate::values::value_type::ValueTypes::Void;
 use crate::values::value_type::void_type::VoidType;
 
 #[derive(PartialEq, Debug)]
@@ -250,7 +243,7 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         for el in node.element_nodes() {
-            let (t, elem_node) = res.register_res(self.validate(el));
+            let (t, _) = res.register_res(self.validate(el));
 
             if res.has_error() {
                 return res;
@@ -779,7 +772,7 @@ impl Validator {
             }
         }
 
-        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(OldToken::new_with_value(TokenType::U64, size.to_string(), node.pos_start().clone(), node.pos_end().clone()), Box::new(U64Type::new()))));
+        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, size.to_string(), node.pos_start().clone(), node.pos_end().clone()), Box::new(U64Type::new()))));
         res
     }
 
@@ -929,8 +922,8 @@ impl Validator {
 
         res.success(Box::new(PointerType::new(f_field_type.unwrap().clone(), *pointer_type.is_mutable())), Box::new(BinOpNode::new(
             value_node.unwrap(),
-            OldToken::new_without_value(TokenType::Plus, Position::empty(), Position::empty()),
-            Box::new(NumberNode::new(OldToken::new_with_value(TokenType::U64, offset.to_string(), Position::empty(), Position::empty()), Box::new(U64Type::new()))))));
+            Token::new_without_value(TokenType::Plus, Position::empty(), Position::empty()),
+            Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, offset.to_string(), Position::empty(), Position::empty()), Box::new(U64Type::new()))))));
         res
     }
 
