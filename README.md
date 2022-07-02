@@ -8,7 +8,7 @@
 <i>Spoken</i>: [ˈʌmbəʳ]
 </h5>
 <p align="center">
-    A Rust compiled language by <a href="https://matteolutz.de">Matteo Lutz</a>
+    A compiled language by <a href="https://matteolutz.de">Matteo Lutz</a> implemented in Rust
 </p>
 </p>
 
