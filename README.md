@@ -1,16 +1,15 @@
 <p align="center">
 <a href="https://github.com/matteolutz/umber-lang"><img height="100" src="./assets/img/logo.png"></a>
-
+    
 <h1 align="center">
     Umber
 </h1>
 <h5 align="center">
-<i>Spoken</i>: [ˈæmbəʳ]
+<i>Spoken</i>: [ˈʌmbəʳ]
 </h5>
 <p align="center">
     A Rust compiled language by <a href="https://matteolutz.de">Matteo Lutz</a>
 </p>
-
 </p>
 
 <br />
