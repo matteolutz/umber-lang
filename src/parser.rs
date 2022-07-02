@@ -143,34 +143,19 @@ impl<'a> Parser<'a> {
         self.token_index -= amount;
     }
 
-    pub fn parse(&mut self) -> (Option<Box<dyn Node>>, Option<Error>) {
+    pub fn parse(&mut self) -> Result<Box<dyn Node>, Error> {
         let mut res = ParseResult::new();
 
         let stmts = res.register_res(self.statements(true));
         if res.has_error() {
-            return (None, res.error().clone());
+            return Err(res.error().as_ref().unwrap().clone());
         }
 
         if self.current_token().token_type() != TokenType::Eof {
-            return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected end of file!")));
+            return Err(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected end of file!"));
         }
 
-        return (stmts, None);
-    }
-
-    pub fn parse_macro(&mut self) -> (Option<Box<dyn Node>>, Option<Error>) {
-        let mut res = ParseResult::new();
-
-        let expr = res.register_res(self.expression());
-        if res.has_error() {
-            return (None, res.error().clone());
-        }
-
-        if !res.has_error() {
-            return (None, Some(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected statements!")));
-        }
-
-        return (expr, None);
+        return Ok(stmts.unwrap());
     }
 
     // region Helper functions
@@ -683,7 +668,6 @@ impl<'a> Parser<'a> {
             }
 
             if self.current_token().matches_keyword("import") {
-                println!("importing...");
                 let pos_start = self.current_token().pos_start().clone();
 
                 advance!(self, res);
@@ -717,37 +701,36 @@ impl<'a> Parser<'a> {
 
                 let file_text_res = fs::read_to_string(module_path.clone());
 
-                if file_text_res.is_err() {
+                if let Err(file_err) = file_text_res {
                     res.failure(error::semantic_error_with_parent(pos_start.clone(), self.current_token().pos_end().clone(), format!("Failed to import module '{}'!", &module_name).as_str(),
-                        error::file_not_found_error(pos_start, self.current_token().pos_end().clone(), format!("File '{}' couldn't be opened!\n\t{}", module_path.to_str().unwrap(), file_text_res.err().unwrap().to_string()).as_str())
+                        error::io_error(pos_start, self.current_token().pos_end().clone(), format!("File '{}' couldn't be opened!\n\t{}", module_path.to_str().unwrap(), file_err.to_string()).as_str())
                     ));
                     return res;
                 }
 
                 let file_text = file_text_res.unwrap();
 
-                println!("lexing...");
                 let mut l = Lexer::new(module_path.clone(), file_text);
-                let (tokens, lexing_error) = l.make_tokens();
+                let lexer_res = l.make_tokens();
 
-                if let Some(lexing_error) = lexing_error {
+                if let Err(lexing_error) = lexer_res {
                     res.failure(error::semantic_error_with_parent(pos_start, self.current_token().pos_end().clone(), format!("Failed to import module '{}'!", &module_name).as_str(), lexing_error));
                     return res;
                 }
+                let tokens = lexer_res.unwrap();
 
-                println!("parsing...");
                 let mut p = Parser::new(tokens, self.include_paths, self.macros, self.already_included);
-                let (root_node, parse_error) = p.parse();
+                let parse_res = p.parse();
 
-                if let Some(parse_error) = parse_error {
+                if let Err(parse_error) = parse_res {
                     res.failure(error::semantic_error_with_parent(pos_start, self.current_token().pos_end().clone(), format!("Failed to import module '{}'!", &module_name).as_str(), parse_error));
                     return res;
                 }
+                let root_node = parse_res.unwrap();
 
                 self.already_included.push(module_path.clone());
 
-                res.success(Box::new(ImportNode::new(root_node.unwrap())));
-                println!("import done!\n\n");
+                res.success(Box::new(ImportNode::new(root_node)));
                 return res;
             }
 

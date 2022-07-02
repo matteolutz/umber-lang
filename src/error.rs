@@ -1,4 +1,5 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
+use colored::Colorize;
 
 use crate::position::Position;
 use crate::utils;
@@ -50,14 +51,19 @@ impl Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:{}: {}: {}\n", self.pos_start.file_name().to_str().unwrap(), self.pos_start.line() + 1, self.pos_start.col() + 1, self.error_name, self.details)?;
+        write!(f, "{}:{}:{}: {}: {}\n", self.pos_start.file_name().to_str().unwrap().purple(), (self.pos_start.line() + 1).to_string().yellow(), (self.pos_start.col() + 1).to_string().green(),  self.error_name.red().bold(), self.details)?;
 
         if let Some(parent) = &self.parent {
-            write!(f, "Caused by: {}", parent)?;
+            write!(f, "{}: {}", "Caused by".cyan().bold(), parent)?;
         }
 
         Ok(())
-        // write!(f, "Error: {}: {}\n{}:{}:{}\n\n{}\n", self.error_name, self.details, self.pos_start.file_name(), self.pos_start.line() + 1, self.pos_start.col() + 1, utils::string_with_arrows(self.pos_start.file_text(), &self.pos_start, &self.pos_end))
+    }
+}
+
+impl Debug for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
@@ -101,12 +107,12 @@ pub fn semantic_error_with_parent(pos_start: Position, pos_end: Position, detail
 }
 // endregion
 
-// region FileNotFound
-pub fn file_not_found_error(pos_start: Position, pos_end: Position, details: &str) -> Error {
-    Error::new(pos_start, pos_end, String::from("FileNotFoundError"), String::from(details))
+// region IOError
+pub fn io_error(pos_start: Position, pos_end: Position, details: &str) -> Error {
+    Error::new(pos_start, pos_end, String::from("IOError"), String::from(details))
 }
 
-pub fn file_not_found_error_with_parent(pos_start: Position, pos_end: Position, details: &str, parent: Error) -> Error {
-    Error::from_parent(pos_start, pos_end, String::from("FileNotFoundError"), String::from(details), parent)
+pub fn io_error_with_parent(pos_start: Position, pos_end: Position, details: &str, parent: Error) -> Error {
+    Error::from_parent(pos_start, pos_end, String::from("IOError"), String::from(details), parent)
 }
 // endregion

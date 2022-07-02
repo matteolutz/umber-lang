@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Position {
     index: usize,
     line: usize,

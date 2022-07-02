@@ -150,6 +150,7 @@ impl Compiler {
     fn function_label_name(&self, function: &str) -> String {
         return format!("F_{}", function);
     }
+
     //endregion
 
     fn create_string_label(&mut self, string: String) -> String {

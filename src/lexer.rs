@@ -35,7 +35,7 @@ impl Lexer {
         }
     }
 
-    pub fn make_tokens(&mut self) -> (Vec<OldToken>, Option<Error>) {
+    pub fn make_tokens(&mut self) -> Result<Vec<OldToken>, Error> {
         let mut tokens: Vec<OldToken> = vec![OldToken::new_without_value(TokenType::Lcurly, self.pos.clone(), self.pos.clone())];
 
         while self.current_char.is_some() {
@@ -53,11 +53,7 @@ impl Lexer {
             } else if current == '"' {
                 tokens.push(self.make_string());
             } else if current == '\'' {
-                let (token, error) = self.make_char();
-                if error.is_some() {
-                    return (vec![], error);
-                }
-                tokens.push(token.unwrap());
+                tokens.push(self.make_char()?);
             } else if current == '+' {
                 tokens.push(self.make_plus());
             } else if current == '-' {
@@ -120,12 +116,12 @@ impl Lexer {
                 }
 
                 if self.current_char.is_none() || !utils::is_digit(self.current_char.as_ref().unwrap()) {
-                    return (vec![], Some(error::illegal_character_error(pos_start, self.pos.clone(), "Expected number after '@'!")));
+                    return Err(error::illegal_character_error(pos_start, self.pos.clone(), "Expected number after '@'!"));
                 }
 
                 let number = self.make_number();
                 if number.token_type() != TokenType::U64 {
-                    return (vec![], Some(error::illegal_character_error(pos_start, self.pos.clone(), "Expected integer number after '@'!")));
+                    return Err(error::illegal_character_error(pos_start, self.pos.clone(), "Expected integer number after '@'!"));
                 }
 
                 tokens.push(OldToken::new_with_value(TokenType::ReadBytes, number.token_value().as_ref().unwrap().clone(), pos_start, self.pos.clone()));
@@ -139,13 +135,13 @@ impl Lexer {
                 let pos_start = self.pos.clone();
                 self.advance();
 
-                return (vec![], Some(error::illegal_character_error(pos_start, self.pos.clone(), format!("'{}'", current).as_str())));
+                return Err(error::illegal_character_error(pos_start, self.pos.clone(), format!("'{}'", current).as_str()));
             }
         }
 
         tokens.push(OldToken::new_without_value(TokenType::Rcurly, self.pos.clone(), self.pos.clone()));
         tokens.push(OldToken::new_without_value(TokenType::Eof, self.pos.clone(), self.pos.clone()));
-        (tokens, None)
+        Ok(tokens)
     }
 
     fn skip_comment(&mut self) -> () {
@@ -243,7 +239,7 @@ impl Lexer {
         OldToken::new_with_value(TokenType::String, new_string, pos_start, self.pos.clone())
     }
 
-    fn make_char(&mut self) -> (Option<OldToken>, Option<Error>) {
+    fn make_char(&mut self) -> Result<OldToken, Error> {
         let mut new_char: char;
         let mut escaped = false;
         let pos_start = self.pos.clone();
@@ -256,7 +252,7 @@ impl Lexer {
         }
 
         if self.current_char.is_none() {
-            return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected escaped character, after '''!")));
+            return Err(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected escaped character, after '''!"));
         }
 
         new_char = self.current_char.unwrap();
@@ -264,19 +260,19 @@ impl Lexer {
             if let Some(c) = utils::escape_char(&new_char) {
                 new_char = c;
             } else {
-                return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Invalid escaped character!")));
+                return Err(error::invalid_syntax_error(pos_start, self.pos.clone(), "Invalid escaped character!"));
             }
         }
 
         self.advance();
 
         if self.current_char.is_none() || self.current_char.unwrap() != '\'' {
-            return (None, Some(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected ' after character!")));
+            return Err(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected ' after character!"));
         }
 
         self.advance();
 
-        (Some(OldToken::new_with_value(TokenType::Char, new_char.to_string(), pos_start, self.pos.clone())), None)
+        Ok(OldToken::new_with_value(TokenType::Char, new_char.to_string(), pos_start, self.pos.clone()))
     }
 
     fn make_minus_or_arrow(&mut self) -> OldToken {
@@ -502,11 +498,9 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn test_make_token_identifier() {
+    pub fn test_make_token_identifier() -> Result<(), Error> {
         let mut lexer = Lexer::new(PathBuf::new(), "let five: number = 5;".to_string());
-        let (tokens, error) = lexer.make_tokens();
-
-        assert!(error.is_none());
+        let tokens = lexer.make_tokens()?;
 
         assert_eq!(tokens.len(), 9);
 
@@ -531,6 +525,8 @@ mod tests {
         assert_eq!(tokens[7].token_type(), TokenType::Newline);
 
         assert_eq!(tokens[8].token_type(), TokenType::Eof);
+
+        Ok(())
     }
 
 
