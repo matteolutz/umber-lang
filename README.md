@@ -30,7 +30,7 @@ Future commits **WILL** for sure contain **BREAKING CHANGES**.
 
 First you have to clone the repository and cd into it.
 
-```
+```shell
 git clone https://github.com/matteolutz/umber-lang.git
 cd umber-lang
 ```
@@ -40,16 +40,27 @@ To just build the crate, use `cargo build`.
 
 ### Compile a file
 
-```
+To compile a file it is important to have the NASM-Assembler installed. Otherwise the compiler won't be able to build a binary from the generated NASM-Assembly.  
+Then just run:
+
+```shell
 cargo run <FILENAME>.ub
 ```
 
-Umber now created a new assembly file with the same name as the input file, but with the extension `.asm`.
-Currently, you can only build and link the assembly file on x64-86 unix systems using the NASM-Assembler. To do this, just run:
+The Umber compiler now created a directory called `build` in the current directory containing the generated assembly, object file and binary.  
+To specify include paths, you can use the `--include` (or `-i`) flag.
 
-```
-nasm -f elf64 <FILENAME>.asm
-ld <FILENAME>.o -o <FILENAME>
-```
+````shell
+cargo run <FILENAME>.ub -i <PATH>
+````
+or, if you want to use more than one include path:
+````shell
+cargo run <FILENAME>.ub -i <PATH1>;<PATH2>;<PATH3>;...
+````
 
-You can execute the final binary with `./<FILENAME>`.
+To install the compiler globally into your system first build the crate with `cargo build -r` and then just copy the Rust binaries living in `target/release` into your system's `bin` directory.  
+For example:
+````shell
+cargo build -r
+cp target/release/umber /usr/local/bin/umber
+````
