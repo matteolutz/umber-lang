@@ -453,7 +453,7 @@ impl Lexer {
             return None;
         }
 
-        Some(Token::new_with_flags_no_value(TokenType::Mul, pos_start, self.pos.clone(), flags))
+        Some(Token::new_with_flags_no_value(TokenType::Div, pos_start, self.pos.clone(), flags))
     }
 
     fn make_modulo(&mut self) -> Token {
