@@ -50,10 +50,10 @@ impl Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:{}: {}: {}\n", self.pos_start.file_name().to_str().unwrap().purple(), (self.pos_start.line() + 1).to_string().yellow(), (self.pos_start.col() + 1).to_string().green(),  self.error_name.red().bold(), self.details)?;
+        write!(f, "{}:{}:{}: {}: {}\n", self.pos_start.file_name().to_str().unwrap().purple().italic(), (self.pos_start.line() + 1).to_string().yellow().italic(), (self.pos_start.col() + 1).to_string().green().italic(),  self.error_name.red().bold(), self.details)?;
 
         if let Some(parent) = &self.parent {
-            write!(f, "{}: {}", "Caused by".cyan().bold(), parent)?;
+            write!(f, "{} {}", "Caused by:".bright_black().italic(), parent)?;
         }
 
         Ok(())
