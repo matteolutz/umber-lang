@@ -10,16 +10,24 @@ use umber_lang::position::Position;
 
 #[derive(Subcommand)]
 enum Subcommands {
+    /// Compile a file to binary.
     Com(SubCompile)
 }
 
 #[derive(Args)]
 struct SubCompile {
+
+    /// The file to compile.
     #[clap(value_parser)]
     name: String,
 
+    /// Include paths seperated by ';'
     #[clap(short, long, value_parser)]
-    include: Option<String>
+    include: Option<String>,
+
+    /// Show verbose output
+    #[clap(short, long, action)]
+    verbose: bool,
 }
 
 
@@ -33,7 +41,7 @@ struct BinaryArgs {
 
 }
 
-fn compile(file: String, include: Option<String>) -> Result<(), Error> {
+fn compile(file: String, include: Option<String>, verbose: bool) -> Result<(), Error> {
     let now = Instant::now();
 
     let file = Path::new(file.as_str());
@@ -50,13 +58,13 @@ fn compile(file: String, include: Option<String>) -> Result<(), Error> {
         return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Could not read file: {}", file_err).as_str()));
     }
 
-    println!("Successfully read file: {}", file.to_str().unwrap());
+    if verbose { println!("Successfully read file: {}", file.to_str().unwrap()) }
     let file_contents = file_read_res.unwrap();
 
-    print!("Lexing...");
+    if verbose { print!("Lexing...") }
     let mut lexer = umber_lang::lexer::Lexer::new(file.to_path_buf(), file_contents);
     let tokens = lexer.make_tokens()?;
-    println!("Done");
+    if verbose { println!("Done") }
 
     let mut include_paths: Vec<String> = vec![];
     if let Some(ips) = include {
@@ -66,12 +74,12 @@ fn compile(file: String, include: Option<String>) -> Result<(), Error> {
     let mut macros = HashMap::new();
     let mut already_included: Vec<PathBuf> = vec![];
 
-    print!("Parsing...");
+    if verbose { print!("Parsing...") }
     let mut parser = umber_lang::parser::Parser::new(tokens, &include_paths, &mut macros, &mut already_included);
     let mut ast_root = &parser.parse()?;
-    println!("Done");
+    if verbose { println!("Done") }
 
-    print!("Validating...");
+    if verbose { print!("Validating...") }
     let mut validator = umber_lang::semantics::Validator::new();
     let validation_res = validator.validate(ast_root);
 
@@ -81,9 +89,9 @@ fn compile(file: String, include: Option<String>) -> Result<(), Error> {
 
     ast_root = validation_res.node().as_ref().unwrap();
 
-    println!("Done");
+    if verbose { println!("Done") }
 
-    print!("Generating assembly...");
+    if verbose { print!("Generating assembly...") }
     let mut compiler = umber_lang::compiler::Compiler::new();
     let asm = compiler.compile_to_str(ast_root);
 
@@ -91,7 +99,7 @@ fn compile(file: String, include: Option<String>) -> Result<(), Error> {
         return Err(error::io_error(Position::empty(), Position::empty(), format!("Could not format assembly: {}", fmt_error).as_str()));
     }
 
-    println!("Done");
+    if verbose { println!("Done") }
 
     if !build_output.exists() || !build_output.is_dir() {
         if let Err(fs_error) = fs::create_dir(&build_output) {
@@ -103,21 +111,21 @@ fn compile(file: String, include: Option<String>) -> Result<(), Error> {
         return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Could not format assembly: {}", fs_error).as_str()));
     }
 
-    print!("Compiling assembly...");
+    if verbose { print!("Compiling assembly...") }
     if let Err(nasm_err) = Command::new("nasm")
         .args(["-f", "elf64", "-o", obj_path.to_str().unwrap(), asm_path.to_str().unwrap()])
         .output() {
         return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to execute 'nasm'-command: {}", nasm_err).as_str()));
     }
-    println!("Done");
+    if verbose { println!("Done") }
 
-    print!("Linking...");
+    if verbose { print!("Linking...") }
     if let Err(linker_err) = Command::new("ld")
         .args(["-o", bin_path.to_str().unwrap(), obj_path.to_str().unwrap()])
         .output() {
         return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to run 'ld'-command: {}", linker_err).as_str()));
     }
-    println!("Done");
+    if verbose { println!("Done") }
 
     println!("All done! Took: {}ms", now.elapsed().as_millis());
 
@@ -129,7 +137,7 @@ fn main() {
 
     if let Err(err) = match args.command {
         Subcommands::Com(subcommand) => {
-            compile(subcommand.name, subcommand.include)
+            compile(subcommand.name, subcommand.include, subcommand.verbose)
         }
     } {
         println!("\n{}", err);
