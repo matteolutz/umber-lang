@@ -88,4 +88,4 @@ umber help
 ...
 ```
 .  
-You can use all the options shown above by just replace the `cargo run` with `umber`.
+You can use all the options shown above by just replacing the `cargo run` with `umber`.
