@@ -21,6 +21,14 @@ struct SubCompile {
     #[clap(value_parser)]
     name: String,
 
+    /// Options for the assembler.
+    #[clap(short, long, value_parser)]
+    asm: Option<String>,
+
+    /// Options for the linker.
+    #[clap(short, long, value_parser)]
+    linker: Option<String>,
+
     /// Include paths seperated by ';'
     #[clap(short, long, value_parser)]
     include: Option<String>,
@@ -41,7 +49,7 @@ struct BinaryArgs {
 
 }
 
-fn compile(file: String, include: Option<String>, verbose: bool) -> Result<(), Error> {
+fn compile(file: String, include: Option<String>, assembler_options: Option<String>, linker_options: Option<String>, verbose: bool) -> Result<(), Error> {
     let now = Instant::now();
 
     let file = Path::new(file.as_str());
@@ -112,16 +120,30 @@ fn compile(file: String, include: Option<String>, verbose: bool) -> Result<(), E
     }
 
     if verbose { print!("Compiling assembly...") }
-    if let Err(nasm_err) = Command::new("nasm")
-        .args(["-f", "elf64", "-o", obj_path.to_str().unwrap(), asm_path.to_str().unwrap()])
+
+    let mut assembler_cmd = Command::new("nasm");
+    assembler_cmd.args(["-f", "elf64", "-o", obj_path.to_str().unwrap(), asm_path.to_str().unwrap()]);
+
+    if let Some(ao) = assembler_options {
+        assembler_cmd.args(ao.split(' '));
+    }
+
+    if let Err(nasm_err) = assembler_cmd
         .output() {
         return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to execute 'nasm'-command: {}", nasm_err).as_str()));
     }
     if verbose { println!("Done") }
 
     if verbose { print!("Linking...") }
-    if let Err(linker_err) = Command::new("ld")
-        .args(["-o", bin_path.to_str().unwrap(), obj_path.to_str().unwrap()])
+
+    let mut linker_cmd = Command::new("ld");
+    linker_cmd.args(["-o", bin_path.to_str().unwrap(), obj_path.to_str().unwrap()]);
+
+    if let Some(lo) = linker_options {
+        linker_cmd.args(lo.split(' '));
+    }
+
+    if let Err(linker_err) = linker_cmd
         .output() {
         return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to run 'ld'-command: {}", linker_err).as_str()));
     }
@@ -137,7 +159,7 @@ fn main() {
 
     if let Err(err) = match args.command {
         Subcommands::Com(subcommand) => {
-            compile(subcommand.name, subcommand.include, subcommand.verbose)
+            compile(subcommand.name, subcommand.include, subcommand.asm, subcommand.linker, subcommand.verbose)
         }
     } {
         println!("\n{}", err);

@@ -9,6 +9,7 @@ use crate::nodes::call_node::CallNode;
 use crate::nodes::cast_node::CastNode;
 use crate::nodes::char_node::CharNode;
 use crate::nodes::const_def_node::ConstDefinitionNode;
+use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
@@ -145,7 +146,7 @@ impl Compiler {
     }
 
     fn function_label_name(&self, function: &str) -> String {
-        return format!("F_{}", function);
+        return format!("{}", function);
     }
 
     //endregion
@@ -899,6 +900,12 @@ impl Compiler {
         if node.node_type() == NodeType::Import {
             let import_node = node.as_any().downcast_ref::<ImportNode>().unwrap();
             self.code_gen(import_node.node(), w)?;
+            return Ok(None);
+        }
+
+        if node.node_type() == NodeType::Extern {
+            let extern_node = node.as_any().downcast_ref::<ExternNode>().unwrap();
+            self.add_extern(extern_node.name().to_string());
             return Ok(None);
         }
 

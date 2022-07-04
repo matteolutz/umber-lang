@@ -17,6 +17,7 @@ use crate::nodes::char_node::CharNode;
 use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::dereference_node::DereferenceNode;
+use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondecl_node::FunctionDeclarationNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
@@ -792,6 +793,22 @@ impl<'a> Parser<'a> {
                 }
 
                 res.success(Box::new(StaticDefinitionNode::new(static_name, in_type, expr.unwrap(), is_mutable, pos_start)));
+                return res;
+            }
+
+            if self.current_token().matches_keyword("extern") {
+                let pos_start = self.current_token().pos_start().clone();
+
+                advance!(self, res);
+
+                expect_token!(self, res, TokenType::Identifier, "name of extern");
+                expect_token_value!(self, res);
+
+                let extern_name = self.current_token().token_value().as_ref().unwrap().clone();
+
+                advance!(self, res);
+
+                res.success(Box::new(ExternNode::new(extern_name, pos_start, self.current_token().pos_end().clone())));
                 return res;
             }
 

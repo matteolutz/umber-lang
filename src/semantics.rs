@@ -12,6 +12,7 @@ use crate::nodes::char_node::CharNode;
 use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::dereference_node::DereferenceNode;
+use crate::nodes::extern_node::ExternNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondecl_node::FunctionDeclarationNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
@@ -194,6 +195,7 @@ impl Validator {
             NodeType::MacroDef => self.validate_macro_def_node(node.as_any().downcast_ref::<MacroDefNode>().unwrap()),
             NodeType::Ignored => self.validate_ignored_node(node.as_any().downcast_ref::<IgnoredNode>().unwrap()),
             NodeType::Accessor => self.validate_accessor_node(node.as_any().downcast_ref::<AccessorNode>().unwrap()),
+            NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
             _ => panic!("Unsupported node type: {:?}", node.node_type()),
         }
     }
@@ -491,11 +493,6 @@ impl Validator {
         }
 
         if self.get_symbol(node.func_to_call()).unwrap().0.value_type().value_type() != ValueTypes::Function {
-            if self.get_symbol(node.func_to_call()).unwrap().0.value_type().value_type() == ValueTypes::Extern {
-                res.success(Box::new(U64Type::new()), node.box_clone());
-                return res;
-            }
-
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("'{}' is not a function!", node.func_to_call()).as_str()));
             return res;
         }
@@ -924,6 +921,13 @@ impl Validator {
             value_node.unwrap(),
             Token::new_without_value(TokenType::Plus, Position::empty(), Position::empty()),
             Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, offset.to_string(), Position::empty(), Position::empty()), Box::new(U64Type::new()))))));
+        res
+    }
+
+    fn validate_extern_node(&self, node: &ExternNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        res.success(Box::new(IgnoredType::new()), node.box_clone());
         res
     }
 

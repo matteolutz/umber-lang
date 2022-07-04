@@ -9,7 +9,6 @@ pub mod bool_type;
 pub mod string_type;
 pub mod function_type;
 pub mod void_type;
-pub mod extern_type;
 pub mod pointer_type;
 pub mod char_type;
 pub mod struct_type;
@@ -29,7 +28,6 @@ pub enum ValueTypes {
     String,
     Function,
     Void,
-    Extern,
     Pointer,
     Struct,
     Ignored,
