@@ -44,23 +44,48 @@ To compile a file it is important to have the NASM-Assembler installed. Otherwis
 Then just run:
 
 ```shell
-cargo run <FILENAME>.ub
+cargo run com <FILENAME>.ub
 ```
-
+.  
 The Umber compiler now created a directory called `build` in the current directory containing the generated assembly, object file and binary.  
 To specify include paths, you can use the `--include` (or `-i`) flag.
 
 ````shell
-cargo run <FILENAME>.ub -i <PATH>
+cargo run com <FILENAME>.ub -i <PATH>
 ````
 or, if you want to use more than one include path:
 ````shell
-cargo run <FILENAME>.ub -i <PATH1>;<PATH2>;<PATH3>;...
+cargo run com <FILENAME>.ub -i <PATH1>;<PATH2>;<PATH3>;...
 ````
 
-To install the compiler globally into your system first build the crate with `cargo build -r` and then just copy the Rust binaries living in `target/release` into your system's `bin` directory.  
+.  
+To pass additional command line arguments for the linker you can use the `--linker` (or `-l`) flag. Here an example:
+
+````shell
+cargo run com <FILENAME>.ub -l"-dynamic-linker /lib64/ld-linux-x86-64.so.2 -lc"
+````
+
+.  
+For additional command line arguments that are passed to the NASM-Assembler the syntax is the same as for the linker. Just use the `--asm` (or `-a`) flag.
+
+By saying
+````shell
+cargo run help
+````
+the Umber compiler will print a help message to the console. If you ever get stuck, just run `cargo run help` again.
+
+To install the compiler globally to your system first build the crate in "Release" mode (tells the Rust compiler to use all possible optimization) with `cargo build -r` and then just copy the Rust binaries living in `target/release` into your system's `bin` directory.  
 For example:
 ````shell
 cargo build -r
 cp target/release/umber /usr/local/bin/umber
 ````
+.  
+Now you can
+```shell
+umber com
+umber help
+...
+```
+.  
+You can use all the options shown above by just replace the `cargo run` with `umber`.
