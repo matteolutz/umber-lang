@@ -73,9 +73,9 @@ By saying
 ````shell
 cargo run help
 ````
-the Umber compiler will print a help message to the console. If you ever get stuck, just run `cargo run help` again.
+the Umber compiler will print a help message to the standard output. If you ever get stuck, just run `cargo run help` to get a visually nice looking helper text.
 
-To install the compiler globally to your system first build the crate in "Release" mode (tells the Rust compiler to use all possible optimization) with `cargo build -r` and then just copy the Rust binaries living in `target/release` into your system's `bin` directory.  
+To install the compiler globally to your system first build the crate in "Release" mode (this tells the Rust compiler to use all possible optimization) with `cargo build -r` and then just copy the Rust binaries living in `target/release` into your system's `bin` directory.  
 For example:
 ````shell
 cargo build -r
