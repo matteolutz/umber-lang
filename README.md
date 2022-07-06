@@ -67,7 +67,7 @@ cargo run com <FILENAME>.ub -l"-dynamic-linker /lib64/ld-linux-x86-64.so.2 -lc"
 .  
 In this example, the Umber object files will be linked against the C standard library (libc). In the near future there will be a code example located in the `examples` folder on how to use the functions declared in there.  
 
-For additional command line arguments that are passed to the NASM-Assembler the syntax is the same as for the linker. Just use the `--asm` (or `-a`) flag.
+For additional command line arguments that are passed to the NASM-Assembler the syntax is the same as for the linker. Just use the `--asm` (or `-a`) instead of the `--linker` (or `-l`) flag.
 
 By saying
 ````shell
