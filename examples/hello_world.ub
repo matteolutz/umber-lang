@@ -1,0 +1,6 @@
+import "std.ub";
+
+fun main(argc: u64, args: char *): u64 {
+    print_strl("Hello, World!\n");
+    return 0;
+};

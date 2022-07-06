@@ -1,0 +1,65 @@
+import "std.ub";
+
+fun get_ip_v4(a: u64, b: u64, c: u64, d: u64): u64 *mut {
+	let temp: u64 *mut = malloc(4 * sizeof[u64]) as u64 *mut;
+
+	temp[0] @= a;
+	temp[1] @= b;
+	temp[2] @= c;
+	temp[3] @= d;
+
+	return temp;
+};
+
+fun get_device_part(mask: u64 *, ip: u64 *): u64 *mut {
+	return get_ip_v4((*mask) & (*ip), (*mask[1]) & (*ip[1]), (*mask[2]) & (*ip[2]), (*mask[3]) & (*ip[3]));
+};
+
+fun print_device_part(mask: u64 *, ip: u64 *): void {
+	let device: u64 *mut = get_device_part(mask as u64 *, ip as u64 *);
+
+	print_num(*device, 10);
+	print_strl(".");
+	print_num(*device[1], 10);
+	print_strl(".");
+	print_num(*device[2], 10);
+	print_strl(".");
+	print_num(*device[3], 10);
+
+    free(device as void *mut);
+
+	return;
+};
+
+fun main(argc: u64, args: char *): u64 {
+
+	let mut mask: u64 *mut = get_ip_v4(255, 255, 255, 224);
+	
+	let mut ip1: u64 *mut = get_ip_v4(192, 168, 1, 13);
+	print_strl("R4: ");
+	print_device_part(mask as u64 *, ip1 as u64 *);
+	print_strl("\n");
+	
+	let mut ip2: u64 *mut = get_ip_v4(192, 168, 1, 27);
+	print_strl("R6: ");
+	print_device_part(mask as u64 *, ip2 as u64 *);
+	print_strl("\n");
+
+	let mut ip3: u64 *mut = get_ip_v4(192, 168, 1, 33);
+	print_strl("R7: ");
+	print_device_part(mask as u64 *, ip3 as u64 *);
+	print_strl("\n");
+
+	let mut ip4: u64 *mut = get_ip_v4(192, 168, 2, 33);
+	print_strl("R8: ");
+	print_device_part(mask as u64 *, ip4 as u64 *);
+	print_strl("\n");
+
+    free(mask as void *mut);
+    free(ip1 as void *mut);
+    free(ip2 as void *mut);
+    free(ip3 as void *mut);
+    free(ip4 as void *mut);
+
+	return 0;
+};

@@ -1,0 +1,40 @@
+import "std.ub";
+
+fun main(argc: u64, args: char *): u64 {
+
+    let mut secret: char * = "" as char *;
+    let mut has_secret: bool = false;
+
+    if argc > 1 {
+        let process_args: char ** = get_args_arr(argc, args);
+        has_secret = true;
+        secret = (process_args+8) @8;
+    };
+    
+    while true {
+        print_strl("> ");
+
+        let buf: char *mut = malloc(256) as char *mut;
+
+        let length: u64 = sys_read(0, buf, 256) - 1;
+
+        let input: char *mut = malloc(length) as char *mut;
+        cstrcpy_len(input, buf as char *, length);
+
+        if cstreq(input as char *, "ping" as char *) {
+            print_strl("pong\n\n");
+        } else if cstreq(input as char *, "exit" as char *) {
+            break;
+        } else if has_secret && cstreq(input as char *, secret) {
+            print_strl("You've entered the secret. Magic...\n\n");
+        } else {
+            print_strl("Unknown command!\n\n");
+        };
+
+        free(buf as void *mut);
+        free(input as void *mut);
+    };
+
+    print_strl("Exiting...\n");
+    return 0;
+};

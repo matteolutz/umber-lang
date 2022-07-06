@@ -1,0 +1,38 @@
+import "std.ub";
+
+struct linked_list_t {
+    data: u64,
+    next: struct linked_list_t *mut
+};
+
+fun LinkedList_(data: u64, next: struct linked_list_t *mut): struct linked_list_t *mut {
+    let ll: struct linked_list_t *mut = malloc(sizeof[struct linked_list_t]) as struct linked_list_t *mut;
+    ll.data @= data;
+    ll.next @= next;
+    return ll;
+};
+
+fun LinkedList_del(head: struct linked_list_t *mut): void {
+    if *head.next != NULL {
+        LinkedList_del(*head.next);
+    };
+    free(head as void *mut);
+    return;
+};
+
+fun main(argc: u64, args: char *): u64 {
+    let mut ll: struct linked_list_t *mut = LinkedList_(69,
+        LinkedList_(420,
+            LinkedList_(321, NULL as struct linked_list_t *mut)
+        )
+    );
+
+    for let mut head: struct linked_list_t *mut = ll; head != NULL; head = *head.next {
+        println_num(*head.data, 10);
+    };
+
+    LinkedList_del(ll);
+
+    print_strl("Hello, World!\n");
+    return 0;
+};

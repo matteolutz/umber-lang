@@ -1,0 +1,34 @@
+import "std.ub";
+
+macro BUF_CAP 4096;
+
+fun main(argc: u64, args: char *): u64 {
+	if argc < 2 {
+		print_strl("Usage: cat <path to file> [Max buffer capacity (default: 4096)]\n");
+		return 1;
+	};
+
+	let args_arr: char **mut = get_args_arr(argc, args);
+	let filename: char * = *args_arr[1];
+	let mut buf_cap: u64 = BUF_CAP;
+
+	if argc > 2 {
+		buf_cap = atoi(*args_arr[2]);
+	};
+
+	let fd: u64 = sys_open(filename, 0 | O_RDONLY, 0);
+	if fd >= 0 {
+		let buf: char *mut = malloc(buf_cap) as char *mut;
+		let actual_size: u64 = sys_read(fd, buf, buf_cap);
+		print_char_ptr(buf as char *, actual_size);
+		print_strl("\n");
+		free(buf as void *mut);
+	} else {
+		print_strl("Failed to open file!\n");
+	};
+
+	sys_close(fd);
+	free(args_arr as void *mut);
+
+	return 0;
+};

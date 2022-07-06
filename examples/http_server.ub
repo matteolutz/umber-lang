@@ -1,0 +1,101 @@
+import "std.ub";
+import "cstr.ub";
+// import "str.ub";
+
+struct sockaddr_t {
+    family: u16,
+    port: u16,
+    addr: u32,
+    zero: char *
+};
+
+fun SockAddr(family: u16, port: u16, addr: u32): struct sockaddr_t *mut {
+    let s: struct sockaddr_t *mut = malloc(sizeof[struct sockaddr_t]) as struct sockaddr_t *mut;
+    s.family @= family;
+    s.port @= port;
+    s.addr @= addr;
+    s.zero @= NULL as char *;
+    return s;
+};
+
+macro AF_INET 2;
+macro SOCK_STREAM 1;
+macro INADDR_LOCAL 16777343;
+
+macro PORT 3000;
+
+macro CLIENT_BUF_CAP 1024;
+
+fun htons(x: u64): u64 {
+    return ((x & 255) << 8) | ((x >> 8) & 255);
+};
+
+fun sys_write_strl(fd: u64, buf: string): u64 {
+    return sys_write(fd, buf as char *, cstrlen(buf as char *));
+};
+
+fun main(argc: u64, args: char *): u64 {
+    let fd: u64 = sys_socket(AF_INET, SOCK_STREAM, 0);
+
+    if fd < 0 {
+        throwc("Failed to open socket!" as char*);
+    };
+    print_strl("Created socket!\n");
+
+    let servaddr: struct sockaddr_t *mut = SockAddr(AF_INET as u16, htons(PORT) as u16, INADDR_LOCAL as u32);
+
+    if sys_bind(fd, servaddr as void *, sizeof[struct sockaddr_t]) < 0 {
+        throwc("Failed to bind socket!" as char*);
+    };
+    print_strl("Bound socket to address!\n");
+
+    if sys_listen(fd, 5) < 0 {
+        throwc("Failed to start listening to fd!" as char*);
+    };
+    print_strl("Started listening!\n");
+
+    print_strl("Success!\nFile descriptor: ");
+    println_num(fd, 10);
+
+    let cliaddr: struct sockaddr_t *mut = SockAddr(0 as u16, 0 as u16, 0 as u32);
+    let clilen: void *mut = malloc(sizeof[u32]);
+
+    print_strl("\n");
+
+    while true {
+        print_strl("Waiting for connection...\n\n");
+
+        let conn_fd: u64 = sys_accept(fd, cliaddr as void *mut, clilen);
+
+        if conn_fd < 0 {
+            throwc("Unabled to accept client!" as char *);
+        };
+
+        print_strl("Accepted the client!\n");
+        
+        let client_buf: char *mut = malloc(CLIENT_BUF_CAP) as char *mut;
+        let client_buf_size: u64 = sys_read(conn_fd, client_buf, CLIENT_BUF_CAP);
+        if client_buf_size < 0 {
+            throwc("Unabled to read the client request!" as char *);
+        };
+
+        print_char_ptr(client_buf as char *, client_buf_size);      
+
+        sys_write_strl(conn_fd, "HTTP/1.1 302 OK\r\n");
+        sys_write_strl(conn_fd, "Location: https://youtu.be/dQw4w9WgXcQ?t=43\r\n");
+        sys_write_strl(conn_fd, "Connection: Closed\r\n");
+
+        print_strl("Response sent, Closing connection...\n\n");
+
+        free(client_buf as void *mut);
+        sys_close(conn_fd);
+
+    };
+
+    sys_close(fd);
+    free(clilen);
+    free(cliaddr as void *mut);
+    free(servaddr as void *mut);
+
+    return 0;
+};

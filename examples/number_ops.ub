@@ -1,0 +1,21 @@
+import "std.ub";
+
+fun main(argc: u64, args: char *): u64 {
+    let mut a: u64 = 13;
+    a += 22; // => 35
+    a -= 2; // => 33
+    a *= 3; // => 99
+    a /= 9; // => 11
+    a %= 10; // => 1
+    a <<= 2; // => 4
+    a >>= 1; // => 2
+    a &= 1; // => 0
+    a += 3; // => 3
+    a |= 4; // => 7
+    a ^= 2; // => 5
+
+    println_num(a, 16);
+    println_num(~a, 16);
+
+    return a;
+};

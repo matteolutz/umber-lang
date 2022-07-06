@@ -1,0 +1,29 @@
+import "std.ub";
+import "rand.ub";
+import "math.ub";
+
+macro MAX_POINTS 1000000000;
+macro MIN_COORD 0;
+macro MAX_COORD 10000000;
+macro E 10;
+
+fun main(argc: u64, args: char *): u64 {
+	let t: void *mut = malloc(8);
+	sys_time(t);
+	let millis: u64 = ((t as u64 *) @8) * 1000;
+	free(t);
+
+	srand(millis);
+	
+	let mut points_in_circle: u64 = 0;
+	for let mut i: u64 = 0; i < MAX_POINTS; i += 1 {
+		if pow(rand_range(MIN_COORD, MAX_COORD), 2) + pow(rand_range(MIN_COORD, MAX_COORD), 2) < pow(MAX_COORD - MIN_COORD, 2) { points_in_circle += 1 };
+	};
+
+	let p: u64 = (points_in_circle * pow(10, E)) * 4 / MAX_POINTS;
+
+    print_str("PI is: ", 7);
+	println_num(p, 10);
+
+	return 0;
+};

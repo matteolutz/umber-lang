@@ -1,0 +1,47 @@
+import "std.ub";
+
+/// Efficient bubble sort algorithm
+fun bubble_sort(arr: u64 *mut, len: u64): void {
+    let mut has_swapped: bool = true;
+    let mut num_of_iters: u64 = 0;
+
+    while has_swapped {
+        has_swapped = false;
+        for let mut i: u64 = 0; i < len; i += 1 {
+            for let mut j: u64 = 0; j < len - num_of_iters - 1; j += 1 {
+                if *arr[j] > *arr[j+1] {
+                    let temp: u64 = *arr[j];
+                    arr[j] @= *arr[j+1];
+                    arr[j+1] @= temp;
+                    has_swapped = true;
+                };
+            };
+        };
+        num_of_iters += 1;
+    };
+    return;
+};
+
+fun main(argc: u64, args: char *): u64 {
+    if argc < 2 {
+        throwc("please pass more than one argument" as char *);
+        // redundant, but who cares...
+        return 1;
+    };
+
+    let args_arr: char **mut = get_args_arr(argc, args);
+
+    let arr_size: u64 = argc - 1;
+    let arr: u64 *mut = malloc(arr_size * sizeof[u64]) as u64 *mut;
+    for let mut i: u64 = 0; i < arr_size; i += 1 {
+        arr[i] @= atoi(*args_arr[i+1]);
+    };
+
+    bubble_sort(arr, arr_size);
+
+    for let mut i: u64 = 0; i < arr_size; i += 1 {
+        println_num(*arr[i], 10);
+    };
+
+    return 0;
+};

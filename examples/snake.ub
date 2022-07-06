@@ -1,0 +1,356 @@
+import "std.ub";
+
+import "termios.ub";
+import "rand.ub";
+
+macro F_GETFL 3;
+macro F_SETFL 4;
+macro O_NONBLOCK 2048;
+
+fun clear(): void {
+    print_strl("\033[H\033[J");
+    return;
+};
+
+fun delay_nanos(nanos: u64): u64 {
+    let timespec: void *mut = malloc(2 * sizeof[u64]);
+    (timespec as u64 *mut) @= 0;
+    ((timespec + sizeof[u64]) as u64 *mut) @= nanos;
+
+    let res: u64 = sys_nano_sleep(timespec);
+    free(timespec);
+
+    return res;
+};
+
+fun get_time(): u64 {
+    let t: u64 *mut = malloc(sizeof[u64]) as u64 *mut;
+    sys_time(t as void *mut);
+    let temp: u64 = t @8;
+    free(t as void *mut);
+    return temp;
+};
+
+// begin struct Pos
+
+/*
+ * Structure for Position
+ * x: u64,               offset = 0
+ * y: u64,               offset = 8
+*/
+
+fun Pos_(x: u64, y: u64): void *mut {
+    let p: void *mut = malloc(2 * sizeof[u64]);
+    (p as u64 *mut) @= x;
+    ((p as u64 *mut) + sizeof[u64]) @= y;
+    return p;
+};
+
+fun Pos_random(min_x: u64, min_y: u64, max_x: u64, max_y: u64): void *mut {
+    let x: u64 = rand_range(min_x, max_x);
+    let y: u64 = rand_range(min_y, max_y);
+    return Pos_(x, y);
+};
+
+fun Pos_set_x(p: void *mut, x: u64): void {
+    (p as u64 *mut) @= x;
+    return;
+};
+
+fun Pos_set_y(p: void *mut, y: u64): void {
+    ((p as u64 *mut) + sizeof[u64]) @= y;
+    return;
+};
+
+fun Pos_get_x(p: void *mut): u64 {
+    return (p as u64*) @8;
+};
+
+fun Pos_get_y(p: void *mut): u64 {
+    return ((p as u64*) + 8) @8;
+};
+
+fun Pos_set(p: void *mut, x: u64, y: u64): void {
+    (p as u64 *mut) @= x;
+    ((p as u64 *mut) + sizeof[u64]) @= y;
+    return;
+};
+
+fun Pos_is(p: void *mut, other: void *mut): bool {
+    return
+        (((p as u64 *) @8) == ((other as u64 *) @8))
+        && ((((p as u64 *) + sizeof[u64]) @8) == (((other as u64 *) + sizeof[u64]) @8));
+};
+
+fun Pos_is_v(p: void *mut, x: u64, y: u64): bool {
+    return
+        (((p as u64 *) @8) == x)
+        && ((((p as u64 *) + sizeof[u64]) @8) == y);
+};
+
+fun Pos_del(p: void *mut): void {
+    free(p);
+    return;
+};
+
+// end struct Pos
+
+// begin struct Snake
+
+/*
+ * Structure for Snake
+ * Length: u64,          offset = 0,
+ * First pos: void *mut,    offset = 8,
+ * Second pos: void *mut,   offset = 16
+ * and so on...
+*/
+
+fun Snake_(cap: u64): void *mut {
+    let s: void *mut = malloc(sizeof[u64] + (cap * sizeof[void *mut]));
+    (s as u64 *mut) @= 0;
+    return s;
+};
+
+fun Snake_get_length(s: void *mut): u64 {
+    return (s as u64 *) @8;
+};
+
+fun Snake_add(s: void *mut, pos: void *mut): void {
+    let curr_length: u64 = Snake_get_length(s);
+    (s as u64 *mut) @= curr_length + 1;
+    ((s as void *mut *mut) + 8 + (curr_length * sizeof[void *mut])) @= pos;
+    return;
+};
+
+fun Snake_set_pos(s: void *mut, idx: u64, pos: void *mut): void {
+    ((s as void *mut *mut) + 8 + (idx * sizeof[void *mut])) @= pos;
+    return;
+};
+
+fun Snake_get_pos(s: void *mut, idx: u64): void *mut {
+    return ((s as void *mut *mut) + 8 + (idx * sizeof[void *mut])) @8;
+};
+
+fun Snake_add_end(s: void *mut, dir: u64): void {
+    let last_pos: void *mut = Snake_get_pos(s, Snake_get_length(s) - 1);
+
+    let mut new_pos_x: u64 = 0;
+    let mut new_pos_y: u64 = 0;
+
+    if dir == 0 {
+        new_pos_x = Pos_get_x(last_pos) - 1;
+        new_pos_y = Pos_get_y(last_pos);
+    } else if dir == 1 {
+        new_pos_x = Pos_get_x(last_pos);
+        new_pos_y = Pos_get_y(last_pos) - 1;
+    } else if dir == 2 {
+        new_pos_x = Pos_get_x(last_pos) + 1;
+        new_pos_y = Pos_get_y(last_pos);
+    } else if dir == 3 {
+        new_pos_x = Pos_get_x(last_pos);
+        new_pos_y = Pos_get_y(last_pos) + 1;
+    } else {
+        return;
+    };
+
+    Snake_add(s, Pos_(new_pos_x, new_pos_y));
+    return;
+};
+
+
+fun Snake_shift(s: void *mut, x: u64, y: u64): void {
+    let length: u64 = Snake_get_length(s);
+
+    for let mut i: u64 = length - 1; i >= 0; i -= 1 {
+        let current_pos: void *mut = Snake_get_pos(s, i);
+
+        if i == 0 {
+            Pos_set(current_pos, x, y);
+            break;
+        };
+
+        let prev_pos: void *mut = Snake_get_pos(s, i - 1);
+
+        Pos_set(current_pos, Pos_get_x(prev_pos), Pos_get_y(prev_pos));
+    };
+
+    return;
+};
+
+fun Snake_del(s: void *mut): void {
+    let l: u64 = Snake_get_length(s);
+
+    for let mut i: u64 = 0; i < l; i += 1 {
+        Pos_del(Snake_get_pos(s, i));
+    };
+
+    free(s);
+    return;
+};
+
+// end struct Snake
+
+fun main(argc: u64, args: char *): u64 {
+    
+    srand(get_time());
+
+    let width: u64 = 40;
+    let height: u64 = 20;
+
+    /*
+     * enum Dir
+     * 0 -> East
+     * 1 -> South
+     * 2 -> West
+     * 3 -> North
+    */
+    let mut dir: u64 = 0;
+
+    let s: void *mut = Snake_(1024);
+    Snake_add(s, Pos_(5, height / 2));
+    Snake_add(s, Pos_(4, height / 2));
+
+    let saved_tattr: void *mut = malloc(SIZEOF_termios);
+    tcgetattr(0, saved_tattr);
+
+    let tattr: void *mut = malloc(SIZEOF_termios);
+    tcgetattr(0, tattr);
+
+    let c_lflag: u64 *mut = (tattr + 12) as u64 *mut;
+    c_lflag @= (c_lflag @4) & (~(ICANON | ECHO));
+
+    let c_cc: void *mut = tattr + 16;
+    ((c_cc + 6) as u64 *mut) @= 1;
+    ((c_cc + 5) as u64 *mut) @= 0;
+    
+    tcsetattr(0, 2, tattr);
+
+    sys_fcntl(0, F_SETFL, sys_fcntl(0, F_GETFL, 0) | O_NONBLOCK);
+
+    let mut input_buf: char *mut = malloc(1) as char *mut;
+
+    let mut curr_apple: void *mut = Pos_random(1, 1, width - 2, height - 2);
+
+    let mut paused: bool = false;
+
+    while true {
+
+        if sys_read(0, input_buf, 1) == 1 {
+            if (input_buf @1) == 'd' && dir != 2 {
+                dir = 0;
+            } else if (input_buf @1) == 's' && dir != 3 {
+                dir = 1;
+            } else if (input_buf @1) == 'a' && dir != 0 {
+                dir = 2;
+            } else if (input_buf @1) == 'w' && dir != 1 {
+                dir = 3;
+            } else if (input_buf @1) == ' ' {
+                paused = !paused;
+            } else if (input_buf @1) == 'q' {
+                break;
+            } else if (input_buf @1) == 'c' {
+                Snake_add_end(s, dir);
+            };
+        };
+
+        let mut head: void *mut = Snake_get_pos(s, 0);
+        let curr_x: u64 = Pos_get_x(head);
+        let curr_y: u64 = Pos_get_y(head);
+
+        if !paused {
+            if dir == 0 {
+                Snake_shift(s, Pos_get_x(head) + 1, Pos_get_y(head));
+            } else if dir == 1 {
+                Snake_shift(s, Pos_get_x(head), Pos_get_y(head) + 1);
+            } else if dir == 2 {
+                Snake_shift(s, Pos_get_x(head) - 1, Pos_get_y(head));
+            } else if dir == 3 {
+                Snake_shift(s, Pos_get_x(head), Pos_get_y(head) - 1);
+            } else {
+                throwc("Unknown dir!" as char *);
+            };
+
+            if curr_x <= 0 || curr_x >= width - 1 || curr_y <= 0 || curr_y >= height - 1 {
+                break;
+            };
+
+            if Pos_is_v(curr_apple, curr_x, curr_y) {
+                Snake_add_end(s, dir);
+                curr_apple = Pos_random(1, 1, width - 2, height - 2);
+            };
+        };
+
+        clear();
+
+        print_strl("\u001b[1m\u001b[31mSNAKE\u001b[0m (\u001b[33mby Umber\u001b[0m)\n\n-> Score: ");
+        print_num(Snake_get_length(s), 10);
+        print_strl("\n\n");
+
+        print_strl("-> Apple: (");
+        print_num(Pos_get_x(curr_apple), 10);
+        print_strl(" | ");
+        print_num(Pos_get_y(curr_apple), 10);
+        print_strl(")\n\n");
+
+        print_strl("-> Head: (");
+        print_num(curr_x, 10);
+        print_strl(" | ");
+        print_num(curr_y, 10);
+        print_strl(")\n\n");
+
+        for let mut y: u64 = 0; y < height; y += 1 {
+            for let mut x: u64 = 0; x < width; x += 1 {
+
+                if x == 0 || y == 0 || x == width - 1 || y == height - 1 {
+                    print_strl("x");
+                    continue;
+                };
+
+                let mut is_snake_pos: bool = false;
+                for let mut i: u64 = 0; i < Snake_get_length(s); i += 1 {
+                    let p: void *mut = Snake_get_pos(s, i);
+
+                    if Pos_is_v(p, x, y) {
+                        if i == 0 {
+                            print_strl("o");
+                        } else {
+                            print_strl("x");
+                        };
+
+                        is_snake_pos = true;
+                        break;
+                    };
+                };
+
+                if is_snake_pos { continue; };
+
+                if Pos_is_v(curr_apple, x, y) {
+                    print_strl("a");
+                    continue;
+                };
+
+                print_strl(" ");
+            };
+            print_strl("\n");
+        };
+
+        print_strl("\n-> Use WASD to control the snake, Q to quit and Spacebar to pause the game\n");
+
+        delay_nanos(100000000);
+    };
+    
+    let final_score: u64 = Snake_get_length(s);
+
+    free(input_buf as void *mut);
+    
+    Pos_del(curr_apple);
+    Snake_del(s);
+
+    tcsetattr(0, 0, saved_tattr);
+
+    print_strl("\n\n\u001b[1m\u001b[31mGame over!\u001b[0m Your score was: ");
+    print_num(final_score, 10);
+    print_strl("!\n\n");
+
+    return 0;
+};
