@@ -44,7 +44,7 @@ impl Lexer {
                 tokens.push(Token::new_without_value(TokenType::Newline, self.pos.clone(), self.pos.clone()));
                 self.advance();
             } else if utils::is_digit(&current) {
-                tokens.push(self.make_number());
+                tokens.push(self.make_number()?);
             } else if utils::is_alpha(&current) {
                 tokens.push(self.make_identifier());
             } else if current == '"' {
@@ -58,7 +58,7 @@ impl Lexer {
             } else if current == '*' {
                 tokens.push(self.make_mul());
             } else if current == '/' {
-                if let Some(token) = self.make_div_or_comment() {
+                if let Some(token) = self.make_div_or_comment()? {
                     tokens.push(token);
                 }
             } else if current == '%' {
@@ -116,7 +116,7 @@ impl Lexer {
                     return Err(error::illegal_character_error(pos_start, self.pos.clone(), "Expected number after '@'!"));
                 }
 
-                let number = self.make_number();
+                let number = self.make_number()?;
                 if number.token_type() != TokenType::U64 {
                     return Err(error::illegal_character_error(pos_start, self.pos.clone(), "Expected integer number after '@'!"));
                 }
@@ -151,7 +151,8 @@ impl Lexer {
         self.advance();
     }
 
-    fn skip_multiline_comment(&mut self) -> () {
+    fn skip_multiline_comment(&mut self) -> Result<(), Error> {
+        let pos_start = self.pos.clone();
         self.advance();
 
         let mut found_asterisk = false;
@@ -161,7 +162,7 @@ impl Lexer {
                 found_asterisk = true;
             } else if self.current_char.unwrap() == '/' && found_asterisk {
                 self.advance();
-                return;
+                return Ok(());
             } else {
                 found_asterisk = false;
             }
@@ -169,10 +170,10 @@ impl Lexer {
             self.advance();
         }
 
-        panic!("no closing thing found!");
+        Err(error::expected_character_error(pos_start, self.pos.clone(), "Expected '*/'!"))
     }
 
-    fn make_number(&mut self) -> Token {
+    fn make_number(&mut self) -> Result<Token, Error> {
         let mut num_str = String::new();
         let mut dot_count: u8 = 0;
         let pos_start = self.pos.clone();
@@ -194,9 +195,9 @@ impl Lexer {
         }
 
         if dot_count == 0 {
-            Token::new_with_value(TokenType::U64, num_str, pos_start, self.pos.clone())
+            Ok(Token::new_with_value(TokenType::U64, num_str, pos_start, self.pos.clone()))
         } else {
-            panic!("Floats are not supported for now!");
+            Err(error::not_yet_implemented_error(pos_start, self.pos.clone(), "Floating points aren't implemented yet."))
         }
     }
 
@@ -436,7 +437,7 @@ impl Lexer {
         Token::new_with_flags_no_value(TokenType::Mul, pos_start, self.pos.clone(), flags)
     }
 
-    fn make_div_or_comment(&mut self) -> Option<Token> {
+    fn make_div_or_comment(&mut self) -> Result<Option<Token>, Error> {
         let mut flags = TOKEN_FLAGS_NULL;
         let pos_start = self.pos.clone();
 
@@ -446,14 +447,14 @@ impl Lexer {
             self.advance();
             flags = TOKEN_FLAGS_IS_ASSIGN;
         } else if self.current_char.unwrap() == '*' {
-            self.skip_multiline_comment();
-            return None;
+            self.skip_multiline_comment()?;
+            return Ok(None);
         } else if self.current_char.unwrap() == '/' {
             self.skip_comment();
-            return None;
+            return Ok(None);
         }
 
-        Some(Token::new_with_flags_no_value(TokenType::Div, pos_start, self.pos.clone(), flags))
+        Ok(Some(Token::new_with_flags_no_value(TokenType::Div, pos_start, self.pos.clone(), flags)))
     }
 
     fn make_modulo(&mut self) -> Token {
