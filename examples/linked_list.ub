@@ -13,11 +13,41 @@ fun LinkedList_(data: u64, next: struct linked_list_t *mut): struct linked_list_
 };
 
 fun LinkedList_del(head: struct linked_list_t *mut): void {
-    if *head.next != NULL {
+    if *head.next != NULL as struct linked_list_t *mut {
         LinkedList_del(*head.next);
     };
     free(head as void *mut);
     return;
+};
+
+fun LinkedList_reverse(head: struct linked_list_t *mut): struct linked_list_t *mut {
+    let mut prev: struct linked_list_t *mut = NULL as struct linked_list_t *mut;
+    let mut  current: struct linked_list_t *mut = head;
+    let mut next: struct linked_list_t *mut = NULL as struct linked_list_t *mut;
+
+    while current != NULL as struct linked_list_t *mut {
+        next = *current.next;
+        current.next @= prev;
+
+        prev = current;
+        current = next;
+    };
+
+    return prev;
+};
+
+fun LinkedList_reverse_recursive(head: struct linked_list_t *mut): struct linked_list_t *mut {
+    let mut first: struct linked_list_t *mut = NULL as struct linked_list_t *mut;
+
+    if head == NULL as struct linked_list_t *mut || *head.next == NULL as struct linked_list_t *mut {
+        return head;
+    };
+
+    first = LinkedList_reverse_recursive(*head.next);
+    (*head.next).next @= head;
+    head.next @= NULL as struct linked_list_t *mut;
+
+    return first;
 };
 
 fun main(argc: u64, args: char *): u64 {
@@ -27,12 +57,21 @@ fun main(argc: u64, args: char *): u64 {
         )
     );
 
-    for let mut head: struct linked_list_t *mut = ll; head != NULL; head = *head.next {
+    for let mut head: struct linked_list_t *mut = ll; head != NULL as struct linked_list_t *mut; head = *head.next {
+        println_num(*head.data, 10);
+    };
+
+    print_strl("Reversing...\n");
+
+    ll = LinkedList_reverse(ll);
+
+    print_strl("Reversed:\n");
+
+    for let mut head: struct linked_list_t *mut = ll; head != NULL as struct linked_list_t *mut; head = *head.next {
         println_num(*head.data, 10);
     };
 
     LinkedList_del(ll);
 
-    print_strl("Hello, World!\n");
     return 0;
 };

@@ -1,5 +1,3 @@
-use crate::position::Position;
-
 pub fn is_digit(c: &char) -> bool {
     *c as u32 >= 48 && *c as u32 <= 57
 }
