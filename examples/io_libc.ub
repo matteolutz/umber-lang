@@ -11,7 +11,7 @@ struct file_t {
     tmpfname: char *mut
 };
 
-// the extern directive tells the linker to look somewhere else for the symbol. by just declaring the function as extern, Umber won't actually recognize it, so you need to declare it, which the line below does.
+// the extern directive tells the linker to look somewhere else for the symbol. by just marking the function as extern, Umber won't actually recognize it, so you need to declare it, which the line below does.
 extern fputc;
 fun fputc(c: u32, stream: struct file_t *mut): void;
 
