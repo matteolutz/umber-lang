@@ -1,0 +1,49 @@
+import "std.ub";
+
+struct file_t {
+    ptr: char *mut,
+    cnt: u32,
+    base: char *mut,
+    flag: u32,
+    file: u32,
+    charbuf: u32,
+    bufsize: u32,
+    tmpfname: char *mut
+};
+
+extern fputc;
+fun fputc(c: u32, stream: struct file_t *mut): void;
+
+extern fputs;
+fun fputs(s: char *, stream: struct file_t *mut): u32;
+
+extern fopen;
+fun fopen(filename: char *, opentype: char *): struct file_t *mut;
+
+extern fclose;
+fun fclose(stream: struct file_t *mut): u32;
+
+fun main(argc: u64, argv: char *): u64 {
+    let fstream: struct file_t *mut = fopen("test.txt" as char *, "w" as char *);
+
+    if fstream == NULL {
+        print_strl("Failed to open file!\n");
+        sys_exit(0);
+    };
+
+    let buf: char *mut = malloc(256) as char *mut;
+    let len: u64 = sys_read(1, buf, 256);
+
+    buf[len] @= '\0';
+
+    fputs(
+        buf as char *, 
+        fstream
+    );
+
+    free(buf as void *mut);
+
+    fclose(fstream);
+
+    return 0;
+};
