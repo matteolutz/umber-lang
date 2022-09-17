@@ -1,6 +1,18 @@
+// import the standard library. When writing code in Umber, this is recommended and you probably want to do it anyways
 import "std.ub";
 
+// define the main entry point of the program
+// the function signature is very important
+// argc is the number of arguments passed to the program
+// argv is the string of arguments that are passed to the program
 fun main(argc: u64, args: char *): u64 {
+    // print a string to the console, the l in strl stands for length, so internally there will be a call to cstrlen() to determine the length of the string.
+
+    // when working with strings there are two common types you will see
+    // string: the string type is used for static strings, this means that the string is stored in the binary and is not allocated on the heap. this type is immutable and cannot be changed. strings can be casted to char * to be used with functions that require a char *.
+    // char *: this is the most common type you will see. this is a pointer to a char array. this is a mutable type and can be changed. this is the type that is used when working with strings that are not static. this type cant be casted to a string type.
     print_strl("Hello, World!\n");
+
+    // the return value of the main function is the exit code of the program
     return 0;
 };

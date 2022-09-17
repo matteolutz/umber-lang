@@ -1,3 +1,5 @@
+// WARNING: This example is deprecated. It will be updated in a future commit. It is still compilable and runnable, but it doesn't use the latest features (e.g. structs) of Umber.
+
 import "std.ub";
 
 import "termios.ub";

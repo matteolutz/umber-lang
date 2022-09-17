@@ -1,6 +1,7 @@
 import "std.ub";
 import "fs.ub";
 
+// constants for image size and color depth
 macro WIDTH 15;
 macro HEIGHT 15;
 macro MAX_C 255;
@@ -21,8 +22,10 @@ fun sys_write_num(fd: u64, num: u64): void {
 };
 
 fun main(argc: u64, args: char *): u64 {
+    // open file for writing
     let fd: u64 = sys_open("file.ppm" as char *, 0 | O_WRONLY | O_APPEND, 0);
 
+    // handle file open error
     if fd < 0 {
         print_strl("Failed to open file!\n");
         return 1;
@@ -30,6 +33,7 @@ fun main(argc: u64, args: char *): u64 {
 
     print_strl("Successfully opened file!\n");
 
+    // write header
     sys_write(fd, "P3\n" as char *, 3);
     sys_write(fd, "15" as char *, 2);
     sys_write(fd, " " as char *, 1);
@@ -38,6 +42,7 @@ fun main(argc: u64, args: char *): u64 {
     sys_write(fd, "255" as char *, 3);
     sys_write(fd, "\n" as char *, 1);
 
+    // write image data
     for let mut i: u64 = 0; i < WIDTH; i += 1 {
         for let mut j: u64 = 0; j < HEIGHT; j += 1 {
             let c: char * = "255 0 0 " as char *;
@@ -46,6 +51,7 @@ fun main(argc: u64, args: char *): u64 {
         sys_write(fd, "\n" as char *, 1);
     };
 
+    // close file
     sys_close(fd);
 
     return 0;

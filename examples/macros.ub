@@ -3,7 +3,7 @@ macro TEST 2 + 3;
 fun main(argc: u64, args: char *): u64 {
 
     // In languges like C / C++, res would now have a value of 11 => 2 + 3 * 2 + 3 (multiplication goes before addition)
-    // In umber, the macro expansion has a higher priotrity than any binary operation => (2+3) * (2+3) => 25
+    // In Umber, the macro expansion has a higher priotrity than any binary operation => (2+3) * (2+3) => 25
     let res: u64 = TEST * TEST;
 
     return TEST * TEST;

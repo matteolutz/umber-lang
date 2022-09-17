@@ -23,22 +23,27 @@ fun bubble_sort(arr: u64 *mut, len: u64): void {
 };
 
 fun main(argc: u64, args: char *): u64 {
+    // check if args are valid
     if argc < 2 {
         throwc("please pass more than one argument" as char *);
         // redundant, but who cares...
         return 1;
     };
 
+    // retrieve the arguments array from the args string
     let args_arr: char **mut = get_args_arr(argc, args);
 
+    // convert the string array into an u64 array
     let arr_size: u64 = argc - 1;
     let arr: u64 *mut = malloc(arr_size * sizeof[u64]) as u64 *mut;
     for let mut i: u64 = 0; i < arr_size; i += 1 {
         arr[i] @= atoi(*args_arr[i+1]);
     };
 
+    // sort the array
     bubble_sort(arr, arr_size);
 
+    // print the array to the standard output
     for let mut i: u64 = 0; i < arr_size; i += 1 {
         println_num(*arr[i], 10);
     };
