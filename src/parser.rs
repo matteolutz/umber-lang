@@ -48,6 +48,10 @@ use crate::token::{Token, TOKEN_FLAGS_IS_ASSIGN, TokenType};
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
+use crate::values::value_type::i16_type::I16Type;
+use crate::values::value_type::i32_type::I32Type;
+use crate::values::value_type::i64_type::I64Type;
+use crate::values::value_type::i8_type::I8Type;
 use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
@@ -172,6 +176,10 @@ impl<'a> Parser<'a> {
             "u32" => Box::new(U32Type::new()),
             "u16" => Box::new(U16Type::new()),
             "u8" => Box::new(U8Type::new()),
+            "i64" => Box::new(I64Type::new()),
+            "i32" => Box::new(I32Type::new()),
+            "i16" => Box::new(I16Type::new()),
+            "i8" => Box::new(I8Type::new()),
             "string" => Box::new(StringType::new()),
             "bool" => Box::new(BoolType::new()),
             "char" => Box::new(CharType::new()),

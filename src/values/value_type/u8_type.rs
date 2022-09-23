@@ -61,7 +61,11 @@ impl ValueType for U8Type {
             || t.value_type() == ValueTypes::Char
             || t.value_type() == ValueTypes::U64
             || t.value_type() == ValueTypes::U32
-            || t.value_type() == ValueTypes::U16 {
+            || t.value_type() == ValueTypes::U16
+            || t.value_type() == ValueTypes::I64
+            || t.value_type() == ValueTypes::I32
+            || t.value_type() == ValueTypes::I16
+            || t.value_type() == ValueTypes::I8 {
             return true;
         }
 

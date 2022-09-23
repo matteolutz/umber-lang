@@ -16,6 +16,10 @@ pub mod ignored_type;
 pub mod u32_type;
 pub mod u16_type;
 pub mod u8_type;
+pub mod i64_type;
+pub mod i32_type;
+pub mod i16_type;
+pub mod i8_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
@@ -23,6 +27,10 @@ pub enum ValueTypes {
     U32,
     U16,
     U8,
+    I64,
+    I32,
+    I16,
+    I8,
     Bool,
     Char,
     String,
