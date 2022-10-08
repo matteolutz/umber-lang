@@ -6,7 +6,7 @@ use crate::position::Position;
 use crate::values::value_type::ValueType;
 
 #[derive(Clone)]
-pub struct ListNode {
+pub struct ArrayNode {
     size: usize,
     element_nodes: Vec<Box<dyn Node>>,
     element_type: Box<dyn ValueType>,
@@ -14,9 +14,9 @@ pub struct ListNode {
     pos_end: Position,
 }
 
-impl ListNode {
+impl ArrayNode {
     pub fn new(size: usize, element_nodes: Vec<Box<dyn Node>>, element_type: Box<dyn ValueType>, pos_start: Position, pos_end: Position) -> Self {
-        ListNode {
+        ArrayNode {
             size,
             element_nodes,
             element_type,
@@ -32,19 +32,19 @@ impl ListNode {
     pub fn element_type(&self) -> &Box<dyn ValueType> { &self.element_type }
 }
 
-impl Display for ListNode {
+impl Display for ArrayNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<ListNode>[{}, Type: {}]", self.element_nodes.iter().map(|el| format!("{}", el)).collect::<Vec<String>>().join(","), self.element_type)
+        write!(f, "<ArrayNode>[{}, Type: {}]", self.element_nodes.iter().map(|el| format!("{}", el)).collect::<Vec<String>>().join(","), self.element_type)
     }
 }
 
-impl NodeToAny for ListNode {
+impl NodeToAny for ArrayNode {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl Node for ListNode {
+impl Node for ArrayNode {
     fn pos_start(&self) -> &Position {
         &self.pos_start
     }
@@ -54,7 +54,7 @@ impl Node for ListNode {
     }
 
     fn node_type(&self) -> NodeType {
-        NodeType::List
+        NodeType::Array
     }
 
     fn box_clone(&self) -> Box<dyn Node> {

@@ -22,7 +22,7 @@ use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
-use crate::nodes::list_node::ListNode;
+use crate::nodes::array_node::ArrayNode;
 use crate::nodes::macro_def_node::MacroDefNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
@@ -169,7 +169,7 @@ impl Validator {
             NodeType::Number => self.validate_number_node(node.as_any().downcast_ref::<NumberNode>().unwrap()),
             NodeType::String => self.validate_string_node(node.as_any().downcast_ref::<StringNode>().unwrap()),
             NodeType::Char => self.validate_char_node(node.as_any().downcast_ref::<CharNode>().unwrap()),
-            NodeType::List => self.validate_list_node(node.as_any().downcast_ref::<ListNode>().unwrap()),
+            NodeType::Array => self.validate_array_node(node.as_any().downcast_ref::<ArrayNode>().unwrap()),
             NodeType::BinOp => self.validate_bin_op_node(node.as_any().downcast_ref::<BinOpNode>().unwrap()),
             NodeType::UnaryOp => self.validate_unary_op_node(node.as_any().downcast_ref::<UnaryOpNode>().unwrap()),
             NodeType::VarDeclaration => self.validate_var_declaration_node(node.as_any().downcast_ref::<VarDeclarationNode>().unwrap()),
@@ -243,7 +243,7 @@ impl Validator {
         res
     }
 
-    fn validate_list_node(&mut self, node: &ListNode) -> ValidationResult {
+    fn validate_array_node(&mut self, node: &ArrayNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
         for el in node.element_nodes() {
@@ -254,7 +254,7 @@ impl Validator {
             }
 
             if !t.as_ref().unwrap().eq(node.element_type()) {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type {}, is incompatible with list type {}!", t.as_ref().unwrap(), node.element_type()).as_str()));
+                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type {}, is incompatible with array type {}!", t.as_ref().unwrap(), node.element_type()).as_str()));
                 return res;
             }
         }

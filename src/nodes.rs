@@ -5,7 +5,7 @@ use crate::position::Position;
 
 pub mod number_node;
 pub mod string_node;
-pub mod list_node;
+pub mod array_node;
 pub mod var_node;
 pub mod binop_node;
 pub mod break_node;
@@ -45,7 +45,7 @@ pub enum NodeType {
     Call,
     FunctionDef,
     FunctionDecl,
-    List,
+    Array,
     Break,
     Continue,
     If,

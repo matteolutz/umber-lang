@@ -15,7 +15,7 @@ use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::import_node::ImportNode;
-use crate::nodes::list_node::ListNode;
+use crate::nodes::array_node::ArrayNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
@@ -279,23 +279,22 @@ impl Compiler {
             return Ok(Some(reg));
         }
 
-        if node.node_type() == NodeType::List {
-
-            let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
+        if node.node_type() == NodeType::Array {
+            let array_node = node.as_any().downcast_ref::<ArrayNode>().unwrap();
 
             let beginning_offset = self.base_offset;
-            self.base_offset += *list_node.size() as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64;
+            self.base_offset += *array_node.size() as u64 * array_node.element_type().get_size().get_size_in_bytes() as u64;
 
-            if list_node.element_nodes().is_empty() {
+            if array_node.element_nodes().is_empty() {
                 println!("it is empty");
-                for i in 0..*list_node.size() {
-                    writeln!(w, "\tmov     {} [rbp-{}], {}", list_node.element_type().get_size(), beginning_offset + ((i+1) as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64), 0)?;
+                for i in 0..*array_node.size() {
+                    writeln!(w, "\tmov     {} [rbp-{}], {}", array_node.element_type().get_size(), beginning_offset + ((i+1) as u64 * array_node.element_type().get_size().get_size_in_bytes() as u64), 0)?;
                 }
             }
 
-            for (i, elem) in list_node.element_nodes().iter().rev().enumerate() {
+            for (i, elem) in array_node.element_nodes().iter().rev().enumerate() {
                 let reg = self.code_gen(elem, w)?.unwrap();
-                writeln!(w, "\tmov     [rbp-{}], {}", beginning_offset + ((i+1) as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64), self.scratch_name(reg))?;
+                writeln!(w, "\tmov     [rbp-{}], {}", beginning_offset + ((i+1) as u64 * array_node.element_type().get_size().get_size_in_bytes() as u64), self.scratch_name(reg))?;
                 self.free_scratch(reg);
             }
 

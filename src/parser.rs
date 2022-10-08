@@ -27,7 +27,7 @@ use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
-use crate::nodes::list_node::ListNode;
+use crate::nodes::array_node::ArrayNode;
 use crate::nodes::macro_def_node::MacroDefNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
@@ -325,7 +325,7 @@ impl<'a> Parser<'a> {
         res
     }
 
-    fn list_expr(&mut self) -> ParseResult {
+    fn arr_expr(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
         let pos_start = self.current_token().pos_start().clone();
 
@@ -360,7 +360,7 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            res.success(Box::new(ListNode::new(length, vec![], element_type, pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(ArrayNode::new(length, vec![], element_type, pos_start, self.current_token().pos_end().clone())));
             return res;
         }
 
@@ -390,7 +390,7 @@ impl<'a> Parser<'a> {
 
         advance!(self, res);
 
-        res.success(Box::new(ListNode::new(elements.len(), elements, element_type, pos_start, self.current_token().pos_end().clone())));
+        res.success(Box::new(ArrayNode::new(elements.len(), elements, element_type, pos_start, self.current_token().pos_end().clone())));
         res
     }
 
@@ -1309,12 +1309,12 @@ impl<'a> Parser<'a> {
 
             node = expr.unwrap();
         } else if token.token_type() == TokenType::Lsquare {
-            let list_expr = res.register_res(self.list_expr());
+            let arr_expr = res.register_res(self.arr_expr());
             if res.has_error() {
                 return res;
             }
 
-            node = list_expr.unwrap();
+            node = arr_expr.unwrap();
         } else if token.matches_keyword("while") {
             let while_expr = res.register_res(self.while_expr());
             if res.has_error() {
