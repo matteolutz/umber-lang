@@ -8,6 +8,7 @@ use crate::error::Error;
 use crate::lexer::Lexer;
 use crate::nodes::{Node, NodeType};
 use crate::nodes::accessor_node::AccessorNode;
+use crate::nodes::address_of_node::AddressOfNode;
 use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
@@ -125,7 +126,7 @@ impl<'a> Parser<'a> {
             token_index: 0,
             macros,
             already_included,
-            include_paths
+            include_paths,
         }
     }
 
@@ -359,7 +360,7 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            res.success(Box::new(ListNode::new(length, vec![], false, element_type, pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(ListNode::new(length, vec![], element_type, pos_start, self.current_token().pos_end().clone())));
             return res;
         }
 
@@ -389,7 +390,7 @@ impl<'a> Parser<'a> {
 
         advance!(self, res);
 
-        res.success(Box::new(ListNode::new(elements.len(), elements, true, element_type, pos_start, self.current_token().pos_end().clone())));
+        res.success(Box::new(ListNode::new(elements.len(), elements, element_type, pos_start, self.current_token().pos_end().clone())));
         res
     }
 
@@ -711,7 +712,7 @@ impl<'a> Parser<'a> {
 
                 if let Err(file_err) = file_text_res {
                     res.failure(error::semantic_error_with_parent(pos_start.clone(), self.current_token().pos_end().clone(), format!("Failed to import module '{}'!", &module_name).as_str(),
-                        error::io_error(pos_start, self.current_token().pos_end().clone(), format!("File '{}' couldn't be opened!\n\t{}", module_path.to_str().unwrap(), file_err.to_string()).as_str())
+                                                                  error::io_error(pos_start, self.current_token().pos_end().clone(), format!("File '{}' couldn't be opened!\n\t{}", module_path.to_str().unwrap(), file_err.to_string()).as_str()),
                     ));
                     return res;
                 }
@@ -819,7 +820,6 @@ impl<'a> Parser<'a> {
                 res.success(Box::new(ExternNode::new(extern_name, pos_start, self.current_token().pos_end().clone())));
                 return res;
             }
-
         } else {
             if self.current_token().token_type() == TokenType::Lcurly {
                 let block = res.register_res(self.statements(false));
@@ -1020,7 +1020,7 @@ impl<'a> Parser<'a> {
                 TokenType::Lt,
                 TokenType::Gte,
                 TokenType::Lte,
-                TokenType::PointerAssign
+                TokenType::PointerAssign,
             ],
             BinOpFunction::Arith,
         ));
@@ -1086,6 +1086,30 @@ impl<'a> Parser<'a> {
             }
 
             res.success(Box::new(DereferenceNode::new(factor.unwrap())));
+            return res;
+        }
+
+        if self.current_token().token_type() == TokenType::BitAnd {
+            let pos_start = self.current_token().pos_start().clone();
+
+            advance!(self, res);
+
+            let factor = res.register_res(self.factor());
+            if res.has_error() {
+                return res;
+            }
+
+            if factor.as_ref().unwrap().node_type() != NodeType::VarAccess {
+                res.failure(error::invalid_syntax_error(pos_start, self.current_token().pos_end().clone(), "Expected variable!"));
+                return res;
+            }
+
+            let var_access_node = factor.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap();
+
+            res.success(Box::new(
+                AddressOfNode::new(
+                    var_access_node.var_name().to_string(),
+                    pos_start, self.current_token().pos_end().clone())));
             return res;
         }
 
@@ -1218,7 +1242,6 @@ impl<'a> Parser<'a> {
 
             node = Box::new(CharNode::new(actual_char, pos_start, pos_end));
         } else if self.current_token().token_type() == TokenType::Identifier {
-
             let var_name = self.current_token().token_value().as_ref().unwrap().clone();
             let pos_start = self.current_token().pos_start().clone();
 
@@ -1312,7 +1335,7 @@ impl<'a> Parser<'a> {
                 return res;
             }
 
-           node = if_expr.unwrap();
+            node = if_expr.unwrap();
         } else if token.matches_keyword("sizeof") {
             advance!(self, res);
 
@@ -1333,7 +1356,7 @@ impl<'a> Parser<'a> {
             node = Box::new(SizeOfNode::new(in_type, token.pos_start().clone(), self.current_token().pos_end().clone()));
         } else {
             res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
-            return res
+            return res;
         }
 
         res.success(node);

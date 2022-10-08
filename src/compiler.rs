@@ -3,6 +3,7 @@ use std::fmt;
 use std::fmt::Write;
 
 use crate::nodes::{Node, NodeType};
+use crate::nodes::address_of_node::AddressOfNode;
 use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::call_node::CallNode;
@@ -171,7 +172,7 @@ impl Compiler {
         self.offset_table[name]
     }
 
-    fn clear_vars(&mut self) {
+    fn reset_stack_offset(&mut self) {
         self.base_offset = 0;
         self.offset_table.clear();
     }
@@ -279,39 +280,28 @@ impl Compiler {
         }
 
         if node.node_type() == NodeType::List {
-            todo!("List literals are not implemented yet");
-            #[allow(unreachable_code)] {
-                let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
 
-                if !*list_node.has_elements() {
-                    let first_elem_offset = self.base_offset + list_node.element_type().get_size().get_size_in_bytes() as u64;
+            let list_node = node.as_any().downcast_ref::<ListNode>().unwrap();
 
-                    /*for i in 0..*list_node.length() {
-                    self.base_offset += list_node.element_type().get_size();
-                    writeln!(w, "\tmov     QWORD [rbp - ({})], 0", self.base_offset);
-                }*/
-                    self.base_offset += *list_node.length() as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64;
+            let beginning_offset = self.base_offset;
+            self.base_offset += *list_node.size() as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64;
 
-                    let reg = self.res_scratch();
-                    writeln!(w, "\tlea     {}, [rbp - {}]", self.scratch_name(reg), first_elem_offset)?;
-                    return Ok(Some(reg));
+            if list_node.element_nodes().is_empty() {
+                println!("it is empty");
+                for i in 0..*list_node.size() {
+                    writeln!(w, "\tmov     {} [rbp-{}], {}", list_node.element_type().get_size(), beginning_offset + ((i+1) as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64), 0)?;
                 }
-
-                let first_element_offset = self.base_offset + list_node.element_type().get_size().get_size_in_bytes() as u64;
-
-                for element in list_node.element_nodes() {
-                    self.base_offset += list_node.element_type().get_size().get_size_in_bytes() as u64;
-
-                    let reg = self.code_gen(element, w)?.unwrap();
-                    writeln!(w, "\tmov     [rbp - ({})], {}", self.base_offset, self.scratch_name(reg))?;
-                    self.free_scratch(reg);
-                }
-
-                let first_elem_reg = self.res_scratch();
-                writeln!(w, "\tlea     {}, [rbp - ({})]", self.scratch_name(first_elem_reg), first_element_offset)?;
-
-                return Ok(Some(first_elem_reg));
             }
+
+            for (i, elem) in list_node.element_nodes().iter().rev().enumerate() {
+                let reg = self.code_gen(elem, w)?.unwrap();
+                writeln!(w, "\tmov     [rbp-{}], {}", beginning_offset + ((i+1) as u64 * list_node.element_type().get_size().get_size_in_bytes() as u64), self.scratch_name(reg))?;
+                self.free_scratch(reg);
+            }
+
+            let reg = self.res_scratch();
+            writeln!(w, "\tlea     {}, [rbp-{}]", self.scratch_name(reg), self.base_offset)?;
+            return Ok(Some(reg));
         }
 
         if node.node_type() == NodeType::BinOp {
@@ -536,7 +526,7 @@ impl Compiler {
             let func_def_node = node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap();
             let func_epilogue_label = self.label_create();
 
-            self.clear_vars();
+            self.reset_stack_offset();
 
             writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()))?;
 
@@ -907,6 +897,17 @@ impl Compiler {
             let extern_node = node.as_any().downcast_ref::<ExternNode>().unwrap();
             self.add_extern(extern_node.name().to_string());
             return Ok(None);
+        }
+
+        if node.node_type() == NodeType::AddressOf {
+            let address_of_node = node.as_any().downcast_ref::<AddressOfNode>().unwrap();
+
+            let (var_offset, _) = self.get_var(address_of_node.var_name());
+
+            let res_reg = self.res_scratch();
+            writeln!(w, "\tlea     {}, [rbp - {}]", self.scratch_name(res_reg), var_offset)?;
+
+            return Ok(Some(res_reg));
         }
 
         Ok(None)

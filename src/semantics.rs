@@ -4,6 +4,7 @@ use std::ops::IndexMut;
 use crate::error;
 use crate::nodes::{Node, NodeType};
 use crate::nodes::accessor_node::AccessorNode;
+use crate::nodes::address_of_node::AddressOfNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
@@ -196,6 +197,7 @@ impl Validator {
             NodeType::Ignored => self.validate_ignored_node(node.as_any().downcast_ref::<IgnoredNode>().unwrap()),
             NodeType::Accessor => self.validate_accessor_node(node.as_any().downcast_ref::<AccessorNode>().unwrap()),
             NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
+            NodeType::AddressOf => self.validate_address_of_node(node.as_any().downcast_ref::<AddressOfNode>().unwrap()),
             _ => panic!("Unsupported node type: {:?}", node.node_type()),
         }
     }
@@ -928,6 +930,20 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         res.success(Box::new(IgnoredType::new()), node.box_clone());
+        res
+    }
+
+    fn validate_address_of_node(&self, node: &AddressOfNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        if !self.has_symbol(node.var_name()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' was not defined!", node.var_name()).as_str()));
+            return res;
+        }
+
+        let (s, _) = self.get_symbol(node.var_name()).unwrap();
+
+        res.success(Box::new(PointerType::new(s.value_type().clone(), s.is_mutable())), node.box_clone());
         res
     }
 

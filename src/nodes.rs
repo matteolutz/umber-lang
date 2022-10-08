@@ -37,6 +37,7 @@ pub mod offset_node;
 pub mod util;
 pub mod accessor_node;
 pub mod extern_node;
+pub mod address_of_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -78,6 +79,7 @@ pub enum NodeType {
     TypeCarrier,
     Accessor,
     Extern,
+    AddressOf,
 }
 
 pub trait NodeToAny: 'static {
