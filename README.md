@@ -26,6 +26,8 @@ Future commits **WILL** for sure contain **BREAKING CHANGES**.
 
 ## How to use it
 
+I'm currently working on the full, scientific documentation of the language. For now, you can check out the [examples](./examples) folder to see how the language works.
+
 ### Build
 
 First you have to clone the repository and cd into it.
