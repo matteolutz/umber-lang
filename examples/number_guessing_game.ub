@@ -11,6 +11,7 @@ fun read_user(): char *mut {
       return NULL as char *mut;
    };
 
+   // Little hack to make sure the string is null terminated. By subtracting 1 from the number of read bytes, we are overwriting the newline character with a null byte.
    buf[chars_read - 1] @= '\0';
    return buf;
 };
