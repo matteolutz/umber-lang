@@ -1,0 +1,46 @@
+import "std.ub";
+import "rand.ub";
+
+// Helper method, for reading the users input.
+fun read_user(): char *mut {
+   let buf: char *mut = malloc(32 * sizeof[char]) as char *mut;
+   let chars_read: u64 = sys_read(0, buf, 31);
+
+   if chars_read == 0 {
+      free(buf as void *mut);
+      return NULL as char *mut;
+   };
+
+   buf[chars_read - 1] @= '\0';
+   return buf;
+};
+
+fun main(argc: u64, argv: char *): u64 {
+
+   let mut time: u64 = 0;
+   sys_time((&time) as void *mut);
+   srand(time);
+
+   let num: u64 = rand_range(0, 100);
+
+   while true {
+      print_strl("Guess a number between 0 and 100: ");
+
+      let buf: char *mut = read_user();
+      let guess: u64 = atoi(buf as char *);
+      free(buf as void *mut);
+
+      if guess == num {
+         print_strl("Yes, thats right, the number is indeed ");
+         print_num(guess, 10);
+         print_strl(". Good job!\n");
+         break;
+      } else if guess < num {
+         print_strl("Try bigger...\n");
+      } else if guess > num {
+         print_strl("Try smaller...\n");
+      };
+   };
+
+   return 0;
+};
