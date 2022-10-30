@@ -128,10 +128,20 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
         assembler_cmd.args(ao.split(' '));
     }
 
-    if let Err(nasm_err) = assembler_cmd
-        .output() {
+    let assembler_cmd_output = assembler_cmd.output();
+
+    if let Err(nasm_err) = assembler_cmd_output {
         return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to execute 'nasm'-command: {}", nasm_err).as_str()));
     }
+
+    if !assembler_cmd_output.as_ref().unwrap().status.success() {
+        return Err(
+            error::io_error_with_parent(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), "Assembling (NASM) failed with non-zero exit code",
+                error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("\n\"{}\"", String::from_utf8_lossy(&*assembler_cmd_output.unwrap().stderr)).as_str())
+            )
+        )
+    }
+
     if verbose { println!("Done") }
 
     if verbose { print!("Linking...") }
@@ -143,10 +153,20 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
         linker_cmd.args(lo.split(' '));
     }
 
-    if let Err(linker_err) = linker_cmd
-        .output() {
+    let linker_cmd_output = linker_cmd.output();
+
+    if let Err(linker_err) = linker_cmd_output {
         return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to run 'ld'-command: {}", linker_err).as_str()));
     }
+
+    if !linker_cmd_output.as_ref().unwrap().status.success() {
+        return Err(
+            error::io_error_with_parent(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), "Linking (ld) failed with non-zero exit code",
+                error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("\n\"{}\"", String::from_utf8_lossy(&*linker_cmd_output.unwrap().stderr)).as_str())
+            )
+        );
+    }
+
     if verbose { println!("Done") }
 
     println!("All done! Took: {}ms", now.elapsed().as_millis());
