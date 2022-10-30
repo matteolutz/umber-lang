@@ -10,7 +10,7 @@ use umber_lang::position::Position;
 
 #[derive(Subcommand)]
 enum Subcommands {
-    /// Compile a file to binary.
+    /// Compile a file to an executable binary.
     Com(SubCompile)
 }
 
