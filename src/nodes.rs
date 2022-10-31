@@ -38,6 +38,7 @@ pub mod util;
 pub mod accessor_node;
 pub mod extern_node;
 pub mod address_of_node;
+pub mod static_decl_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -68,6 +69,7 @@ pub enum NodeType {
     ConstDef,
     SizeOf,
     StaticDef,
+    StaticDecl,
     StructDef,
     ReadBytes,
     Dereference,

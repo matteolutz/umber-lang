@@ -16,6 +16,7 @@ use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::array_node::ArrayNode;
+use crate::nodes::functiondecl_node::FunctionDeclarationNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
 use crate::nodes::pointer_assign_node::PointerAssignNode;
@@ -23,6 +24,7 @@ use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
+use crate::nodes::static_decl_node::StaticDeclarationNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::syscall_node::SyscallNode;
@@ -894,7 +896,19 @@ impl Compiler {
 
         if node.node_type() == NodeType::Extern {
             let extern_node = node.as_any().downcast_ref::<ExternNode>().unwrap();
-            self.add_extern(extern_node.name().to_string());
+
+            match extern_node.top_level_statement().node_type() {
+                NodeType::FunctionDecl => {
+                    let func_decl_node = extern_node.top_level_statement().as_any().downcast_ref::<FunctionDeclarationNode>().unwrap();
+                    self.add_extern(func_decl_node.var_name().to_string());
+                },
+                NodeType::StaticDecl => {
+                    let static_decl_node = extern_node.top_level_statement().as_any().downcast_ref::<StaticDeclarationNode>().unwrap();
+                    self.add_extern(static_decl_node.name().to_string());
+                },
+                _ => unreachable!()
+            }
+
             return Ok(None);
         }
 
@@ -936,7 +950,7 @@ impl Compiler {
 
         writeln!(res, "section .text")?;
 
-        if self.externs.len() > 0 {
+        if !self.externs.is_empty() {
             writeln!(res, "\textern {}", self.externs.join(","))?;
         }
 

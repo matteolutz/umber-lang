@@ -34,6 +34,7 @@ use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
+use crate::nodes::static_decl_node::StaticDeclarationNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::struct_def_node::StructDefinitionNode;
@@ -792,6 +793,11 @@ impl<'a> Parser<'a> {
                 }
                 let in_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
 
+                if self.current_token().token_type() == TokenType::Newline {
+                    res.success(Box::new(StaticDeclarationNode::new(static_name, in_type, is_mutable, pos_start, self.current_token().pos_end().clone())));
+                    return res;
+                }
+
                 expect_token!(self, res, TokenType::Eq, "=");
 
                 advance!(self, res);
@@ -810,14 +816,12 @@ impl<'a> Parser<'a> {
 
                 advance!(self, res);
 
-                expect_token!(self, res, TokenType::Identifier, "name of extern");
-                expect_token_value!(self, res);
+                let top_level_statement = res.register_res(self.statement(true));
+                if res.has_error() {
+                    return res;
+                }
 
-                let extern_name = self.current_token().token_value().as_ref().unwrap().clone();
-
-                advance!(self, res);
-
-                res.success(Box::new(ExternNode::new(extern_name, pos_start, self.current_token().pos_end().clone())));
+                res.success(Box::new(ExternNode::new(top_level_statement.unwrap(), pos_start, self.current_token().pos_end().clone())));
                 return res;
             }
         } else {

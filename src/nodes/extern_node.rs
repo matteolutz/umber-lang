@@ -5,17 +5,17 @@ use crate::position::Position;
 
 #[derive(Clone)]
 pub struct ExternNode {
-    name: String,
+    top_level_statement: Box<dyn Node>,
     pos_start: Position,
     pos_end: Position
 }
 
 impl ExternNode {
-    pub fn new(name: String, pos_start: Position, pos_end: Position) -> Self {
-        Self { name, pos_start, pos_end }
+    pub fn new(top_level_statement: Box<dyn Node>, pos_start: Position, pos_end: Position) -> Self {
+        Self { top_level_statement, pos_start, pos_end }
     }
 
-    pub fn name(&self) -> &str { &self.name }
+    pub fn top_level_statement(&self) -> &Box<dyn Node> { &self.top_level_statement }
 
 }
 

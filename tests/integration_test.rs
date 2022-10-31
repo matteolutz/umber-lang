@@ -47,7 +47,7 @@ pub fn test_file() -> Result<(), Error> {
 
     println!("Compiling file...");
     let mut compiler = umber_lang::compiler::Compiler::new();
-    let asm = compiler.compile_to_str(ast_root);
+    let asm = compiler.compile_to_str(ast_root, false);
 
     if let Err(fmt_error) = asm {
         return Err(error::io_error(Position::empty(), Position::empty(), format!("Could not format assembly: {}", fmt_error).as_str()));

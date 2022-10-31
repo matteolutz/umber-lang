@@ -31,6 +31,7 @@ use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
 use crate::nodes::statements_node::StatementsNode;
+use crate::nodes::static_decl_node::StaticDeclarationNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::struct_def_node::StructDefinitionNode;
@@ -189,6 +190,7 @@ impl Validator {
             NodeType::ConstDef => self.validate_const_def_node(node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap()),
             NodeType::SizeOf => self.validate_sizeof_node(node.as_any().downcast_ref::<SizeOfNode>().unwrap()),
             NodeType::StaticDef => self.validate_static_def_node(node.as_any().downcast_ref::<StaticDefinitionNode>().unwrap()),
+            NodeType::StaticDecl => self.validate_static_decl_node(node.as_any().downcast_ref::<StaticDeclarationNode>().unwrap()),
             NodeType::StructDef => self.validate_struct_def_node(node.as_any().downcast_ref::<StructDefinitionNode>().unwrap()),
             NodeType::ReadBytes => self.validate_read_bytes_node(node.as_any().downcast_ref::<ReadBytesNode>().unwrap()),
             NodeType::Dereference => self.validate_dereference_node(node.as_any().downcast_ref::<DereferenceNode>().unwrap()),
@@ -794,6 +796,15 @@ impl Validator {
         res
     }
 
+    fn validate_static_decl_node(&mut self, node: &StaticDeclarationNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        self.declare_symbol(node.name().to_string(), Symbol::new(node.value_type().box_clone(), *node.is_mutable()), node.pos_start().clone());
+
+        res.success(node.value_type().box_clone(), node.box_clone());
+        res
+    }
+
     fn validate_struct_def_node(&mut self, node: &StructDefinitionNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
@@ -926,10 +937,26 @@ impl Validator {
         res
     }
 
-    fn validate_extern_node(&self, node: &ExternNode) -> ValidationResult {
+    fn validate_extern_node(&mut self, node: &ExternNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        res.success(Box::new(IgnoredType::new()), node.box_clone());
+        let node_type_res = match node.top_level_statement().node_type() {
+            NodeType::FunctionDecl => Ok(()),
+            NodeType::StaticDecl => Ok(()),
+            _ => Err(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't use extern keyword on this type of node!")),
+        };
+
+        if let Err(err) = node_type_res {
+            res.failure(err);
+            return res;
+        }
+
+        let (_, new_top_level_statement) = res.register_res(self.validate(node.top_level_statement()));
+        if res.has_error() {
+            return res;
+        }
+
+        res.success(Box::new(IgnoredType::new()), Box::new(ExternNode::new(new_top_level_statement.unwrap(), node.pos_start().clone(), node.pos_end().clone())));
         res
     }
 
