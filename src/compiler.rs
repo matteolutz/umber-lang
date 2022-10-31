@@ -75,6 +75,8 @@ pub struct Compiler {
 
     externs: Vec<String>,
 
+    globals: Vec<String>,
+
     statics: HashMap<String, ValueSize>
 }
 
@@ -91,6 +93,7 @@ impl Compiler {
             base_offset: 0,
             offset_table: HashMap::new(),
             externs: vec![],
+            globals: vec![],
             statics: HashMap::new()
         }
     }
@@ -186,6 +189,10 @@ impl Compiler {
 
     fn add_static(&mut self, s: String, size: ValueSize) {
         self.statics.insert(s, size);
+    }
+
+    fn add_global(&mut self, g: String) {
+        self.globals.push(g);
     }
 
     fn is_static(&self, s: &str) -> bool {
@@ -529,7 +536,10 @@ impl Compiler {
 
             self.reset_stack_offset();
 
-            writeln!(w, "{}:", self.function_label_name(func_def_node.var_name()))?;
+            let func_label = self.function_label_name(func_def_node.var_name());
+
+            self.add_global(func_label.clone());
+            writeln!(w, "{}:", func_label)?;
 
             writeln!(w, "\tpush    rbp")?;
             writeln!(w, "\tmov     rbp, rsp")?;
@@ -932,7 +942,7 @@ impl Compiler {
         let mut code = String::new();
 
         if !no_entry {
-            writeln!(res, "global  {}\n", ENTRY_SYMBOL)?;
+            self.add_global(ENTRY_SYMBOL.to_string());
 
             writeln!(code, "{}:", ENTRY_SYMBOL)?;
             writeln!(code, "\tpop     rdi")?;
@@ -946,7 +956,12 @@ impl Compiler {
             writeln!(code, "\tret\n")?;
         }
 
+
         self.code_gen(node, &mut code)?;
+
+        if !self.globals.is_empty() {
+            writeln!(res, "global {}\n", self.globals.join(","))?;
+        }
 
         writeln!(res, "section .text")?;
 
