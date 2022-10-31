@@ -36,6 +36,15 @@ struct SubCompile {
     /// Show verbose output
     #[clap(short, long, action)]
     verbose: bool,
+
+
+    /// Dont add entry point '_start'
+    #[clap(short, long, action)]
+    no_entry: bool,
+
+    /// Only compile, dont link
+    #[clap(short, long, action)]
+    compile_only: bool,
 }
 
 
@@ -49,7 +58,7 @@ struct BinaryArgs {
 
 }
 
-fn compile(file: String, include: Option<String>, assembler_options: Option<String>, linker_options: Option<String>, verbose: bool) -> Result<(), Error> {
+fn compile(file: String, include: Option<String>, assembler_options: Option<String>, linker_options: Option<String>, verbose: bool, no_entry: bool, compile_only: bool) -> Result<(), Error> {
     let now = Instant::now();
 
     let file = Path::new(file.as_str());
@@ -101,7 +110,7 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
 
     if verbose { print!("Generating assembly...") }
     let mut compiler = umber_lang::compiler::Compiler::new();
-    let asm = compiler.compile_to_str(ast_root);
+    let asm = compiler.compile_to_str(ast_root, no_entry);
 
     if let Err(fmt_error) = asm {
         return Err(error::io_error(Position::empty(), Position::empty(), format!("Could not format assembly: {}", fmt_error).as_str()));
@@ -144,27 +153,29 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
 
     if verbose { println!("Done") }
 
-    if verbose { print!("Linking...") }
+    if !compile_only {
+        if verbose { print!("Linking...") }
 
-    let mut linker_cmd = Command::new("ld");
-    linker_cmd.args(["-o", bin_path.to_str().unwrap(), obj_path.to_str().unwrap()]);
+        let mut linker_cmd = Command::new("ld");
+        linker_cmd.args(["-o", bin_path.to_str().unwrap(), obj_path.to_str().unwrap()]);
 
-    if let Some(lo) = linker_options {
-        linker_cmd.args(lo.split(' '));
-    }
+        if let Some(lo) = linker_options {
+            linker_cmd.args(lo.split(' '));
+        }
 
-    let linker_cmd_output = linker_cmd.output();
+        let linker_cmd_output = linker_cmd.output();
 
-    if let Err(linker_err) = linker_cmd_output {
-        return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to run 'ld'-command: {}", linker_err).as_str()));
-    }
+        if let Err(linker_err) = linker_cmd_output {
+            return Err(error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("Failed to run 'ld'-command: {}", linker_err).as_str()));
+        }
 
-    if !linker_cmd_output.as_ref().unwrap().status.success() {
-        return Err(
-            error::io_error_with_parent(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), "Linking (ld) failed with non-zero exit code",
-                error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("\n\"{}\"", String::from_utf8_lossy(&*linker_cmd_output.unwrap().stderr)).as_str())
-            )
-        );
+        if !linker_cmd_output.as_ref().unwrap().status.success() {
+            return Err(
+                error::io_error_with_parent(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), "Linking (ld) failed with non-zero exit code",
+                                            error::io_error(Position::new(file.to_path_buf()), Position::new(file.to_path_buf()), format!("\n\"{}\"", String::from_utf8_lossy(&*linker_cmd_output.unwrap().stderr)).as_str())
+                )
+            );
+        }
     }
 
     if verbose { println!("Done") }
@@ -179,7 +190,7 @@ fn main() {
 
     if let Err(err) = match args.command {
         Subcommands::Com(subcommand) => {
-            compile(subcommand.name, subcommand.include, subcommand.asm, subcommand.linker, subcommand.verbose)
+            compile(subcommand.name, subcommand.include, subcommand.asm, subcommand.linker, subcommand.verbose, subcommand.no_entry, subcommand.compile_only)
         }
     } {
         println!("\n{}", err);

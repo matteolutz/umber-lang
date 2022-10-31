@@ -912,25 +912,27 @@ impl Compiler {
         Ok(None)
     }
 
-    pub fn compile_to_str(&mut self, node: &Box<dyn Node>) -> Result<String, fmt::Error> {
+    pub fn compile_to_str(&mut self, node: &Box<dyn Node>, no_entry: bool) -> Result<String, fmt::Error> {
         let mut res = String::new();
 
         let mut code = String::new();
 
-        writeln!(code, "{}:", ENTRY_SYMBOL)?;
-        writeln!(code, "\tpop     rdi")?;
-        writeln!(code, "\tpop     rsi")?;
+        if !no_entry {
+            writeln!(res, "global  {}\n", ENTRY_SYMBOL)?;
 
-        writeln!(code, "\tcall    {}", self.function_label_name("main"))?;
+            writeln!(code, "{}:", ENTRY_SYMBOL)?;
+            writeln!(code, "\tpop     rdi")?;
+            writeln!(code, "\tpop     rsi")?;
 
-        writeln!(code, "\tmov     rdi, rax")?;
-        writeln!(code, "\tmov     rax, 60")?;
-        writeln!(code, "\tsyscall")?;
-        writeln!(code, "\tret\n")?;
+            writeln!(code, "\tcall    {}", self.function_label_name("main"))?;
+
+            writeln!(code, "\tmov     rdi, rax")?;
+            writeln!(code, "\tmov     rax, 60")?;
+            writeln!(code, "\tsyscall")?;
+            writeln!(code, "\tret\n")?;
+        }
 
         self.code_gen(node, &mut code)?;
-
-        writeln!(res, "global  {}\n", ENTRY_SYMBOL)?;
 
         writeln!(res, "section .text")?;
 
