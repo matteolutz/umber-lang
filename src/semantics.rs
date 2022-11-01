@@ -23,6 +23,7 @@ use crate::nodes::if_node::IfNode;
 use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::array_node::ArrayNode;
+use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::macro_def_node::MacroDefNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
@@ -200,6 +201,7 @@ impl Validator {
             NodeType::Accessor => self.validate_accessor_node(node.as_any().downcast_ref::<AccessorNode>().unwrap()),
             NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
             NodeType::AddressOf => self.validate_address_of_node(node.as_any().downcast_ref::<AddressOfNode>().unwrap()),
+            NodeType::Assembly => self.validate_assembly_node(node.as_any().downcast_ref::<AssemblyNode>().unwrap()),
             _ => panic!("Unsupported node type: {:?}", node.node_type()),
         }
     }
@@ -971,6 +973,13 @@ impl Validator {
         let (s, _) = self.get_symbol(node.var_name()).unwrap();
 
         res.success(Box::new(PointerType::new(s.value_type().clone(), s.is_mutable())), node.box_clone());
+        res
+    }
+
+    fn validate_assembly_node(&self, node: &AssemblyNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        res.success(Box::new(U64Type::new()), node.box_clone());
         res
     }
 

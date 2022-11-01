@@ -861,27 +861,6 @@ impl<'a> Parser<'a> {
                 return res;
             }
 
-            if self.current_token().matches_keyword("asm") {
-                advance!(self, res);
-
-                expect_token!(self, res, TokenType::Lsquare, "[");
-
-                advance!(self, res);
-
-                expect_token!(self, res, TokenType::String, "assembly code");
-
-                let asm_str = self.current_token().token_value().as_ref().unwrap().clone();
-
-                advance!(self, res);
-
-                expect_token!(self, res, TokenType::Rsquare, "]");
-
-                advance!(self, res);
-
-                res.success(Box::new(AssemblyNode::new(asm_str, pos_start, self.current_token().pos_end().clone())));
-                return res;
-            }
-
             let expr = res.register_res(self.expression());
             if res.has_error() {
                 res.failure(error::invalid_syntax_error_with_parent(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected non top level statement or expression!", res.error().as_ref().unwrap().clone()));
@@ -899,6 +878,27 @@ impl<'a> Parser<'a> {
     fn expression(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
         let pos_start = self.current_token().pos_start().clone();
+
+        if self.current_token().matches_keyword("asm") {
+            advance!(self, res);
+
+            expect_token!(self, res, TokenType::Lsquare, "[");
+
+            advance!(self, res);
+
+            expect_token!(self, res, TokenType::String, "assembly code");
+
+            let asm_str = self.current_token().token_value().as_ref().unwrap().clone();
+
+            advance!(self, res);
+
+            expect_token!(self, res, TokenType::Rsquare, "]");
+
+            advance!(self, res);
+
+            res.success(Box::new(AssemblyNode::new(asm_str, pos_start, self.current_token().pos_end().clone())));
+            return res;
+        }
 
         if self.current_token().matches_keyword("let") {
             advance!(self, res);

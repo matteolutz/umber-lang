@@ -242,7 +242,14 @@ impl Compiler {
 
         if node.node_type() == NodeType::Assembly {
             let assembly_node = node.as_any().downcast_ref::<AssemblyNode>().unwrap();
-            writeln!(w, "\n;; Assembly injected im asm[\"...\"]\n\t{}\n;; End\n", assembly_node.content())?;
+
+            let reg = self.res_scratch();
+            writeln!(w, "\tpush    rax")?;
+            writeln!(w, "\t{}", assembly_node.content())?;
+            writeln!(w, "\tmov     {}, rax", self.scratch_name(reg))?;
+            writeln!(w, "\tpop     rax")?;
+
+            return Ok(Some(reg))
         }
 
         if node.node_type() == NodeType::Syscall {
