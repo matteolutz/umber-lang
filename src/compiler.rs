@@ -1000,7 +1000,7 @@ impl Compiler {
 
         writeln!(res, "\t;; Static strings")?;
         for (str, uuid) in &self.strings {
-            writeln!(res, "\t{}  DB `{}`, 0", uuid, str)?;
+            writeln!(res, "\t{}: DB `{}`, 0", uuid, str)?;
         }
 
         writeln!(res, "section .bss")?;

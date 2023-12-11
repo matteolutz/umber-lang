@@ -3,3 +3,5 @@ target/
 
 Cargo.lock
 umber-lang.iml
+
+install.sh
