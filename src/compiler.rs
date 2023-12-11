@@ -23,6 +23,7 @@ use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
+use crate::nodes::stack_allocation_node::StackAllocationNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::static_decl_node::StaticDeclarationNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
@@ -932,12 +933,29 @@ impl Compiler {
         if node.node_type() == NodeType::AddressOf {
             let address_of_node = node.as_any().downcast_ref::<AddressOfNode>().unwrap();
 
+            let res_reg = self.res_scratch();
+
+            if self.is_static(address_of_node.var_name()) {
+                writeln!(w, "\tmov     {}, {}", self.scratch_name(res_reg), self.get_static_name(address_of_node.var_name()))?;
+                return Ok(Some(res_reg));
+            }
+
             let (var_offset, _) = self.get_var(address_of_node.var_name());
 
-            let res_reg = self.res_scratch();
             writeln!(w, "\tlea     {}, [rbp - {}]", self.scratch_name(res_reg), var_offset)?;
 
             return Ok(Some(res_reg));
+        }
+
+        if node.node_type() == NodeType::StackAllocationNode {
+            let stack_allocation_node = node.as_any().downcast_ref::<StackAllocationNode>().unwrap();
+
+            // let beginning_offset = self.base_offset;
+            self.base_offset += stack_allocation_node.size_in_bytes();
+
+            let reg = self.res_scratch();
+            writeln!(w, "\tlea     {}, [rbp-{}]", self.scratch_name(reg), self.base_offset)?;
+            return Ok(Some(reg));
         }
 
         Ok(None)

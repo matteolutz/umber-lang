@@ -38,6 +38,7 @@ use crate::nodes::static_decl_node::StaticDeclarationNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::struct_def_node::StructDefinitionNode;
+use crate::nodes::struct_init_node::StructInitNode;
 use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::util::type_carrier_node::TypeCarrierNode;
@@ -50,6 +51,7 @@ use crate::token::{Token, TOKEN_FLAGS_IS_ASSIGN, TokenType};
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
+use crate::values::value_type::generic_type::GenericType;
 use crate::values::value_type::i16_type::I16Type;
 use crate::values::value_type::i32_type::I32Type;
 use crate::values::value_type::i64_type::I64Type;
@@ -194,7 +196,16 @@ impl<'a> Parser<'a> {
                 let struct_name = self.current_token().token_value().as_ref().unwrap().clone();
 
                 Box::new(StructType::new(struct_name))
-            }
+            },
+            "generic" => {
+                advance!(self, res);
+
+                expect_token!(self, res, TokenType::Identifier, "generic name");
+
+                let generic_name = self.current_token().token_value().as_ref().unwrap().clone();
+
+                Box::new(GenericType::new(generic_name))
+            },
             _ => {
                 res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected intrinsic type!"));
                 return res;
@@ -409,6 +420,26 @@ impl<'a> Parser<'a> {
 
         advance!(self, res);
 
+        let mut generics: Vec<String> = Vec::<_>::new();
+
+        if self.current_token().token_type() == TokenType::Lt {
+            advance!(self, res);
+
+            while {
+                expect_token!(self, res, TokenType::Identifier, "generic name");
+                expect_token_value!(self, res);
+
+                generics.push(self.current_token().token_value().as_ref().unwrap().clone());
+
+                advance!(self, res);
+
+                self.current_token().token_type() == TokenType::Comma
+            } {}
+
+            expect_token!(self, res, TokenType::Gt, ">");
+            advance!(self, res);
+        }
+
         expect_token!(self, res, TokenType::Lparen, "(");
 
         advance!(self, res);
@@ -501,7 +532,7 @@ impl<'a> Parser<'a> {
             return res;
         }
 
-        res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, func_body.unwrap(), pos_start)));
+        res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, func_body.unwrap(), generics, pos_start)));
         res
     }
 
@@ -878,6 +909,26 @@ impl<'a> Parser<'a> {
     fn expression(&mut self) -> ParseResult {
         let mut res = ParseResult::new();
         let pos_start = self.current_token().pos_start().clone();
+
+        if self.current_token().matches_keyword("struct") {
+            let type_node_res = res.register_res(self.parse_intrinsic_type());
+            if res.has_error() {
+                return res;
+            }
+
+            let ttype = type_node_res.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().as_any().downcast_ref::<StructType>().unwrap().name().to_string();
+
+            expect_token!(self, res, TokenType::Lcurly, "{");
+
+            advance!(self, res);
+
+            expect_token!(self, res, TokenType::Rcurly, "}");
+
+            advance!(self, res);
+
+            res.success(Box::new(StructInitNode::new(ttype, pos_start.clone(), self.current_token().pos_end().clone())));
+            return res;
+        }
 
         if self.current_token().matches_keyword("asm") {
             advance!(self, res);

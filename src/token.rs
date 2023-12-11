@@ -140,7 +140,7 @@ pub enum TokenType {
     Eof,
 }
 
-pub static KEYWORDS: [&'static str; 32] = [
+pub static KEYWORDS: [&'static str; 33] = [
     "let",
     "mut",
     "const",
@@ -172,5 +172,6 @@ pub static KEYWORDS: [&'static str; 32] = [
     "static",
     "struct",
     "import",
-    "macro"
+    "macro",
+    "generic"
 ];

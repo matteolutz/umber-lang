@@ -20,6 +20,7 @@ pub mod i64_type;
 pub mod i32_type;
 pub mod i16_type;
 pub mod i8_type;
+pub mod generic_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
@@ -38,6 +39,7 @@ pub enum ValueTypes {
     Void,
     Pointer,
     Struct,
+    Generic,
     Ignored,
 }
 

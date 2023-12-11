@@ -39,6 +39,8 @@ pub mod accessor_node;
 pub mod extern_node;
 pub mod address_of_node;
 pub mod static_decl_node;
+pub mod struct_init_node;
+pub mod stack_allocation_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -82,6 +84,8 @@ pub enum NodeType {
     Accessor,
     Extern,
     AddressOf,
+    StructInit,
+    StackAllocationNode
 }
 
 pub trait NodeToAny: 'static {

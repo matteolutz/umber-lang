@@ -31,11 +31,13 @@ use crate::nodes::pointer_assign_node::PointerAssignNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
 use crate::nodes::return_node::ReturnNode;
 use crate::nodes::sizeof_node::SizeOfNode;
+use crate::nodes::stack_allocation_node::StackAllocationNode;
 use crate::nodes::statements_node::StatementsNode;
 use crate::nodes::static_decl_node::StaticDeclarationNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::struct_def_node::StructDefinitionNode;
+use crate::nodes::struct_init_node::StructInitNode;
 use crate::nodes::syscall_node::SyscallNode;
 use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
@@ -72,7 +74,7 @@ pub struct Validator {
 
     current_function_return_type: Option<Box<dyn ValueType>>,
 
-    structs: HashMap<String, Vec<(String, Box<dyn ValueType>)>>
+    structs: HashMap<String, Vec<(String, Box<dyn ValueType>)>>,
 }
 
 impl Validator {
@@ -164,7 +166,6 @@ impl Validator {
 }
 
 impl Validator {
-
     pub fn validate(&mut self, node: &Box<dyn Node>) -> ValidationResult {
         match node.node_type() {
             NodeType::Statements => self.validate_statements_node(node.as_any().downcast_ref::<StatementsNode>().unwrap()),
@@ -202,8 +203,13 @@ impl Validator {
             NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
             NodeType::AddressOf => self.validate_address_of_node(node.as_any().downcast_ref::<AddressOfNode>().unwrap()),
             NodeType::Assembly => self.validate_assembly_node(node.as_any().downcast_ref::<AssemblyNode>().unwrap()),
+            NodeType::StructInit => self.validate_struct_init_node(node.as_any().downcast_ref::<StructInitNode>().unwrap()),
             _ => panic!("Unsupported node type: {:?}", node.node_type()),
         }
+    }
+
+    fn validate_type(&self, t: Box<dyn ValueType>) -> Box<dyn ValueType> {
+        t
     }
 
     fn validate_statements_node(&mut self, node: &StatementsNode) -> ValidationResult {
@@ -263,7 +269,7 @@ impl Validator {
             }
         }
 
-        res.success(Box::new(PointerType::new(node.element_type().clone(), true)), node.box_clone());
+        res.success(Box::new(PointerType::new(self.validate_type(node.element_type().clone()), true)), node.box_clone());
         res
     }
 
@@ -287,15 +293,15 @@ impl Validator {
         }
 
         if node.op_token().token_type() == TokenType::PointerAssign {
-            res.success(result_type.unwrap(), Box::new(PointerAssignNode::new(left_node.unwrap(), left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone(), right_node.unwrap())));
+            res.success(result_type.unwrap(), Box::new(PointerAssignNode::new(left_node.unwrap(), self.validate_type(left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone()), right_node.unwrap())));
             return res;
         }
         if node.op_token().token_type() == TokenType::Offset {
-            res.success(result_type.unwrap(), Box::new(OffsetNode::new(left_node.unwrap(), right_node.unwrap(), left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone())));
+            res.success(result_type.unwrap(), Box::new(OffsetNode::new(left_node.unwrap(), right_node.unwrap(), self.validate_type(left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone()))));
             return res;
         }
 
-        res.success(result_type.unwrap(), Box::new(BinOpNode::new(left_node.unwrap(), node.op_token().clone(), right_node.unwrap())));
+        res.success(self.validate_type(result_type.unwrap()), Box::new(BinOpNode::new(left_node.unwrap(), node.op_token().clone(), right_node.unwrap())));
         res
     }
 
@@ -313,7 +319,7 @@ impl Validator {
             return res;
         }
 
-        res.success(result_type.unwrap(), Box::new(UnaryOpNode::new(node.op_token().clone(), right_node.unwrap())));
+        res.success(self.validate_type(result_type.unwrap()), Box::new(UnaryOpNode::new(node.op_token().clone(), right_node.unwrap())));
         res
     }
 
@@ -324,7 +330,7 @@ impl Validator {
             let (_, decl_pos) = self.get_symbol(node.var_name()).unwrap();
             res.failure(error::semantic_error_with_parent(
                 node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' was already declared in this scope!", node.var_name()).as_str(),
-                error::semantic_error(decl_pos.clone(), decl_pos.clone(), format!("Previous declaration of '{}'", node.var_name()).as_str())
+                error::semantic_error(decl_pos.clone(), decl_pos.clone(), format!("Previous declaration of '{}'", node.var_name()).as_str()),
             ));
             return res;
         }
@@ -417,7 +423,6 @@ impl Validator {
                 res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Second parameter of main function must be a pointer to a character!").as_str()));
                 return res;
             }
-
         }
 
         let mut arg_types: Vec<Box<dyn ValueType>> = vec![];
@@ -461,7 +466,7 @@ impl Validator {
             return res;
         }
 
-        res.success(Box::new(IgnoredType::new()), Box::new(FunctionDefinitionNode::new(node.var_name().to_string(), node.args().clone(), node.return_type().box_clone(), body_node.unwrap(), node.pos_start().clone())));
+        res.success(Box::new(IgnoredType::new()), Box::new(FunctionDefinitionNode::new(node.var_name().to_string(), node.args().clone(), node.return_type().box_clone(), body_node.unwrap(), node.generics().clone(), node.pos_start().clone())));
         res
     }
 
@@ -483,7 +488,7 @@ impl Validator {
         self.declare_symbol(
             node.var_name().to_string(),
             Symbol::new(Box::new(FunctionType::new(arg_types.clone(), node.return_type().clone())), false),
-            node.pos_start().clone()
+            node.pos_start().clone(),
         );
 
         res.success(Box::new(IgnoredType::new()), node.box_clone());
@@ -983,6 +988,24 @@ impl Validator {
         res
     }
 
+
+    fn validate_struct_init_node(&self, node: &StructInitNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        if !self.structs.contains_key(node.struct_name()) {
+            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Struct '{}' is not defined!", node.struct_name()).as_str()));
+            return res;
+        }
+
+        let struct_size = self.structs[node.struct_name()].iter().fold(0_u64, |acc, (_, field_type)| acc + field_type.get_size().get_size_in_bytes() as u64);
+
+        res.success(Box::new(PointerType::new(Box::new(StructType::new(node.struct_name().to_string())), true)), Box::new(StackAllocationNode::new(
+            struct_size,
+            node.pos_start().clone(),
+            node.pos_end().clone()
+        )));
+        res
+    }
 }
 
 #[cfg(test)]
