@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand, Args};
 use umber_lang::error;
 use umber_lang::error::Error;
 use umber_lang::position::Position;
+use umber_lang::syscall::ArchType;
 
 #[derive(Subcommand)]
 enum Subcommands {
@@ -45,6 +46,10 @@ struct SubCompile {
     /// Only compile, dont link
     #[clap(short, long, action)]
     compile_only: bool,
+
+    /// Arch to compile for
+    #[clap(long, value_enum, default_value_t=ArchType::X86_64)]
+    arch: ArchType,
 }
 
 
@@ -58,8 +63,10 @@ struct BinaryArgs {
 
 }
 
-fn compile(file: String, include: Option<String>, assembler_options: Option<String>, linker_options: Option<String>, verbose: bool, no_entry: bool, compile_only: bool) -> Result<(), Error> {
+fn compile(file: String, include: Option<String>, assembler_options: Option<String>, linker_options: Option<String>, verbose: bool, no_entry: bool, compile_only: bool, arch: ArchType) -> Result<(), Error> {
     let now = Instant::now();
+
+    if verbose { println!("Building for {:?}", arch) }
 
     let file = Path::new(file.as_str());
     let file_stem = file.file_stem().unwrap().to_str().unwrap();
@@ -110,7 +117,7 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
 
     if verbose { print!("Generating assembly...") }
     let mut compiler = umber_lang::compiler::Compiler::new();
-    let asm = compiler.compile_to_str(ast_root, no_entry);
+    let asm = compiler.compile_to_str(ast_root, no_entry, arch);
 
     if let Err(fmt_error) = asm {
         return Err(error::io_error(Position::empty(), Position::empty(), format!("Could not format assembly: {}", fmt_error).as_str()));
@@ -131,7 +138,7 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
     if verbose { print!("Compiling assembly...") }
 
     let mut assembler_cmd = Command::new("nasm");
-    assembler_cmd.args(["-f", "elf64", "-o", obj_path.to_str().unwrap(), asm_path.to_str().unwrap()]);
+    assembler_cmd.args(["-f", arch.nasm_format(), "-o", obj_path.to_str().unwrap(), asm_path.to_str().unwrap()]);
 
     if let Some(ao) = assembler_options {
         assembler_cmd.args(ao.split(' '));
@@ -190,7 +197,7 @@ fn main() {
 
     if let Err(err) = match args.command {
         Subcommands::Com(subcommand) => {
-            compile(subcommand.name, subcommand.include, subcommand.asm, subcommand.linker, subcommand.verbose, subcommand.no_entry, subcommand.compile_only)
+            compile(subcommand.name, subcommand.include, subcommand.asm, subcommand.linker, subcommand.verbose, subcommand.no_entry, subcommand.compile_only, subcommand.arch)
         }
     } {
         println!("\n{}", err);

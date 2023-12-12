@@ -34,6 +34,7 @@ use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::var_node::typed_access::VarTypedAccessNode;
 use crate::nodes::var_node::typed_assign::VarTypedAssignNode;
 use crate::nodes::while_node::WhileNode;
+use crate::syscall::{ArchType, SyscallTable};
 use crate::token::TokenType;
 use crate::values::value_size::ValueSize;
 
@@ -285,7 +286,7 @@ impl Compiler {
         if node.node_type() == NodeType::String {
             let str_label = self.create_string_label(node.as_any().downcast_ref::<StringNode>().unwrap().get_string());
             let reg = self.res_scratch();
-            writeln!(w, "\tmov     {}, {}", self.scratch_name(reg), str_label)?;
+            writeln!(w, "\tmov     {}, QWORD {}", self.scratch_name(reg), str_label)?;
             return Ok(Some(reg));
         }
 
@@ -961,10 +962,28 @@ impl Compiler {
         Ok(None)
     }
 
-    pub fn compile_to_str(&mut self, node: &Box<dyn Node>, no_entry: bool) -> Result<String, fmt::Error> {
+    pub fn compile_to_str(&mut self, node: &Box<dyn Node>, no_entry: bool, arch: ArchType) -> Result<String, fmt::Error> {
         let mut res = String::new();
 
         let mut code = String::new();
+        self.code_gen(node, &mut code)?;
+
+        // region .data
+        writeln!(res, "section .data")?;
+
+        writeln!(res, "\t;; Static strings")?;
+        for (str, uuid) in &self.strings {
+            writeln!(res, "\t{}: db  '{}', 0", uuid, str)?;
+        }
+
+        writeln!(res, "section .bss")?;
+        writeln!(res, "\t;; Other statics")?;
+        for (name, size) in &self.statics {
+            writeln!(res, "\t{}  RESB {}", self.get_static_name(name), size.get_size_in_bytes())?;
+        }
+        // endregion
+
+        writeln!(res, "\nsection .text\n")?;
 
         if !no_entry {
             self.add_global(ENTRY_SYMBOL.to_string());
@@ -976,38 +995,22 @@ impl Compiler {
             writeln!(code, "\tcall    {}", self.function_label_name("main"))?;
 
             writeln!(code, "\tmov     rdi, rax")?;
-            writeln!(code, "\tmov     rax, 60")?;
+            writeln!(code, "\tmov     rax, {}", SyscallTable::Exit.code(arch))?;
             writeln!(code, "\tsyscall")?;
-            writeln!(code, "\tret\n")?;
+            writeln!(code, "\tret")?;
         }
 
 
-        self.code_gen(node, &mut code)?;
 
         if !self.globals.is_empty() {
             writeln!(res, "global {}\n", self.globals.join(","))?;
         }
 
-        writeln!(res, "section .text")?;
-
         if !self.externs.is_empty() {
             writeln!(res, "\textern {}", self.externs.join(","))?;
         }
 
-        writeln!(res, "\n{}\n", code)?;
-
-        writeln!(res, "section .data")?;
-
-        writeln!(res, "\t;; Static strings")?;
-        for (str, uuid) in &self.strings {
-            writeln!(res, "\t{}: DB `{}`, 0", uuid, str)?;
-        }
-
-        writeln!(res, "section .bss")?;
-        writeln!(res, "\t;; Other statics")?;
-        for (name, size) in &self.statics {
-            writeln!(res, "\t{}  RESB {}", self.get_static_name(name), size.get_size_in_bytes())?;
-        }
+        write!(res, "{}\n", code)?;
 
         Ok(res)
     }
