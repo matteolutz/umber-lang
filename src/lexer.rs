@@ -194,11 +194,7 @@ impl Lexer {
             self.advance();
         }
 
-        if dot_count == 0 {
-            Ok(Token::new_with_value(TokenType::U64, num_str, pos_start, self.pos.clone()))
-        } else {
-            Err(error::not_yet_implemented_error(pos_start, self.pos.clone(), "Floating points aren't implemented yet."))
-        }
+        Ok(Token::new_with_value(if dot_count == 0 { TokenType::U64 } else { TokenType::F64 }, num_str, pos_start, self.pos.clone()))
     }
 
     fn make_identifier(&mut self) -> Token {

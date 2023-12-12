@@ -41,6 +41,10 @@ pub mod address_of_node;
 pub mod static_decl_node;
 pub mod struct_init_node;
 pub mod stack_allocation_node;
+pub mod floating_point_node;
+pub mod floating_binop_node;
+pub mod f64_to_u64_node;
+pub mod u64_to_f64_node;
 
 #[derive(Debug, PartialEq)]
 pub enum NodeType {
@@ -85,7 +89,11 @@ pub enum NodeType {
     Extern,
     AddressOf,
     StructInit,
-    StackAllocationNode
+    StackAllocationNode,
+    FloatingPoint,
+    FloatingBinOp,
+    F64ToU64,
+    U64ToF64
 }
 
 pub trait NodeToAny: 'static {

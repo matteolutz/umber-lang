@@ -21,6 +21,7 @@ pub mod i32_type;
 pub mod i16_type;
 pub mod i8_type;
 pub mod generic_type;
+pub mod f64_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
@@ -41,6 +42,7 @@ pub enum ValueTypes {
     Struct,
     Generic,
     Ignored,
+    F64
 }
 
 pub trait ValueTypeAsAny {

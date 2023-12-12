@@ -94,6 +94,7 @@ impl Display for Token {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum TokenType {
     U64,
+    F64,
     String,
     Char,
     Identifier,
@@ -140,7 +141,7 @@ pub enum TokenType {
     Eof,
 }
 
-pub static KEYWORDS: [&'static str; 33] = [
+pub static KEYWORDS: [&'static str; 34] = [
     "let",
     "mut",
     "const",
@@ -164,6 +165,7 @@ pub static KEYWORDS: [&'static str; 33] = [
     "i32",
     "i16",
     "i8",
+    "f64",
     "string",
     "bool",
     "char",

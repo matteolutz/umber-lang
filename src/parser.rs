@@ -28,6 +28,7 @@ use crate::nodes::if_node::IfNode;
 use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::array_node::ArrayNode;
+use crate::nodes::floating_point_node::FloatingPointNode;
 use crate::nodes::macro_def_node::MacroDefNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
@@ -51,6 +52,7 @@ use crate::token::{Token, TOKEN_FLAGS_IS_ASSIGN, TokenType};
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
+use crate::values::value_type::f64_type::F64Type;
 use crate::values::value_type::generic_type::GenericType;
 use crate::values::value_type::i16_type::I16Type;
 use crate::values::value_type::i32_type::I32Type;
@@ -184,6 +186,7 @@ impl<'a> Parser<'a> {
             "i32" => Box::new(I32Type::new()),
             "i16" => Box::new(I16Type::new()),
             "i8" => Box::new(I8Type::new()),
+            "f64" => Box::new(F64Type::new()),
             "string" => Box::new(StringType::new()),
             "bool" => Box::new(BoolType::new()),
             "char" => Box::new(CharType::new()),
@@ -1284,6 +1287,10 @@ impl<'a> Parser<'a> {
             advance!(self, res);
 
             node = Box::new(NumberNode::new(token, Box::new(U64Type::new())));
+        } else if token.token_type() == TokenType::F64 {
+            advance!(self, res);
+
+            node = Box::new(FloatingPointNode::new(token, Box::new(F64Type::new())));
         } else if token.token_type() == TokenType::String {
             advance!(self, res);
 

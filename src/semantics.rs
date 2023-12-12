@@ -24,6 +24,9 @@ use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::array_node::ArrayNode;
 use crate::nodes::asm_node::AssemblyNode;
+use crate::nodes::f64_to_u64_node::F64ToU64Node;
+use crate::nodes::floating_binop_node::FloatingBinOpNode;
+use crate::nodes::floating_point_node::FloatingPointNode;
 use crate::nodes::macro_def_node::MacroDefNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
@@ -39,6 +42,7 @@ use crate::nodes::string_node::StringNode;
 use crate::nodes::struct_def_node::StructDefinitionNode;
 use crate::nodes::struct_init_node::StructInitNode;
 use crate::nodes::syscall_node::SyscallNode;
+use crate::nodes::u64_to_f64_node::U64ToF64Node;
 use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
@@ -52,6 +56,7 @@ use crate::symbol_table::Symbol;
 use crate::token::{Token, TokenType};
 use crate::values::value_type::{ValueType, ValueTypes};
 use crate::values::value_type::char_type::CharType;
+use crate::values::value_type::f64_type::F64Type;
 use crate::values::value_type::function_type::FunctionType;
 use crate::values::value_type::ignored_type::IgnoredType;
 use crate::values::value_type::u64_type::U64Type;
@@ -170,6 +175,7 @@ impl Validator {
         match node.node_type() {
             NodeType::Statements => self.validate_statements_node(node.as_any().downcast_ref::<StatementsNode>().unwrap()),
             NodeType::Number => self.validate_number_node(node.as_any().downcast_ref::<NumberNode>().unwrap()),
+            NodeType::FloatingPoint => self.validate_floating_point_node(node.as_any().downcast_ref::<FloatingPointNode>().unwrap()),
             NodeType::String => self.validate_string_node(node.as_any().downcast_ref::<StringNode>().unwrap()),
             NodeType::Char => self.validate_char_node(node.as_any().downcast_ref::<CharNode>().unwrap()),
             NodeType::Array => self.validate_array_node(node.as_any().downcast_ref::<ArrayNode>().unwrap()),
@@ -239,6 +245,14 @@ impl Validator {
         res
     }
 
+
+    fn validate_floating_point_node(&self, node: &FloatingPointNode) -> ValidationResult {
+        let mut res = ValidationResult::new();
+
+        res.success(Box::new(F64Type::new()), node.box_clone());
+        res
+    }
+
     fn validate_string_node(&self, node: &StringNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
@@ -289,6 +303,11 @@ impl Validator {
         let result_type = left.as_ref().unwrap().is_valid_bin_op(node.op_token(), right.as_ref().unwrap());
         if result_type.is_none() {
             res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Binary operation '{}' not allowed between value_type {} and {}!", node.op_token(), left.as_ref().unwrap(), right.as_ref().unwrap()).as_str()));
+            return res;
+        }
+
+        if left.as_ref().unwrap().value_type() == ValueTypes::F64 {
+            res.success(result_type.unwrap(), Box::new(FloatingBinOpNode::new(left_node.unwrap(), node.op_token().clone(), right_node.unwrap())));
             return res;
         }
 
@@ -731,6 +750,14 @@ impl Validator {
 
         let (node_type, cast_node) = res.register_res(self.validate(node.node()));
         if res.has_error() {
+            return res;
+        }
+
+        if node_type.as_ref().unwrap().value_type() == ValueTypes::F64 && node.cast_type().value_type() == ValueTypes::U64 {
+            res.success(Box::new(U64Type::new()), Box::new(F64ToU64Node::new(cast_node.unwrap())));
+            return res;
+        } else if node_type.as_ref().unwrap().value_type() == ValueTypes::U64 && node.cast_type().value_type() == ValueTypes::F64 {
+            res.success(Box::new(F64Type::new()), Box::new(U64ToF64Node::new(cast_node.unwrap())));
             return res;
         }
 
