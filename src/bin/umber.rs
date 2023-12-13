@@ -7,7 +7,7 @@ use clap::{Parser, Subcommand, Args};
 use umber_lang::error;
 use umber_lang::error::Error;
 use umber_lang::position::Position;
-use umber_lang::syscall::ArchType;
+use umber_lang::syscall::TargetObjectType;
 
 #[derive(Subcommand)]
 enum Subcommands {
@@ -47,9 +47,9 @@ struct SubCompile {
     #[clap(short, long, action)]
     compile_only: bool,
 
-    /// Arch to compile for
-    #[clap(long, value_enum, default_value_t=ArchType::X86_64)]
-    arch: ArchType,
+    /// Object format to compile to
+    #[clap(short, long, value_enum, default_value_t=TargetObjectType::X86_64)]
+    target: TargetObjectType,
 }
 
 
@@ -63,7 +63,7 @@ struct BinaryArgs {
 
 }
 
-fn compile(file: String, include: Option<String>, assembler_options: Option<String>, linker_options: Option<String>, verbose: bool, no_entry: bool, compile_only: bool, arch: ArchType) -> Result<(), Error> {
+fn compile(file: String, include: Option<String>, assembler_options: Option<String>, linker_options: Option<String>, verbose: bool, no_entry: bool, compile_only: bool, arch: TargetObjectType) -> Result<(), Error> {
     let now = Instant::now();
 
     if verbose { println!("Building for {:?}", arch) }
@@ -138,7 +138,7 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
     if verbose { print!("Compiling assembly...") }
 
     let mut assembler_cmd = Command::new("nasm");
-    assembler_cmd.args(["-f", arch.nasm_format(), "-o", obj_path.to_str().unwrap(), asm_path.to_str().unwrap()]);
+    assembler_cmd.args(["-f", arch.object_format(), "-o", obj_path.to_str().unwrap(), asm_path.to_str().unwrap()]);
 
     if let Some(ao) = assembler_options {
         assembler_cmd.args(ao.split(' '));
@@ -197,7 +197,7 @@ fn main() {
 
     if let Err(err) = match args.command {
         Subcommands::Com(subcommand) => {
-            compile(subcommand.name, subcommand.include, subcommand.asm, subcommand.linker, subcommand.verbose, subcommand.no_entry, subcommand.compile_only, subcommand.arch)
+            compile(subcommand.name, subcommand.include, subcommand.asm, subcommand.linker, subcommand.verbose, subcommand.no_entry, subcommand.compile_only, subcommand.target)
         }
     } {
         println!("\n{}", err);

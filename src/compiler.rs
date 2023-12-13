@@ -16,9 +16,6 @@ use crate::nodes::functiondef_node::FunctionDefinitionNode;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::import_node::ImportNode;
 use crate::nodes::array_node::ArrayNode;
-use crate::nodes::f64_to_u64_node::F64ToU64Node;
-use crate::nodes::floating_binop_node::FloatingBinOpNode;
-use crate::nodes::floating_point_node::FloatingPointNode;
 use crate::nodes::functiondecl_node::FunctionDeclarationNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
@@ -32,13 +29,12 @@ use crate::nodes::static_decl_node::StaticDeclarationNode;
 use crate::nodes::static_def_node::StaticDefinitionNode;
 use crate::nodes::string_node::StringNode;
 use crate::nodes::syscall_node::SyscallNode;
-use crate::nodes::u64_to_f64_node::U64ToF64Node;
 use crate::nodes::unaryop_node::UnaryOpNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::var_node::typed_access::VarTypedAccessNode;
 use crate::nodes::var_node::typed_assign::VarTypedAssignNode;
 use crate::nodes::while_node::WhileNode;
-use crate::syscall::{ArchType, SyscallTable};
+use crate::syscall::{TargetObjectType, SyscallTable};
 use crate::token::TokenType;
 use crate::values::value_size::ValueSize;
 
@@ -287,20 +283,6 @@ impl Compiler {
             return Ok(Some(reg));
         }
 
-        if node.node_type() == NodeType::FloatingPoint {
-            let floating_point_node = node.as_any().downcast_ref::<FloatingPointNode>().unwrap();
-
-            let reg = self.res_scratch();
-            if floating_point_node.size().get_size() != ValueSize::Qword {
-                writeln!(w, "\txor     {}, {}", self.scratch_name(reg), self.scratch_name(reg))?;
-            }
-
-            writeln!(w, "\t;; Floating point")?;
-            writeln!(w, "\tmov     {}, {} {}", self.scratch_name_lower_sized(reg, &floating_point_node.size().get_size()), floating_point_node.size().get_size(), floating_point_node.ieee_754())?;
-
-            return Ok(Some(reg));
-        }
-
         if node.node_type() == NodeType::String {
             let str_label = self.create_string_label(node.as_any().downcast_ref::<StringNode>().unwrap().get_string());
             let reg = self.res_scratch();
@@ -487,97 +469,6 @@ impl Compiler {
                 writeln!(w, "{}:", self.label_name(&label_after))?;
             } else {
                 panic!("Token '{:?}' not supported as a binary operation yet!", bin_op_node.op_token().token_type());
-            }
-
-            self.free_scratch(right_reg);
-
-            return Ok(Some(res_reg));
-        }
-
-        if node.node_type() == NodeType::FloatingBinOp {
-            let floating_bin_op_node = node.as_any().downcast_ref::<FloatingBinOpNode>().unwrap();
-
-            let left_reg = self.code_gen(floating_bin_op_node.left_node(), w)?.unwrap();
-            let right_reg = self.code_gen(floating_bin_op_node.right_node(), w)?.unwrap();
-
-            let res_reg = left_reg;
-
-            writeln!(w, "\tfinit")?;
-            writeln!(w, "\tsub     rsp, 16")?;
-            writeln!(w, "\tmov     QWORD [rsp], {}", self.scratch_name(left_reg))?;
-            writeln!(w, "\tfld     QWORD [rsp]")?;
-            writeln!(w, "\tadd     rsp, 8")?;
-
-            // load the second value
-            writeln!(w, "\tmov     QWORD [rsp], {}", self.scratch_name(right_reg))?;
-            writeln!(w, "\tfld     QWORD [rsp]")?;
-            writeln!(w, "\tadd     rsp, 8")?;
-
-            if floating_bin_op_node.op_token().token_type() == TokenType::Plus {
-                writeln!(w, "\tfaddp")?;
-                writeln!(w, "\tsub     rsp, 8")?;
-                writeln!(w, "\tfstp    QWORD [rsp]")?;
-                writeln!(w, "\tmov     {}, QWORD [rsp]", self.scratch_name(res_reg))?;
-                writeln!(w, "\tadd     rsp, 8")?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Minus {
-                writeln!(w, "\tfsubp")?;
-                writeln!(w, "\tsub     rsp, 8")?;
-                writeln!(w, "\tfstp    QWORD [rsp]")?;
-                writeln!(w, "\tmov     {}, QWORD [rsp]", self.scratch_name(res_reg))?;
-                writeln!(w, "\tadd     rsp, 8")?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Mul {
-                writeln!(w, "\tfmulp")?;
-                writeln!(w, "\tsub     rsp, 8")?;
-                writeln!(w, "\tfstp    QWORD [rsp]")?;
-                writeln!(w, "\tmov     {}, QWORD [rsp]", self.scratch_name(res_reg))?;
-                writeln!(w, "\tadd     rsp, 8")?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Div {
-                writeln!(w, "\tfdivp")?;
-                writeln!(w, "\tsub     rsp, 8")?;
-                writeln!(w, "\tfstp    QWORD [rsp]")?;
-                writeln!(w, "\tmov     {}, QWORD [rsp]", self.scratch_name(res_reg))?;
-                writeln!(w, "\tadd     rsp, 8")?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Modulo {
-                writeln!(w, "\tfxch")?;
-                writeln!(w, "\tfprem")?;
-                // fprem doesnt pop the stack, so we have to do it manually
-                writeln!(w, "\tsub     rsp, 8")?;
-                writeln!(w, "\tfstp    QWORD [rsp]")?;
-                writeln!(w, "\tmov     {}, QWORD [rsp]", self.scratch_name(res_reg))?;
-                writeln!(w, "\tadd     rsp, 8")?;
-                // pop the remainder
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Ne {
-                writeln!(w, "\tfcomip  st0, st1")?;
-                writeln!(w, "\tsetne   al")?;
-                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg))?;
-                writeln!(w, "\tmov     {}, BYTE al", self.scratch_name_lower_sized(res_reg, &ValueSize::Byte))?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Lt {
-                writeln!(w, "\tfcomip  st0, st1")?;
-                writeln!(w, "\tseta    al")?;
-                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg))?;
-                writeln!(w, "\tmov     {}, BYTE al", self.scratch_name_lower_sized(res_reg, &ValueSize::Byte))?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Gt {
-                writeln!(w, "\tfcomip  st0, st1")?;
-                writeln!(w, "\tsetb    al")?;
-                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg))?;
-                writeln!(w, "\tmov     {}, BYTE al", self.scratch_name_lower_sized(res_reg, &ValueSize::Byte))?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Lte {
-                writeln!(w, "\tfcomip  st0, st1")?;
-                writeln!(w, "\tsetae   al")?;
-                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg))?;
-                writeln!(w, "\tmov     {}, BYTE al", self.scratch_name_lower_sized(res_reg, &ValueSize::Byte))?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Gte {
-                writeln!(w, "\tfcomip  st0, st1")?;
-                writeln!(w, "\tsetbe   al")?;
-                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg))?;
-                writeln!(w, "\tmov     {}, BYTE al", self.scratch_name_lower_sized(res_reg, &ValueSize::Byte))?;
-            } else if floating_bin_op_node.op_token().token_type() == TokenType::Ee {
-                writeln!(w, "\tfcomip  st0, st1")?;
-                writeln!(w, "\tsete    al")?;
-                writeln!(w, "\txor     {}, {}", self.scratch_name(res_reg), self.scratch_name(res_reg))?;
-                writeln!(w, "\tmov     {}, BYTE al", self.scratch_name_lower_sized(res_reg, &ValueSize::Byte))?;
-            } else {
-                panic!("Token '{:?}' not supported as a floating binary operation yet!", floating_bin_op_node.op_token().token_type());
             }
 
             self.free_scratch(right_reg);
@@ -1068,46 +959,10 @@ impl Compiler {
             return Ok(Some(reg));
         }
 
-        if node.node_type() == NodeType::F64ToU64 {
-            let f64_to_u64_node = node.as_any().downcast_ref::<F64ToU64Node>().unwrap();
-            let reg = self.code_gen(f64_to_u64_node.node(), w)?.unwrap();
-
-            writeln!(w, "\tfinit")?;
-            writeln!(w, "\tsub     rsp, 8")?;
-            writeln!(w, "\tmov     QWORD [rsp], {}", self.scratch_name(reg))?;
-            writeln!(w, "\tfld     QWORD [rsp]")?;
-            writeln!(w, "\tadd     rsp, 8")?;
-
-            writeln!(w, "\tsub     rsp, 8")?;
-            writeln!(w, "\tfistp   QWORD [rsp]")?;
-            writeln!(w, "\tmov     {}, QWORD [rsp]", self.scratch_name(reg))?;
-            writeln!(w, "\tadd     rsp, 8")?;
-
-            return Ok(Some(reg));
-        }
-
-        if node.node_type() == NodeType::U64ToF64 {
-            let u64_to_f64_node = node.as_any().downcast_ref::<U64ToF64Node>().unwrap();
-            let reg = self.code_gen(u64_to_f64_node.node(), w)?.unwrap();
-
-            writeln!(w, "\tfinit")?;
-            writeln!(w, "\tsub     rsp, 8")?;
-            writeln!(w, "\tmov     QWORD [rsp], {}", self.scratch_name(reg))?;
-            writeln!(w, "\tfild    QWORD [rsp]")?;
-            writeln!(w, "\tadd     rsp, 8")?;
-
-            writeln!(w, "\tsub     rsp, 8")?;
-            writeln!(w, "\tfstp    QWORD [rsp]")?;
-            writeln!(w, "\tmov     {}, QWORD [rsp]", self.scratch_name(reg))?;
-            writeln!(w, "\tadd     rsp, 8")?;
-
-            return Ok(Some(reg));
-        }
-
         Ok(None)
     }
 
-    pub fn compile_to_str(&mut self, node: &Box<dyn Node>, no_entry: bool, arch: ArchType) -> Result<String, fmt::Error> {
+    pub fn compile_to_str(&mut self, node: &Box<dyn Node>, no_entry: bool, arch: TargetObjectType) -> Result<String, fmt::Error> {
         let mut res = String::new();
 
         let mut code = String::new();
@@ -1118,7 +973,7 @@ impl Compiler {
 
         writeln!(res, "\t;; Static strings")?;
         for (str, uuid) in &self.strings {
-            writeln!(res, "\t{}: db  `{}`, 0", uuid, str)?;
+            writeln!(res, "\t{}: db  '{}', 0", uuid, str)?;
         }
 
         writeln!(res, "section .bss")?;

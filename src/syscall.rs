@@ -1,14 +1,11 @@
 use clap::ValueEnum;
 
 #[derive(ValueEnum, Copy, Clone, Debug)]
-pub enum ArchType {
-    #[warn(non_camel_case_types)]
-    X86_64,
-    Macos
-}
+#[warn(non_camel_case_types)]
+pub enum TargetObjectType { X86_64, Macos }
 
-impl ArchType {
-    pub fn nasm_format(&self) -> &'static str {
+impl TargetObjectType {
+    pub fn object_format(&self) -> &'static str {
         match self {
             Self::X86_64 => "elf64",
             Self::Macos => "macho64"
@@ -21,11 +18,11 @@ pub enum SyscallTable {
 }
 
 impl SyscallTable {
-    pub fn code(&self, arch: ArchType) -> u32 {
+    pub fn code(&self, arch: TargetObjectType) -> u32 {
         match self {
             Self::Exit => match arch {
-                ArchType::X86_64 => 60,
-                ArchType::Macos => 0x2000001
+                TargetObjectType::X86_64 => 60,
+                TargetObjectType::Macos => 0x2000001
             }
         }
     }
