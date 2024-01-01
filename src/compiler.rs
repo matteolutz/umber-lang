@@ -150,7 +150,7 @@ impl Compiler {
     }
 
     fn label_name(&self, label: &u128) -> String {
-        return format!("L{}", label);
+        return format!(".L{}", label);
     }
 
     fn function_label_name(&self, function: &str) -> String {
@@ -519,7 +519,7 @@ impl Compiler {
                 self.free_scratch(reg);
             }
 
-            for i in 0..call_node.arg_nodes().len() {
+            for (i, _arg) in call_node.arg_nodes().iter().enumerate() {
                 if i >= QW_NUMBER_ARG_REGS.len() { break };
                 writeln!(w, "\tpop     {}", QW_NUMBER_ARG_REGS[i])?;
             }
@@ -973,7 +973,7 @@ impl Compiler {
 
         writeln!(res, "\t;; Static strings")?;
         for (str, uuid) in &self.strings {
-            writeln!(res, "\t{}: db  '{}', 0", uuid, str)?;
+            writeln!(res, "\t{}: db  `{}`, 0", uuid, str)?;
         }
 
         writeln!(res, "section .bss")?;
