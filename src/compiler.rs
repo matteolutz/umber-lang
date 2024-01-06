@@ -34,7 +34,7 @@ use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::var_node::typed_access::VarTypedAccessNode;
 use crate::nodes::var_node::typed_assign::VarTypedAssignNode;
 use crate::nodes::while_node::WhileNode;
-use crate::syscall::{TargetObjectType, SyscallTable};
+use crate::syscall::{TargetObjectType, SyscallTable, CallingConvention};
 use crate::token::TokenType;
 use crate::values::value_size::ValueSize;
 
@@ -52,10 +52,15 @@ const B_SCRATCH_REGS: [&str; 7] = [
 ];
 
 
-const QW_NUMBER_ARG_REGS: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
-const DW_NUMBER_ARG_REGS: [&str; 6] = ["edi", "esi", "edx", "ecx", "r8d", "r9d"];
-const W_NUMBER_ARG_REGS: [&str; 6] = ["di", "si", "dx", "cx", "r8w", "r9w"];
-const B_NUMBER_ARG_REGS: [&str; 6] = ["dil", "sil", "dl", "cl", "r8b", "r9b"];
+const QW_NUMBER_ARG_REGS_UNIX: [&str; 6] = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"];
+const DW_NUMBER_ARG_REGS_UNIX: [&str; 6] = ["edi", "esi", "edx", "ecx", "r8d", "r9d"];
+const W_NUMBER_ARG_REGS_UNIX: [&str; 6] = ["di", "si", "dx", "cx", "r8w", "r9w"];
+const B_NUMBER_ARG_REGS_UNIX: [&str; 6] = ["dil", "sil", "dl", "cl", "r8b", "r9b"];
+
+const QW_NUMBER_ARG_REGS_WIN: [&str; 4] = ["rcx", "rdx", "r8", "r9"];
+const DW_NUMBER_ARG_REGS_WIN: [&str; 4] = ["ecx", "edx", "r8d", "r9d"];
+const W_NUMBER_ARG_REGS_WIN: [&str; 4] = ["cx", "dx", "r8w", "r9w"];
+const B_NUMBER_ARG_REGS_WIN: [&str; 4] = ["cl", "dl", "r8b", "r9b"];
 
 const SYSCALL_REGS: [&str; 4] = ["rax", "rdi", "rsi", "rdx"];
 
@@ -79,11 +84,13 @@ pub struct Compiler {
 
     globals: Vec<String>,
 
-    statics: HashMap<String, ValueSize>
+    statics: HashMap<String, ValueSize>,
+
+    calling_convention: CallingConvention
 }
 
 impl Compiler {
-    pub fn new() -> Self {
+    pub fn new(calling_convention: CallingConvention) -> Self {
         Compiler {
             scratch_regs: 0,
             label_count: 0,
@@ -96,7 +103,8 @@ impl Compiler {
             offset_table: HashMap::new(),
             externs: vec![],
             globals: vec![],
-            statics: HashMap::new()
+            statics: HashMap::new(),
+            calling_convention
         }
     }
 
@@ -129,12 +137,31 @@ impl Compiler {
 
     fn scratch_name(&self, i: u8) -> &str { self.scratch_name_lower_sized(i, &ValueSize::Qword) }
 
-    fn number_arg_reg_name(&self, i: u8, size: &ValueSize) -> &str {
+    fn number_arg_reg_size(&self, calling_convention: &CallingConvention) -> usize {
+        match calling_convention {
+            CallingConvention::Unix => 6,
+            CallingConvention::Win => 4
+        }
+    }
+
+    fn number_arg_reg_name(&self, i: u8, size: &ValueSize, calling_convention: &CallingConvention) -> &str {
         match size {
-            ValueSize::Byte => B_NUMBER_ARG_REGS[i as usize],
-            ValueSize::Word => W_NUMBER_ARG_REGS[i as usize],
-            ValueSize::Dword => DW_NUMBER_ARG_REGS[i as usize],
-            ValueSize::Qword => QW_NUMBER_ARG_REGS[i as usize],
+            ValueSize::Byte => match calling_convention {
+                CallingConvention::Unix => B_NUMBER_ARG_REGS_UNIX[i as usize],
+                CallingConvention::Win => B_NUMBER_ARG_REGS_WIN[i as usize],
+            }
+            ValueSize::Word => match calling_convention {
+                CallingConvention::Unix => W_NUMBER_ARG_REGS_UNIX[i as usize],
+                CallingConvention::Win => W_NUMBER_ARG_REGS_WIN[i as usize],
+            }
+            ValueSize::Dword => match calling_convention {
+                CallingConvention::Unix => DW_NUMBER_ARG_REGS_UNIX[i as usize],
+                CallingConvention::Win => DW_NUMBER_ARG_REGS_WIN[i as usize],
+            }
+            ValueSize::Qword => match calling_convention {
+                CallingConvention::Unix => QW_NUMBER_ARG_REGS_UNIX[i as usize],
+                CallingConvention::Win => QW_NUMBER_ARG_REGS_WIN[i as usize]
+            }
         }
     }
 
@@ -520,14 +547,14 @@ impl Compiler {
             }
 
             for (i, _arg) in call_node.arg_nodes().iter().enumerate() {
-                if i >= QW_NUMBER_ARG_REGS.len() { break };
-                writeln!(w, "\tpop     {}", QW_NUMBER_ARG_REGS[i])?;
+                if i >= self.number_arg_reg_size(&self.calling_convention) { break };
+                writeln!(w, "\tpop     {}", self.number_arg_reg_name(i as u8, &ValueSize::Qword, &self.calling_convention))?;
             }
 
             writeln!(w, "\tcall    {}", func_label)?;
 
-            if call_node.arg_nodes().len() > QW_NUMBER_ARG_REGS.len() {
-                writeln!(w, "\tadd     rsp, {}", (call_node.arg_nodes().len() - QW_NUMBER_ARG_REGS.len()) * 8)?;
+            if call_node.arg_nodes().len() > QW_NUMBER_ARG_REGS_UNIX.len() {
+                writeln!(w, "\tadd     rsp, {}", (call_node.arg_nodes().len() - QW_NUMBER_ARG_REGS_UNIX.len()) * 8)?;
             }
 
             writeln!(w, "\tpop     r11")?;
@@ -560,16 +587,17 @@ impl Compiler {
                 self.register_var(key.clone(), arg_type.get_size());
 
 
-                if i >= QW_NUMBER_ARG_REGS.len() {
+                let num_arg_regs = self.number_arg_reg_size(&self.calling_convention);
+                if i >= num_arg_regs {
                     let reg = self.res_scratch();
 
-                    let non_reg_index = i - QW_NUMBER_ARG_REGS.len() + 1;
+                    let non_reg_index = i - num_arg_regs + 1;
 
                     writeln!(&mut function_body, "\tmov     {}, QWORD [rbp + {}]", self.scratch_name(reg), (non_reg_index * 8) + 8)?;
                     writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.scratch_name_lower_sized(reg, &arg_type.get_size()))?;
                     self.free_scratch(reg);
                 } else {
-                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.number_arg_reg_name(i as u8, &arg_type.get_size()))?;
+                    writeln!(&mut function_body, "\tmov     {} [rbp - ({})], {}", arg_type.get_size(), self.base_offset, self.number_arg_reg_name(i as u8, &arg_type.get_size(), &self.calling_convention))?;
                 }
             }
 

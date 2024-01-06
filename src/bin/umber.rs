@@ -74,7 +74,7 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
     let build_output = file.parent().unwrap().join("build");
 
     let asm_path = build_output.join(format!("{}.asm", file_stem));
-    let obj_path = build_output.join(format!("{}.o", file_stem));
+    let obj_path = build_output.join(format!("{}.{}", file_stem, arch.object_file_extension()));
     let bin_path = build_output.join(file_stem);
 
     let file_read_res = fs::read_to_string(&file);
@@ -116,7 +116,7 @@ fn compile(file: String, include: Option<String>, assembler_options: Option<Stri
     if verbose { println!("Done") }
 
     if verbose { print!("Generating assembly...") }
-    let mut compiler = umber_lang::compiler::Compiler::new();
+    let mut compiler = umber_lang::compiler::Compiler::new(arch.calling_convention());
     let asm = compiler.compile_to_str(ast_root, no_entry, arch);
 
     if let Err(fmt_error) = asm {
