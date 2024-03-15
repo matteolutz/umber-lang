@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::ops::IndexMut;
 
 use crate::error;
-use crate::nodes::{Node, NodeType};
 use crate::nodes::accessor_node::AccessorNode;
 use crate::nodes::address_of_node::AddressOfNode;
+use crate::nodes::array_node::ArrayNode;
+use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
 use crate::nodes::call_node::CallNode;
@@ -14,6 +15,9 @@ use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::dereference_node::DereferenceNode;
 use crate::nodes::extern_node::ExternNode;
+use crate::nodes::f64_to_u64_node::F64ToU64Node;
+use crate::nodes::floating_binop_node::FloatingBinOpNode;
+use crate::nodes::floating_point_node::FloatingPointNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondecl_node::FunctionDeclarationNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
@@ -22,11 +26,6 @@ use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
-use crate::nodes::array_node::ArrayNode;
-use crate::nodes::asm_node::AssemblyNode;
-use crate::nodes::f64_to_u64_node::F64ToU64Node;
-use crate::nodes::floating_binop_node::FloatingBinOpNode;
-use crate::nodes::floating_point_node::FloatingPointNode;
 use crate::nodes::macro_def_node::MacroDefNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::offset_node::OffsetNode;
@@ -50,20 +49,21 @@ use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::var_node::typed_access::VarTypedAccessNode;
 use crate::nodes::var_node::typed_assign::VarTypedAssignNode;
 use crate::nodes::while_node::WhileNode;
+use crate::nodes::{Node, NodeType};
 use crate::position::Position;
 use crate::results::validation::ValidationResult;
 use crate::symbol_table::Symbol;
 use crate::token::{Token, TokenType};
-use crate::values::value_type::{ValueType, ValueTypes};
 use crate::values::value_type::char_type::CharType;
 use crate::values::value_type::f64_type::F64Type;
 use crate::values::value_type::function_type::FunctionType;
 use crate::values::value_type::ignored_type::IgnoredType;
-use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::struct_type::StructType;
+use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::void_type::VoidType;
+use crate::values::value_type::{ValueType, ValueTypes};
 
 #[derive(PartialEq, Debug)]
 enum ScopeType {
@@ -85,12 +85,8 @@ pub struct Validator {
 impl Validator {
     pub fn new() -> Self {
         Validator {
-            type_stack: vec![
-                HashMap::new(),
-            ],
-            scope_stack: vec![
-                ScopeType::Global,
-            ],
+            type_stack: vec![HashMap::new()],
+            scope_stack: vec![ScopeType::Global],
             current_function_return_type: None,
             structs: HashMap::new(),
         }
@@ -173,43 +169,119 @@ impl Validator {
 impl Validator {
     pub fn validate(&mut self, node: &Box<dyn Node>) -> ValidationResult {
         match node.node_type() {
-            NodeType::Statements => self.validate_statements_node(node.as_any().downcast_ref::<StatementsNode>().unwrap()),
-            NodeType::Number => self.validate_number_node(node.as_any().downcast_ref::<NumberNode>().unwrap()),
-            NodeType::FloatingPoint => self.validate_floating_point_node(node.as_any().downcast_ref::<FloatingPointNode>().unwrap()),
-            NodeType::String => self.validate_string_node(node.as_any().downcast_ref::<StringNode>().unwrap()),
-            NodeType::Char => self.validate_char_node(node.as_any().downcast_ref::<CharNode>().unwrap()),
-            NodeType::Array => self.validate_array_node(node.as_any().downcast_ref::<ArrayNode>().unwrap()),
-            NodeType::BinOp => self.validate_bin_op_node(node.as_any().downcast_ref::<BinOpNode>().unwrap()),
-            NodeType::UnaryOp => self.validate_unary_op_node(node.as_any().downcast_ref::<UnaryOpNode>().unwrap()),
-            NodeType::VarDeclaration => self.validate_var_declaration_node(node.as_any().downcast_ref::<VarDeclarationNode>().unwrap()),
-            NodeType::VarAssign => self.validate_var_assign_node(node.as_any().downcast_ref::<VarAssignNode>().unwrap()),
-            NodeType::VarAccess => self.validate_var_access_node(node.as_any().downcast_ref::<VarAccessNode>().unwrap()),
-            NodeType::FunctionDef => self.validate_function_def_node(node.as_any().downcast_ref::<FunctionDefinitionNode>().unwrap()),
-            NodeType::FunctionDecl => self.validate_function_decl_node(node.as_any().downcast_ref::<FunctionDeclarationNode>().unwrap()),
-            NodeType::Call => self.validate_call_node(node.as_any().downcast_ref::<CallNode>().unwrap()),
-            NodeType::Return => self.validate_return_node(node.as_any().downcast_ref::<ReturnNode>().unwrap()),
-            NodeType::Break => self.validate_break_node(node.as_any().downcast_ref::<BreakNode>().unwrap()),
-            NodeType::Continue => self.validate_continue_node(node.as_any().downcast_ref::<ContinueNode>().unwrap()),
-            NodeType::Syscall => self.validate_syscall_node(node.as_any().downcast_ref::<SyscallNode>().unwrap()),
-            NodeType::While => self.validate_while_node(node.as_any().downcast_ref::<WhileNode>().unwrap()),
-            NodeType::For => self.validate_for_node(node.as_any().downcast_ref::<ForNode>().unwrap()),
+            NodeType::Statements => self
+                .validate_statements_node(node.as_any().downcast_ref::<StatementsNode>().unwrap()),
+            NodeType::Number => {
+                self.validate_number_node(node.as_any().downcast_ref::<NumberNode>().unwrap())
+            }
+            NodeType::FloatingPoint => self.validate_floating_point_node(
+                node.as_any().downcast_ref::<FloatingPointNode>().unwrap(),
+            ),
+            NodeType::String => {
+                self.validate_string_node(node.as_any().downcast_ref::<StringNode>().unwrap())
+            }
+            NodeType::Char => {
+                self.validate_char_node(node.as_any().downcast_ref::<CharNode>().unwrap())
+            }
+            NodeType::Array => {
+                self.validate_array_node(node.as_any().downcast_ref::<ArrayNode>().unwrap())
+            }
+            NodeType::BinOp => {
+                self.validate_bin_op_node(node.as_any().downcast_ref::<BinOpNode>().unwrap())
+            }
+            NodeType::UnaryOp => {
+                self.validate_unary_op_node(node.as_any().downcast_ref::<UnaryOpNode>().unwrap())
+            }
+            NodeType::VarDeclaration => self.validate_var_declaration_node(
+                node.as_any().downcast_ref::<VarDeclarationNode>().unwrap(),
+            ),
+            NodeType::VarAssign => self
+                .validate_var_assign_node(node.as_any().downcast_ref::<VarAssignNode>().unwrap()),
+            NodeType::VarAccess => self
+                .validate_var_access_node(node.as_any().downcast_ref::<VarAccessNode>().unwrap()),
+            NodeType::FunctionDef => self.validate_function_def_node(
+                node.as_any()
+                    .downcast_ref::<FunctionDefinitionNode>()
+                    .unwrap(),
+            ),
+            NodeType::FunctionDecl => self.validate_function_decl_node(
+                node.as_any()
+                    .downcast_ref::<FunctionDeclarationNode>()
+                    .unwrap(),
+            ),
+            NodeType::Call => {
+                self.validate_call_node(node.as_any().downcast_ref::<CallNode>().unwrap())
+            }
+            NodeType::Return => {
+                self.validate_return_node(node.as_any().downcast_ref::<ReturnNode>().unwrap())
+            }
+            NodeType::Break => {
+                self.validate_break_node(node.as_any().downcast_ref::<BreakNode>().unwrap())
+            }
+            NodeType::Continue => {
+                self.validate_continue_node(node.as_any().downcast_ref::<ContinueNode>().unwrap())
+            }
+            NodeType::Syscall => {
+                self.validate_syscall_node(node.as_any().downcast_ref::<SyscallNode>().unwrap())
+            }
+            NodeType::While => {
+                self.validate_while_node(node.as_any().downcast_ref::<WhileNode>().unwrap())
+            }
+            NodeType::For => {
+                self.validate_for_node(node.as_any().downcast_ref::<ForNode>().unwrap())
+            }
             NodeType::If => self.validate_if_node(node.as_any().downcast_ref::<IfNode>().unwrap()),
-            NodeType::Cast => self.validate_cast_node(node.as_any().downcast_ref::<CastNode>().unwrap()),
-            NodeType::ConstDef => self.validate_const_def_node(node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap()),
-            NodeType::SizeOf => self.validate_sizeof_node(node.as_any().downcast_ref::<SizeOfNode>().unwrap()),
-            NodeType::StaticDef => self.validate_static_def_node(node.as_any().downcast_ref::<StaticDefinitionNode>().unwrap()),
-            NodeType::StaticDecl => self.validate_static_decl_node(node.as_any().downcast_ref::<StaticDeclarationNode>().unwrap()),
-            NodeType::StructDef => self.validate_struct_def_node(node.as_any().downcast_ref::<StructDefinitionNode>().unwrap()),
-            NodeType::ReadBytes => self.validate_read_bytes_node(node.as_any().downcast_ref::<ReadBytesNode>().unwrap()),
-            NodeType::Dereference => self.validate_dereference_node(node.as_any().downcast_ref::<DereferenceNode>().unwrap()),
-            NodeType::Import => self.validate_import_node(node.as_any().downcast_ref::<ImportNode>().unwrap()),
-            NodeType::MacroDef => self.validate_macro_def_node(node.as_any().downcast_ref::<MacroDefNode>().unwrap()),
-            NodeType::Ignored => self.validate_ignored_node(node.as_any().downcast_ref::<IgnoredNode>().unwrap()),
-            NodeType::Accessor => self.validate_accessor_node(node.as_any().downcast_ref::<AccessorNode>().unwrap()),
-            NodeType::Extern => self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap()),
-            NodeType::AddressOf => self.validate_address_of_node(node.as_any().downcast_ref::<AddressOfNode>().unwrap()),
-            NodeType::Assembly => self.validate_assembly_node(node.as_any().downcast_ref::<AssemblyNode>().unwrap()),
-            NodeType::StructInit => self.validate_struct_init_node(node.as_any().downcast_ref::<StructInitNode>().unwrap()),
+            NodeType::Cast => {
+                self.validate_cast_node(node.as_any().downcast_ref::<CastNode>().unwrap())
+            }
+            NodeType::ConstDef => self.validate_const_def_node(
+                node.as_any().downcast_ref::<ConstDefinitionNode>().unwrap(),
+            ),
+            NodeType::SizeOf => {
+                self.validate_sizeof_node(node.as_any().downcast_ref::<SizeOfNode>().unwrap())
+            }
+            NodeType::StaticDef => self.validate_static_def_node(
+                node.as_any()
+                    .downcast_ref::<StaticDefinitionNode>()
+                    .unwrap(),
+            ),
+            NodeType::StaticDecl => self.validate_static_decl_node(
+                node.as_any()
+                    .downcast_ref::<StaticDeclarationNode>()
+                    .unwrap(),
+            ),
+            NodeType::StructDef => self.validate_struct_def_node(
+                node.as_any()
+                    .downcast_ref::<StructDefinitionNode>()
+                    .unwrap(),
+            ),
+            NodeType::ReadBytes => self
+                .validate_read_bytes_node(node.as_any().downcast_ref::<ReadBytesNode>().unwrap()),
+            NodeType::Dereference => self.validate_dereference_node(
+                node.as_any().downcast_ref::<DereferenceNode>().unwrap(),
+            ),
+            NodeType::Import => {
+                self.validate_import_node(node.as_any().downcast_ref::<ImportNode>().unwrap())
+            }
+            NodeType::MacroDef => {
+                self.validate_macro_def_node(node.as_any().downcast_ref::<MacroDefNode>().unwrap())
+            }
+            NodeType::Ignored => {
+                self.validate_ignored_node(node.as_any().downcast_ref::<IgnoredNode>().unwrap())
+            }
+            NodeType::Accessor => {
+                self.validate_accessor_node(node.as_any().downcast_ref::<AccessorNode>().unwrap())
+            }
+            NodeType::Extern => {
+                self.validate_extern_node(node.as_any().downcast_ref::<ExternNode>().unwrap())
+            }
+            NodeType::AddressOf => self
+                .validate_address_of_node(node.as_any().downcast_ref::<AddressOfNode>().unwrap()),
+            NodeType::Assembly => {
+                self.validate_assembly_node(node.as_any().downcast_ref::<AssemblyNode>().unwrap())
+            }
+            NodeType::StructInit => self
+                .validate_struct_init_node(node.as_any().downcast_ref::<StructInitNode>().unwrap()),
             _ => panic!("Unsupported node type: {:?}", node.node_type()),
         }
     }
@@ -234,7 +306,14 @@ impl Validator {
 
         self.pop_child_scope();
 
-        res.success(Box::new(IgnoredType::new()), Box::new(StatementsNode::new(stmts, node.pos_start().clone(), node.pos_end().clone())));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(StatementsNode::new(
+                stmts,
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+            )),
+        );
         res
     }
 
@@ -244,7 +323,6 @@ impl Validator {
         res.success(Box::new(U64Type::new()), node.box_clone());
         res
     }
-
 
     fn validate_floating_point_node(&self, node: &FloatingPointNode) -> ValidationResult {
         let mut res = ValidationResult::new();
@@ -278,12 +356,27 @@ impl Validator {
             }
 
             if !t.as_ref().unwrap().eq(node.element_type()) {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type {}, is incompatible with array type {}!", t.as_ref().unwrap(), node.element_type()).as_str()));
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    format!(
+                        "Type {}, is incompatible with array type {}!",
+                        t.as_ref().unwrap(),
+                        node.element_type()
+                    )
+                    .as_str(),
+                ));
                 return res;
             }
         }
 
-        res.success(Box::new(PointerType::new(self.validate_type(node.element_type().clone()), true)), node.box_clone());
+        res.success(
+            Box::new(PointerType::new(
+                self.validate_type(node.element_type().clone()),
+                true,
+            )),
+            node.box_clone(),
+        );
         res
     }
 
@@ -300,27 +393,82 @@ impl Validator {
             return res;
         }
 
-        let result_type = left.as_ref().unwrap().is_valid_bin_op(node.op_token(), right.as_ref().unwrap());
+        let result_type = left
+            .as_ref()
+            .unwrap()
+            .is_valid_bin_op(node.op_token(), right.as_ref().unwrap());
         if result_type.is_none() {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Binary operation '{}' not allowed between value_type {} and {}!", node.op_token(), left.as_ref().unwrap(), right.as_ref().unwrap()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Binary operation '{}' not allowed between value_type {} and {}!",
+                    node.op_token(),
+                    left.as_ref().unwrap(),
+                    right.as_ref().unwrap()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
         if left.as_ref().unwrap().value_type() == ValueTypes::F64 {
-            res.success(result_type.unwrap(), Box::new(FloatingBinOpNode::new(left_node.unwrap(), node.op_token().clone(), right_node.unwrap())));
+            res.success(
+                result_type.unwrap(),
+                Box::new(FloatingBinOpNode::new(
+                    left_node.unwrap(),
+                    node.op_token().clone(),
+                    right_node.unwrap(),
+                )),
+            );
             return res;
         }
 
         if node.op_token().token_type() == TokenType::PointerAssign {
-            res.success(result_type.unwrap(), Box::new(PointerAssignNode::new(left_node.unwrap(), self.validate_type(left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone()), right_node.unwrap())));
+            res.success(
+                result_type.unwrap(),
+                Box::new(PointerAssignNode::new(
+                    left_node.unwrap(),
+                    self.validate_type(
+                        left.unwrap()
+                            .as_any()
+                            .downcast_ref::<PointerType>()
+                            .unwrap()
+                            .pointee_type()
+                            .box_clone(),
+                    ),
+                    right_node.unwrap(),
+                )),
+            );
             return res;
         }
         if node.op_token().token_type() == TokenType::Offset {
-            res.success(result_type.unwrap(), Box::new(OffsetNode::new(left_node.unwrap(), right_node.unwrap(), self.validate_type(left.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().box_clone()))));
+            res.success(
+                result_type.unwrap(),
+                Box::new(OffsetNode::new(
+                    left_node.unwrap(),
+                    right_node.unwrap(),
+                    self.validate_type(
+                        left.unwrap()
+                            .as_any()
+                            .downcast_ref::<PointerType>()
+                            .unwrap()
+                            .pointee_type()
+                            .box_clone(),
+                    ),
+                )),
+            );
             return res;
         }
 
-        res.success(self.validate_type(result_type.unwrap()), Box::new(BinOpNode::new(left_node.unwrap(), node.op_token().clone(), right_node.unwrap())));
+        res.success(
+            self.validate_type(result_type.unwrap()),
+            Box::new(BinOpNode::new(
+                left_node.unwrap(),
+                node.op_token().clone(),
+                right_node.unwrap(),
+            )),
+        );
         res
     }
 
@@ -334,11 +482,26 @@ impl Validator {
 
         let result_type = right.as_ref().unwrap().is_valid_unary_op(node.op_token());
         if result_type.is_none() {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Unary operation '{}' not allowed on type {}!", node.op_token(), right.as_ref().unwrap()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Unary operation '{}' not allowed on type {}!",
+                    node.op_token(),
+                    right.as_ref().unwrap()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
-        res.success(self.validate_type(result_type.unwrap()), Box::new(UnaryOpNode::new(node.op_token().clone(), right_node.unwrap())));
+        res.success(
+            self.validate_type(result_type.unwrap()),
+            Box::new(UnaryOpNode::new(
+                node.op_token().clone(),
+                right_node.unwrap(),
+            )),
+        );
         res
     }
 
@@ -348,8 +511,18 @@ impl Validator {
         if self.has_symbol(node.var_name()) {
             let (_, decl_pos) = self.get_symbol(node.var_name()).unwrap();
             res.failure(error::semantic_error_with_parent(
-                node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' was already declared in this scope!", node.var_name()).as_str(),
-                error::semantic_error(decl_pos.clone(), decl_pos.clone(), format!("Previous declaration of '{}'", node.var_name()).as_str()),
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Variable '{}' was already declared in this scope!",
+                    node.var_name()
+                )
+                .as_str(),
+                error::semantic_error(
+                    decl_pos.clone(),
+                    decl_pos.clone(),
+                    format!("Previous declaration of '{}'", node.var_name()).as_str(),
+                ),
             ));
             return res;
         }
@@ -362,12 +535,34 @@ impl Validator {
         let symbol_type = t.unwrap();
 
         if !symbol_type.eq(node.var_type()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type '{}' can't be assigned to type '{}'!", &symbol_type, node.var_type()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Type '{}' can't be assigned to type '{}'!",
+                    &symbol_type,
+                    node.var_type()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
-        self.declare_symbol(node.var_name().to_string(), Symbol::new(symbol_type.clone(), node.is_mutable()), node.pos_start().clone());
-        res.success(symbol_type, Box::new(VarDeclarationNode::new(node.var_name().to_string(), node.var_type().box_clone(), value_node.unwrap(), node.is_mutable(), node.pos_start().clone())));
+        self.declare_symbol(
+            node.var_name().to_string(),
+            Symbol::new(symbol_type.clone(), node.is_mutable()),
+            node.pos_start().clone(),
+        );
+        res.success(
+            symbol_type,
+            Box::new(VarDeclarationNode::new(
+                node.var_name().to_string(),
+                node.var_type().box_clone(),
+                value_node.unwrap(),
+                node.is_mutable(),
+                node.pos_start().clone(),
+            )),
+        );
         res
     }
 
@@ -375,7 +570,15 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if !self.has_symbol(node.var_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' was not declared in this scope!", node.var_name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Variable '{}' was not declared in this scope!",
+                    node.var_name()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
@@ -384,17 +587,44 @@ impl Validator {
             return res;
         }
 
-        if !self.get_symbol(node.var_name()).unwrap().0.value_type().eq(assign_type.as_ref().unwrap()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable type {} does not match assign type {}!", self.get_symbol(node.var_name()).unwrap().0.value_type(), assign_type.as_ref().unwrap()).as_str()));
+        if !self
+            .get_symbol(node.var_name())
+            .unwrap()
+            .0
+            .value_type()
+            .eq(assign_type.as_ref().unwrap())
+        {
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Variable type {} does not match assign type {}!",
+                    self.get_symbol(node.var_name()).unwrap().0.value_type(),
+                    assign_type.as_ref().unwrap()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
         if !self.is_symbol_mut(node.var_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' is not mutable!", node.var_name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!("Variable '{}' is not mutable!", node.var_name()).as_str(),
+            ));
             return res;
         }
 
-        res.success(assign_type.as_ref().unwrap().clone(), Box::new(VarTypedAssignNode::new(node.var_name().to_string(), assign_node.unwrap(), assign_type.unwrap(), node.pos_start().clone())));
+        res.success(
+            assign_type.as_ref().unwrap().clone(),
+            Box::new(VarTypedAssignNode::new(
+                node.var_name().to_string(),
+                assign_node.unwrap(),
+                assign_type.unwrap(),
+                node.pos_start().clone(),
+            )),
+        );
         // res.success(symbol_type, Box::new(VarAssignNode::new(node.var_name().to_string(), assign_node.unwrap(), node.pos_start().clone())));
         res
     }
@@ -403,13 +633,34 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if !self.has_symbol(node.var_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' wasn't declared in this scope!", node.var_name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Variable '{}' wasn't declared in this scope!",
+                    node.var_name()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
-        let base_type = self.get_symbol(node.var_name()).unwrap().0.value_type().clone();
+        let base_type = self
+            .get_symbol(node.var_name())
+            .unwrap()
+            .0
+            .value_type()
+            .clone();
 
-        res.success(base_type.clone(), Box::new(VarTypedAccessNode::new(node.var_name().to_string(), base_type, node.pos_start().clone(), node.pos_end().clone())));
+        res.success(
+            base_type.clone(),
+            Box::new(VarTypedAccessNode::new(
+                node.var_name().to_string(),
+                base_type,
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+            )),
+        );
         // res.success(base_type, node.box_clone());
         res
     }
@@ -418,28 +669,62 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if self.has_symbol(node.var_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Function or variable with name '{}' was already declared in this scope!", node.var_name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Function or variable with name '{}' was already declared in this scope!",
+                    node.var_name()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
         if node.var_name() == "main" {
             if node.return_type().value_type() != ValueTypes::U64 {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Main function must return type 'number'!").as_str()));
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    format!("Main function must return type 'number'!").as_str(),
+                ));
                 return res;
             }
 
             if node.args().len() != 2 {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Main function must have two parameters!").as_str()));
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    format!("Main function must have two parameters!").as_str(),
+                ));
                 return res;
             }
 
             if node.args()[0].1.value_type() != ValueTypes::U64 {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("First parameter of main function must be of type 'number'!").as_str()));
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    format!("First parameter of main function must be of type 'number'!").as_str(),
+                ));
                 return res;
             }
 
-            if node.args()[1].1.value_type() != ValueTypes::Pointer || node.args()[1].1.as_any().downcast_ref::<PointerType>().unwrap().pointee_type().value_type() != ValueTypes::Char {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Second parameter of main function must be a pointer to a character!").as_str()));
+            if node.args()[1].1.value_type() != ValueTypes::Pointer
+                || node.args()[1]
+                    .1
+                    .as_any()
+                    .downcast_ref::<PointerType>()
+                    .unwrap()
+                    .pointee_type()
+                    .value_type()
+                    != ValueTypes::Char
+            {
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    format!("Second parameter of main function must be a pointer to a character!")
+                        .as_str(),
+                ));
                 return res;
             }
         }
@@ -453,7 +738,13 @@ impl Validator {
 
         self.declare_symbol(
             node.var_name().to_string(),
-            Symbol::new(Box::new(FunctionType::new(arg_types.clone(), node.return_type().clone())), false),
+            Symbol::new(
+                Box::new(FunctionType::new(
+                    arg_types.clone(),
+                    node.return_type().clone(),
+                )),
+                false,
+            ),
             node.pos_start().clone(),
         );
 
@@ -462,7 +753,11 @@ impl Validator {
         self.current_function_return_type = Some(node.return_type().clone());
 
         for (name, value_type) in node.args() {
-            self.declare_symbol(name.clone(), Symbol::new(value_type.clone(), true), node.pos_start().clone());
+            self.declare_symbol(
+                name.clone(),
+                Symbol::new(value_type.clone(), true),
+                node.pos_start().clone(),
+            );
         }
 
         let (_, body_node) = res.register_res(self.validate(node.body_node()));
@@ -471,21 +766,49 @@ impl Validator {
         self.current_function_return_type = old_return_type;
 
         if res.has_error() {
-            res.failure(error::semantic_error_with_parent(node.pos_start().clone(), node.pos_end().clone(), "Function definition failed!", res.error().as_ref().unwrap().clone()));
+            res.failure(error::semantic_error_with_parent(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Function definition failed!",
+                res.error().as_ref().unwrap().clone(),
+            ));
             return res;
         }
 
         if !res.has_return_type() {
-            res.failure(error::semantic_error(node.pos_end().clone(), node.pos_end().clone(), "No return statement given!"));
+            res.failure(error::semantic_error(
+                node.pos_end().clone(),
+                node.pos_end().clone(),
+                "No return statement given!",
+            ));
             return res;
         }
 
         if !res.return_type().as_ref().unwrap().eq(node.return_type()) {
-            res.failure(error::semantic_error(node.pos_end().clone(), node.pos_end().clone(), format!("Function return type is '{}', returned was '{}'!", node.return_type(), res.return_type().as_ref().unwrap()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_end().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Function return type is '{}', returned was '{}'!",
+                    node.return_type(),
+                    res.return_type().as_ref().unwrap()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
-        res.success(Box::new(IgnoredType::new()), Box::new(FunctionDefinitionNode::new(node.var_name().to_string(), node.args().clone(), node.return_type().box_clone(), body_node.unwrap(), node.generics().clone(), node.pos_start().clone())));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(FunctionDefinitionNode::new(
+                node.var_name().to_string(),
+                node.args().clone(),
+                node.return_type().box_clone(),
+                body_node.unwrap(),
+                node.generics().clone(),
+                node.pos_start().clone(),
+            )),
+        );
         res
     }
 
@@ -493,7 +816,15 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if self.has_symbol(node.var_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Function or variable with name '{}' was already declared in this scope!", node.var_name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Function or variable with name '{}' was already declared in this scope!",
+                    node.var_name()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
@@ -506,7 +837,13 @@ impl Validator {
 
         self.declare_symbol(
             node.var_name().to_string(),
-            Symbol::new(Box::new(FunctionType::new(arg_types.clone(), node.return_type().clone())), false),
+            Symbol::new(
+                Box::new(FunctionType::new(
+                    arg_types.clone(),
+                    node.return_type().clone(),
+                )),
+                false,
+            ),
             node.pos_start().clone(),
         );
 
@@ -518,20 +855,49 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if !self.has_symbol(node.func_to_call()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("'{}' was not declared in this scope!", node.func_to_call()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!("'{}' was not declared in this scope!", node.func_to_call()).as_str(),
+            ));
             return res;
         }
 
-        if self.get_symbol(node.func_to_call()).unwrap().0.value_type().value_type() != ValueTypes::Function {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("'{}' is not a function!", node.func_to_call()).as_str()));
+        if self
+            .get_symbol(node.func_to_call())
+            .unwrap()
+            .0
+            .value_type()
+            .value_type()
+            != ValueTypes::Function
+        {
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!("'{}' is not a function!", node.func_to_call()).as_str(),
+            ));
             return res;
         }
 
-        let symbol_type = self.get_symbol(node.func_to_call()).unwrap().0.value_type().clone();
+        let symbol_type = self
+            .get_symbol(node.func_to_call())
+            .unwrap()
+            .0
+            .value_type()
+            .clone();
         let function_type = symbol_type.as_any().downcast_ref::<FunctionType>().unwrap();
 
         if function_type.arg_types().len() != node.arg_nodes().len() {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Function expected {} arguments. {} were passed!", function_type.arg_types().len(), node.arg_nodes().len()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Function expected {} arguments. {} were passed!",
+                    function_type.arg_types().len(),
+                    node.arg_nodes().len()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
@@ -544,14 +910,31 @@ impl Validator {
             }
 
             if !t.as_ref().unwrap().eq(&function_type.arg_types()[i]) {
-                res.failure(error::semantic_error(arg.pos_start().clone(), arg.pos_end().clone(), format!("Expected type '{}' as argument at index {}, got '{}'!", function_type.arg_types()[i], i, t.as_ref().unwrap()).as_str()));
+                res.failure(error::semantic_error(
+                    arg.pos_start().clone(),
+                    arg.pos_end().clone(),
+                    format!(
+                        "Expected type '{}' as argument at index {}, got '{}'!",
+                        function_type.arg_types()[i],
+                        i,
+                        t.as_ref().unwrap()
+                    )
+                    .as_str(),
+                ));
                 return res;
             }
 
             arg_nodes.push(arg_node.unwrap());
         }
 
-        res.success(function_type.return_type().clone(), Box::new(CallNode::new(node.func_to_call().to_string(), arg_nodes, node.pos_start().clone())));
+        res.success(
+            function_type.return_type().clone(),
+            Box::new(CallNode::new(
+                node.func_to_call().to_string(),
+                arg_nodes,
+                node.pos_start().clone(),
+            )),
+        );
         res
     }
 
@@ -560,33 +943,69 @@ impl Validator {
 
         let function_return_type = self.find_first_function();
         if function_return_type.is_none() {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Return statement outside of function!"));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Return statement outside of function!",
+            ));
             return res;
         }
 
         if node.node_to_return().is_none() {
             if function_return_type.as_ref().unwrap().value_type() != ValueTypes::Void {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Function return type is not void!"));
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    "Function return type is not void!",
+                ));
                 return res;
             }
 
             res.success_return(Box::new(VoidType::new()));
-            res.success(Box::new(IgnoredType::new()), Box::new(ReturnNode::new(None, node.pos_start().clone(), node.pos_end().clone())));
+            res.success(
+                Box::new(IgnoredType::new()),
+                Box::new(ReturnNode::new(
+                    None,
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                )),
+            );
             return res;
         }
 
-        let (return_type, return_node) = res.register_res(self.validate(node.node_to_return().as_ref().unwrap()));
+        let (return_type, return_node) =
+            res.register_res(self.validate(node.node_to_return().as_ref().unwrap()));
         if res.has_error() {
             return res;
         }
 
-        if !return_type.as_ref().unwrap().eq(function_return_type.as_ref().unwrap()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Expected return type '{}', got '{}'!", function_return_type.as_ref().unwrap(), return_type.as_ref().unwrap()).as_str()));
+        if !return_type
+            .as_ref()
+            .unwrap()
+            .eq(function_return_type.as_ref().unwrap())
+        {
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Expected return type '{}', got '{}'!",
+                    function_return_type.as_ref().unwrap(),
+                    return_type.as_ref().unwrap()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
         res.success_return(return_type.unwrap());
-        res.success(Box::new(IgnoredType::new()), Box::new(ReturnNode::new(Some(return_node.unwrap()), node.pos_start().clone(), node.pos_end().clone())));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(ReturnNode::new(
+                Some(return_node.unwrap()),
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+            )),
+        );
         res
     }
 
@@ -594,7 +1013,11 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if !self.is_in_scope_stack(ScopeType::Loop) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Break statement outside of loop!"));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Break statement outside of loop!",
+            ));
             return res;
         }
 
@@ -606,7 +1029,11 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if !self.is_in_scope_stack(ScopeType::Loop) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Continue statement outside of loop!"));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Continue statement outside of loop!",
+            ));
             return res;
         }
 
@@ -627,20 +1054,32 @@ impl Validator {
             arg_nodes.push(arg_node.unwrap());
         }
 
-        res.success(Box::new(U64Type::new()), Box::new(SyscallNode::new(arg_nodes, node.pos_start().clone(), node.pos_end().clone())));
+        res.success(
+            Box::new(U64Type::new()),
+            Box::new(SyscallNode::new(
+                arg_nodes,
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+            )),
+        );
         res
     }
 
     fn validate_while_node(&mut self, node: &WhileNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        let (condition_type, condition_node) = res.register_res(self.validate(node.condition_node()));
+        let (condition_type, condition_node) =
+            res.register_res(self.validate(node.condition_node()));
         if res.has_error() {
             return res;
         }
 
         if condition_type.as_ref().unwrap().value_type() != ValueTypes::Bool {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Condition must be of type bool!"));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Condition must be of type bool!",
+            ));
             return res;
         }
 
@@ -652,7 +1091,10 @@ impl Validator {
             return res;
         }
 
-        res.success(Box::new(IgnoredType::new()), Box::new(WhileNode::new(condition_node.unwrap(), body_node.unwrap())));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(WhileNode::new(condition_node.unwrap(), body_node.unwrap())),
+        );
         res
     }
 
@@ -674,7 +1116,11 @@ impl Validator {
         }
 
         if condition_type.unwrap().value_type() != ValueTypes::Bool {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Condition must be of type bool!"));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Condition must be of type bool!",
+            ));
             self.pop_child_scope();
             return res;
         }
@@ -696,7 +1142,15 @@ impl Validator {
             return res;
         }
 
-        res.success(Box::new(IgnoredType::new()), Box::new(ForNode::new(init_stmt.unwrap(), condition_node.unwrap(), next_expr.unwrap(), body.unwrap())));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(ForNode::new(
+                init_stmt.unwrap(),
+                condition_node.unwrap(),
+                next_expr.unwrap(),
+                body.unwrap(),
+            )),
+        );
         res
     }
 
@@ -705,13 +1159,18 @@ impl Validator {
 
         let mut cases: Vec<IfCase> = vec![];
         for case in node.cases() {
-            let (condition_type, condition_node) = res.register_res(self.validate(case.condition()));
+            let (condition_type, condition_node) =
+                res.register_res(self.validate(case.condition()));
             if res.has_error() {
                 return res;
             }
 
             if condition_type.unwrap().value_type() != ValueTypes::Bool {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Condition must be of type bool!"));
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    "Condition must be of type bool!",
+                ));
                 return res;
             }
 
@@ -729,7 +1188,8 @@ impl Validator {
         let mut else_case: Option<ElseCase> = None;
         if node.else_case().is_some() {
             self.push_child_scope(ScopeType::Block);
-            let (_, statements) = res.register_res(self.validate(node.else_case().as_ref().unwrap().statements()));
+            let (_, statements) =
+                res.register_res(self.validate(node.else_case().as_ref().unwrap().statements()));
             self.pop_child_scope();
 
             if res.has_error() {
@@ -741,7 +1201,10 @@ impl Validator {
 
         // TODO: check if all code paths return a value
 
-        res.success(Box::new(IgnoredType::new()), Box::new(IfNode::new(cases, else_case)));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(IfNode::new(cases, else_case)),
+        );
         res
     }
 
@@ -753,20 +1216,46 @@ impl Validator {
             return res;
         }
 
-        if node_type.as_ref().unwrap().value_type() == ValueTypes::F64 && node.cast_type().value_type() == ValueTypes::U64 {
-            res.success(Box::new(U64Type::new()), Box::new(F64ToU64Node::new(cast_node.unwrap())));
+        if node_type.as_ref().unwrap().value_type() == ValueTypes::F64
+            && node.cast_type().value_type() == ValueTypes::U64
+        {
+            res.success(
+                Box::new(U64Type::new()),
+                Box::new(F64ToU64Node::new(cast_node.unwrap())),
+            );
             return res;
-        } else if node_type.as_ref().unwrap().value_type() == ValueTypes::U64 && node.cast_type().value_type() == ValueTypes::F64 {
-            res.success(Box::new(F64Type::new()), Box::new(U64ToF64Node::new(cast_node.unwrap())));
+        } else if node_type.as_ref().unwrap().value_type() == ValueTypes::U64
+            && node.cast_type().value_type() == ValueTypes::F64
+        {
+            res.success(
+                Box::new(F64Type::new()),
+                Box::new(U64ToF64Node::new(cast_node.unwrap())),
+            );
             return res;
         }
 
         if !node_type.as_ref().unwrap().is_valid_cast(node.cast_type()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Invalid cast! Cannot cast from type '{}' to type '{}'!", node_type.as_ref().unwrap(), node.cast_type()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Invalid cast! Cannot cast from type '{}' to type '{}'!",
+                    node_type.as_ref().unwrap(),
+                    node.cast_type()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
-        res.success(node.cast_type().clone(), Box::new(CastNode::new(cast_node.unwrap(), node.cast_type().clone(), node.pos_end().clone())));
+        res.success(
+            node.cast_type().clone(),
+            Box::new(CastNode::new(
+                cast_node.unwrap(),
+                node.cast_type().clone(),
+                node.pos_end().clone(),
+            )),
+        );
         res
     }
 
@@ -779,14 +1268,34 @@ impl Validator {
         }
 
         if !assign_type.as_ref().unwrap().eq(node.value_type()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type '{}' can't be assigned to type '{}'!", assign_type.as_ref().unwrap(), node.value_type()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Type '{}' can't be assigned to type '{}'!",
+                    assign_type.as_ref().unwrap(),
+                    node.value_type()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
+        self.declare_symbol(
+            node.name().to_string(),
+            Symbol::new(assign_type.unwrap(), false),
+            node.pos_start().clone(),
+        );
 
-        self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.unwrap(), false), node.pos_start().clone());
-
-        res.success(Box::new(IgnoredType::new()), Box::new(ConstDefinitionNode::new(node.name().to_string(), assign_node.unwrap(), node.value_type().clone(), node.pos_start().clone())));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(ConstDefinitionNode::new(
+                node.name().to_string(),
+                assign_node.unwrap(),
+                node.value_type().clone(),
+                node.pos_start().clone(),
+            )),
+        );
         res
     }
 
@@ -795,9 +1304,17 @@ impl Validator {
 
         let mut size = node.value_type().get_size().get_size_in_bytes();
         if node.value_type().value_type() == ValueTypes::Struct {
-            let struct_type = node.value_type().as_any().downcast_ref::<StructType>().unwrap();
+            let struct_type = node
+                .value_type()
+                .as_any()
+                .downcast_ref::<StructType>()
+                .unwrap();
             if !self.structs.contains_key(struct_type.name()) {
-                res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Struct '{}' is not defined!", struct_type.name()).as_str()));
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    format!("Struct '{}' is not defined!", struct_type.name()).as_str(),
+                ));
                 return res;
             }
 
@@ -807,7 +1324,18 @@ impl Validator {
             }
         }
 
-        res.success(Box::new(U64Type::new()), Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, size.to_string(), node.pos_start().clone(), node.pos_end().clone()), Box::new(U64Type::new()))));
+        res.success(
+            Box::new(U64Type::new()),
+            Box::new(NumberNode::new(
+                Token::new_with_value(
+                    TokenType::U64,
+                    size.to_string(),
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                ),
+                Box::new(U64Type::new()),
+            )),
+        );
         res
     }
 
@@ -820,20 +1348,46 @@ impl Validator {
         }
 
         if !assign_type.as_ref().unwrap().eq(node.value_type()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Type '{}' can't be assigned to type '{}'!", assign_type.as_ref().unwrap(), node.value_type()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Type '{}' can't be assigned to type '{}'!",
+                    assign_type.as_ref().unwrap(),
+                    node.value_type()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
-        self.declare_symbol(node.name().to_string(), Symbol::new(assign_type.as_ref().unwrap().clone(), *node.is_mutable()), node.pos_start().clone());
+        self.declare_symbol(
+            node.name().to_string(),
+            Symbol::new(assign_type.as_ref().unwrap().clone(), *node.is_mutable()),
+            node.pos_start().clone(),
+        );
 
-        res.success(assign_type.unwrap(), Box::new(StaticDefinitionNode::new(node.name().to_string(), node.value_type().clone(), assign_node.unwrap(), *node.is_mutable(), node.pos_start().clone())));
+        res.success(
+            assign_type.unwrap(),
+            Box::new(StaticDefinitionNode::new(
+                node.name().to_string(),
+                node.value_type().clone(),
+                assign_node.unwrap(),
+                *node.is_mutable(),
+                node.pos_start().clone(),
+            )),
+        );
         res
     }
 
     fn validate_static_decl_node(&mut self, node: &StaticDeclarationNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        self.declare_symbol(node.name().to_string(), Symbol::new(node.value_type().box_clone(), *node.is_mutable()), node.pos_start().clone());
+        self.declare_symbol(
+            node.name().to_string(),
+            Symbol::new(node.value_type().box_clone(), *node.is_mutable()),
+            node.pos_start().clone(),
+        );
 
         res.success(node.value_type().box_clone(), node.box_clone());
         res
@@ -843,11 +1397,20 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if self.structs.contains_key(node.name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Structure with the name '{}' was already defined!", node.name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Structure with the name '{}' was already defined!",
+                    node.name()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
-        self.structs.insert(node.name().to_string(), node.fields().clone());
+        self.structs
+            .insert(node.name().to_string(), node.fields().clone());
 
         res.success(Box::new(IgnoredType::new()), node.box_clone());
         res
@@ -862,13 +1425,28 @@ impl Validator {
         }
 
         if node_type.as_ref().unwrap().value_type() != ValueTypes::Pointer {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't read bytes from non-pointer type!"));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Can't read bytes from non-pointer type!",
+            ));
             return res;
         }
 
         res.success(
-            node_type.unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().clone(),
-            Box::new(ReadBytesNode::new(value_node.unwrap(), *node.bytes(), node.pos_end().clone())));
+            node_type
+                .unwrap()
+                .as_any()
+                .downcast_ref::<PointerType>()
+                .unwrap()
+                .pointee_type()
+                .clone(),
+            Box::new(ReadBytesNode::new(
+                value_node.unwrap(),
+                *node.bytes(),
+                node.pos_end().clone(),
+            )),
+        );
         res
     }
 
@@ -881,20 +1459,49 @@ impl Validator {
         }
 
         if node_type.as_ref().unwrap().value_type() != ValueTypes::Pointer {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't dereference non-pointer type!"));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Can't dereference non-pointer type!",
+            ));
             return res;
         }
 
-        let pointee_type_size = node_type.as_ref().unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().get_size();
+        let pointee_type_size = node_type
+            .as_ref()
+            .unwrap()
+            .as_any()
+            .downcast_ref::<PointerType>()
+            .unwrap()
+            .pointee_type()
+            .get_size();
 
-        res.success(node_type.as_ref().unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().clone(), Box::new(ReadBytesNode::new(value_node.unwrap(), pointee_type_size, node.pos_end().clone())));
+        res.success(
+            node_type
+                .as_ref()
+                .unwrap()
+                .as_any()
+                .downcast_ref::<PointerType>()
+                .unwrap()
+                .pointee_type()
+                .clone(),
+            Box::new(ReadBytesNode::new(
+                value_node.unwrap(),
+                pointee_type_size,
+                node.pos_end().clone(),
+            )),
+        );
         res
     }
 
     fn validate_import_node(&mut self, node: &ImportNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        let stmt_node = node.node().as_any().downcast_ref::<StatementsNode>().unwrap();
+        let stmt_node = node
+            .node()
+            .as_any()
+            .downcast_ref::<StatementsNode>()
+            .unwrap();
 
         let mut stmts: Vec<Box<dyn Node>> = vec![];
         for stmt in stmt_node.statement_nodes() {
@@ -905,7 +1512,14 @@ impl Validator {
             stmts.push(s.unwrap());
         }
 
-        res.success(Box::new(IgnoredType::new()), Box::new(ImportNode::new(Box::new(StatementsNode::new(stmts, node.node().pos_start().clone(), node.node().pos_end().clone())))));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(ImportNode::new(Box::new(StatementsNode::new(
+                stmts,
+                node.node().pos_start().clone(),
+                node.node().pos_end().clone(),
+            )))),
+        );
         res
     }
 
@@ -931,16 +1545,47 @@ impl Validator {
             return res;
         }
 
-        if node_type.as_ref().unwrap().value_type() != ValueTypes::Pointer || node_type.as_ref().unwrap().as_any().downcast_ref::<PointerType>().unwrap().pointee_type().value_type() != ValueTypes::Struct {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't access fields of non-pointer-to-struct type!"));
+        if node_type.as_ref().unwrap().value_type() != ValueTypes::Pointer
+            || node_type
+                .as_ref()
+                .unwrap()
+                .as_any()
+                .downcast_ref::<PointerType>()
+                .unwrap()
+                .pointee_type()
+                .value_type()
+                != ValueTypes::Struct
+        {
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Can't access fields of non-pointer-to-struct type!",
+            ));
             return res;
         }
 
-        let pointer_type = node_type.as_ref().unwrap().as_any().downcast_ref::<PointerType>().unwrap();
-        let struct_type = pointer_type.pointee_type().as_any().downcast_ref::<StructType>().unwrap();
+        let pointer_type = node_type
+            .as_ref()
+            .unwrap()
+            .as_any()
+            .downcast_ref::<PointerType>()
+            .unwrap();
+        let struct_type = pointer_type
+            .pointee_type()
+            .as_any()
+            .downcast_ref::<StructType>()
+            .unwrap();
 
         if !self.structs.contains_key(struct_type.name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Structure with the name '{}' was not defined!", struct_type.name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Structure with the name '{}' was not defined!",
+                    struct_type.name()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
@@ -960,14 +1605,38 @@ impl Validator {
         }
 
         if !found {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Field '{}' was not found in structure '{}'!", node.accessor(), struct_type.name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!(
+                    "Field '{}' was not found in structure '{}'!",
+                    node.accessor(),
+                    struct_type.name()
+                )
+                .as_str(),
+            ));
             return res;
         }
 
-        res.success(Box::new(PointerType::new(f_field_type.unwrap().clone(), *pointer_type.is_mutable())), Box::new(BinOpNode::new(
-            value_node.unwrap(),
-            Token::new_without_value(TokenType::Plus, Position::empty(), Position::empty()),
-            Box::new(NumberNode::new(Token::new_with_value(TokenType::U64, offset.to_string(), Position::empty(), Position::empty()), Box::new(U64Type::new()))))));
+        res.success(
+            Box::new(PointerType::new(
+                f_field_type.unwrap().clone(),
+                *pointer_type.is_mutable(),
+            )),
+            Box::new(BinOpNode::new(
+                value_node.unwrap(),
+                Token::new_without_value(TokenType::Plus, Position::empty(), Position::empty()),
+                Box::new(NumberNode::new(
+                    Token::new_with_value(
+                        TokenType::U64,
+                        offset.to_string(),
+                        Position::empty(),
+                        Position::empty(),
+                    ),
+                    Box::new(U64Type::new()),
+                )),
+            )),
+        );
         res
     }
 
@@ -977,7 +1646,11 @@ impl Validator {
         let node_type_res = match node.top_level_statement().node_type() {
             NodeType::FunctionDecl => Ok(()),
             NodeType::StaticDecl => Ok(()),
-            _ => Err(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), "Can't use extern keyword on this type of node!")),
+            _ => Err(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                "Can't use extern keyword on this type of node!",
+            )),
         };
 
         if let Err(err) = node_type_res {
@@ -985,12 +1658,20 @@ impl Validator {
             return res;
         }
 
-        let (_, new_top_level_statement) = res.register_res(self.validate(node.top_level_statement()));
+        let (_, new_top_level_statement) =
+            res.register_res(self.validate(node.top_level_statement()));
         if res.has_error() {
             return res;
         }
 
-        res.success(Box::new(IgnoredType::new()), Box::new(ExternNode::new(new_top_level_statement.unwrap(), node.pos_start().clone(), node.pos_end().clone())));
+        res.success(
+            Box::new(IgnoredType::new()),
+            Box::new(ExternNode::new(
+                new_top_level_statement.unwrap(),
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+            )),
+        );
         res
     }
 
@@ -998,13 +1679,20 @@ impl Validator {
         let mut res = ValidationResult::new();
 
         if !self.has_symbol(node.var_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Variable '{}' was not defined!", node.var_name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!("Variable '{}' was not defined!", node.var_name()).as_str(),
+            ));
             return res;
         }
 
         let (s, _) = self.get_symbol(node.var_name()).unwrap();
 
-        res.success(Box::new(PointerType::new(s.value_type().clone(), s.is_mutable())), node.box_clone());
+        res.success(
+            Box::new(PointerType::new(s.value_type().clone(), s.is_mutable())),
+            node.box_clone(),
+        );
         res
     }
 
@@ -1015,22 +1703,35 @@ impl Validator {
         res
     }
 
-
     fn validate_struct_init_node(&self, node: &StructInitNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
         if !self.structs.contains_key(node.struct_name()) {
-            res.failure(error::semantic_error(node.pos_start().clone(), node.pos_end().clone(), format!("Struct '{}' is not defined!", node.struct_name()).as_str()));
+            res.failure(error::semantic_error(
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+                format!("Struct '{}' is not defined!", node.struct_name()).as_str(),
+            ));
             return res;
         }
 
-        let struct_size = self.structs[node.struct_name()].iter().fold(0_u64, |acc, (_, field_type)| acc + field_type.get_size().get_size_in_bytes() as u64);
+        let struct_size = self.structs[node.struct_name()]
+            .iter()
+            .fold(0_u64, |acc, (_, field_type)| {
+                acc + field_type.get_size().get_size_in_bytes() as u64
+            });
 
-        res.success(Box::new(PointerType::new(Box::new(StructType::new(node.struct_name().to_string())), true)), Box::new(StackAllocationNode::new(
-            struct_size,
-            node.pos_start().clone(),
-            node.pos_end().clone()
-        )));
+        res.success(
+            Box::new(PointerType::new(
+                Box::new(StructType::new(node.struct_name().to_string())),
+                true,
+            )),
+            Box::new(StackAllocationNode::new(
+                struct_size,
+                node.pos_start().clone(),
+                node.pos_end().clone(),
+            )),
+        );
         res
     }
 }
@@ -1043,17 +1744,28 @@ mod tests {
     pub fn semantics_symbol_stack() {
         let mut v = Validator::new();
 
-        v.declare_symbol("a".to_string(), Symbol::new(Box::new(VoidType::new()), false), Position::empty());
+        v.declare_symbol(
+            "a".to_string(),
+            Symbol::new(Box::new(VoidType::new()), false),
+            Position::empty(),
+        );
 
         assert_eq!(v.has_symbol("a"), true);
-        assert_eq!(v.get_symbol("a").unwrap().0.value_type().value_type(), ValueTypes::Void);
+        assert_eq!(
+            v.get_symbol("a").unwrap().0.value_type().value_type(),
+            ValueTypes::Void
+        );
         assert_eq!(v.is_symbol_mut("a"), false);
 
         v.push_child_scope(ScopeType::Block);
 
         assert_eq!(v.has_symbol("a"), true);
         assert_eq!(v.has_symbol("b"), false);
-        v.declare_symbol("b".to_string(), Symbol::new(Box::new(VoidType::new()), false), Position::empty());
+        v.declare_symbol(
+            "b".to_string(),
+            Symbol::new(Box::new(VoidType::new()), false),
+            Position::empty(),
+        );
         assert_eq!(v.has_symbol("b"), true);
 
         v.pop_child_scope();

@@ -8,16 +8,15 @@ use crate::position::Position;
 pub struct VarAssignNode {
     var_name: String,
     value_node: Box<dyn Node>,
-    pos_start: Position
+    pos_start: Position,
 }
 
 impl VarAssignNode {
-
     pub fn new(var_name: String, value_node: Box<dyn Node>, pos_start: Position) -> Self {
         VarAssignNode {
             var_name,
             value_node,
-            pos_start
+            pos_start,
         }
     }
 
@@ -30,12 +29,15 @@ impl VarAssignNode {
     pub fn pos_start(&self) -> &Position {
         &self.pos_start
     }
-
 }
 
 impl Display for VarAssignNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<VarAssignNode>[Name: {}, Value: {}]", self.var_name, self.value_node)
+        write!(
+            f,
+            "<VarAssignNode>[Name: {}, Value: {}]",
+            self.var_name, self.value_node
+        )
     }
 }
 

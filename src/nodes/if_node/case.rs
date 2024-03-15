@@ -5,7 +5,7 @@ use crate::nodes::Node;
 #[derive(Clone)]
 pub struct IfCase {
     condition: Box<dyn Node>,
-    statements: Box<dyn Node>
+    statements: Box<dyn Node>,
 }
 
 impl IfCase {
@@ -27,6 +27,10 @@ impl IfCase {
 
 impl Display for IfCase {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<IfCase>[Cond.: {}, Stmts: {}]", self.condition, self.statements)
+        write!(
+            f,
+            "<IfCase>[Cond.: {}, Stmts: {}]",
+            self.condition, self.statements
+        )
     }
 }

@@ -1,13 +1,13 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct AddressOfNode {
     var_name: String,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl AddressOfNode {
@@ -15,7 +15,7 @@ impl AddressOfNode {
         Self {
             var_name,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
@@ -26,7 +26,7 @@ impl AddressOfNode {
 
 impl NodeToAny for AddressOfNode {
     fn as_any(&self) -> &dyn Any {
-       self
+        self
     }
 }
 

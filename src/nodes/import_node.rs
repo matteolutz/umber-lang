@@ -1,24 +1,21 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct ImportNode {
-    node: Box<dyn Node>
+    node: Box<dyn Node>,
 }
 
 impl ImportNode {
     pub fn new(node: Box<dyn Node>) -> Self {
-        Self {
-            node
-        }
+        Self { node }
     }
 
     pub fn node(&self) -> &Box<dyn Node> {
         &self.node
     }
-
 }
 
 impl NodeToAny for ImportNode {

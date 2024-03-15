@@ -15,7 +15,13 @@ pub struct VarDeclarationNode {
 }
 
 impl VarDeclarationNode {
-    pub fn new(var_name: String, var_type: Box<dyn ValueType>, value_node: Box<dyn Node>, is_mutable: bool, pos_start: Position) -> Self {
+    pub fn new(
+        var_name: String,
+        var_type: Box<dyn ValueType>,
+        value_node: Box<dyn Node>,
+        is_mutable: bool,
+        pos_start: Position,
+    ) -> Self {
         VarDeclarationNode {
             var_name,
             var_type,
@@ -25,8 +31,12 @@ impl VarDeclarationNode {
         }
     }
 
-    pub fn var_name(&self) -> &str { &self.var_name }
-    pub fn var_type(&self) -> &Box<dyn ValueType> { &self.var_type }
+    pub fn var_name(&self) -> &str {
+        &self.var_name
+    }
+    pub fn var_type(&self) -> &Box<dyn ValueType> {
+        &self.var_type
+    }
     pub fn value_node(&self) -> &Box<dyn Node> {
         &self.value_node
     }
@@ -36,12 +46,15 @@ impl VarDeclarationNode {
     pub fn pos_start(&self) -> &Position {
         &self.pos_start
     }
-
 }
 
 impl Display for VarDeclarationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<VarDeclarationNode>[Name: {}, Type: {}, Value: {}, IsMutable?: {}]", self.var_name, self.var_type ,self.value_node, self.is_mutable)
+        write!(
+            f,
+            "<VarDeclarationNode>[Name: {}, Type: {}, Value: {}, IsMutable?: {}]",
+            self.var_name, self.var_type, self.value_node, self.is_mutable
+        )
     }
 }
 

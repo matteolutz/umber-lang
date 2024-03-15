@@ -3,8 +3,8 @@ use std::fmt::{Display, Formatter};
 
 use crate::token::{Token, TokenType};
 use crate::values::value_size::ValueSize;
-use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::value_type::bool_type::BoolType;
+use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 #[derive(Clone)]
 pub struct I32Type {}
@@ -42,16 +42,32 @@ impl ValueType for I32Type {
         }
 
         match op.token_type() {
-            TokenType::Minus | TokenType::Plus | TokenType::Mul | TokenType::Div | TokenType::Modulo | TokenType::BitOr | TokenType::BitAnd | TokenType::BitXor | TokenType::BitShl | TokenType::BitShr => Some(Box::new(I32Type::new())),
-            TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::new(BoolType::new())),
+            TokenType::Minus
+            | TokenType::Plus
+            | TokenType::Mul
+            | TokenType::Div
+            | TokenType::Modulo
+            | TokenType::BitOr
+            | TokenType::BitAnd
+            | TokenType::BitXor
+            | TokenType::BitShl
+            | TokenType::BitShr => Some(Box::new(I32Type::new())),
+            TokenType::Ee
+            | TokenType::Ne
+            | TokenType::Gt
+            | TokenType::Lt
+            | TokenType::Gte
+            | TokenType::Lte => Some(Box::new(BoolType::new())),
             _ => None,
         }
     }
 
     fn is_valid_unary_op(&self, op: &Token) -> Option<Box<dyn ValueType>> {
         match op.token_type() {
-            TokenType::Minus | TokenType::Plus | TokenType::BitNot => Some(Box::new(I32Type::new())),
-            _ => None
+            TokenType::Minus | TokenType::Plus | TokenType::BitNot => {
+                Some(Box::new(I32Type::new()))
+            }
+            _ => None,
         }
     }
 
@@ -65,7 +81,8 @@ impl ValueType for I32Type {
             || t.value_type() == ValueTypes::U8
             || t.value_type() == ValueTypes::I64
             || t.value_type() == ValueTypes::I16
-            || t.value_type() == ValueTypes::I8 {
+            || t.value_type() == ValueTypes::I8
+        {
             return true;
         }
 

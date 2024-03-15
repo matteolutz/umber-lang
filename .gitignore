@@ -5,3 +5,5 @@ Cargo.lock
 umber-lang.iml
 
 install.sh
+
+.DS_Store

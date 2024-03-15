@@ -1,8 +1,8 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct StaticDeclarationNode {
@@ -14,13 +14,19 @@ pub struct StaticDeclarationNode {
 }
 
 impl StaticDeclarationNode {
-    pub fn new(name: String, value_type: Box<dyn ValueType>, is_mutable: bool, pos_start: Position, pos_end: Position) -> Self {
+    pub fn new(
+        name: String,
+        value_type: Box<dyn ValueType>,
+        is_mutable: bool,
+        pos_start: Position,
+        pos_end: Position,
+    ) -> Self {
         Self {
             name,
             value_type,
             is_mutable,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
@@ -33,7 +39,6 @@ impl StaticDeclarationNode {
     pub fn is_mutable(&self) -> &bool {
         &self.is_mutable
     }
-
 }
 
 impl NodeToAny for StaticDeclarationNode {
@@ -44,7 +49,11 @@ impl NodeToAny for StaticDeclarationNode {
 
 impl Display for StaticDeclarationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<StaticDeclarationNode>[Name: {}, ValueType: {}, IsMutable?: {}]", self.name, self.value_type, self.is_mutable)
+        write!(
+            f,
+            "<StaticDeclarationNode>[Name: {}, ValueType: {}, IsMutable?: {}]",
+            self.name, self.value_type, self.is_mutable
+        )
     }
 }
 

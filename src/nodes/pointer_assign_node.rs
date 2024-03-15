@@ -1,8 +1,8 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct PointerAssignNode {
@@ -29,7 +29,6 @@ impl PointerAssignNode {
     pub fn value(&self) -> &Box<dyn Node> {
         &self.value
     }
-
 }
 
 impl NodeToAny for PointerAssignNode {

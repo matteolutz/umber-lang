@@ -9,11 +9,9 @@ use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 pub struct BoolType {}
 
 impl BoolType {
-
     pub fn new() -> Self {
         BoolType {}
     }
-
 }
 
 impl ValueTypeAsAny for BoolType {
@@ -44,7 +42,12 @@ impl ValueType for BoolType {
 
         match op.token_type() {
             TokenType::Or | TokenType::And => Some(Box::new(BoolType::new())),
-            TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::new(BoolType::new())),
+            TokenType::Ee
+            | TokenType::Ne
+            | TokenType::Gt
+            | TokenType::Lt
+            | TokenType::Gte
+            | TokenType::Lte => Some(Box::new(BoolType::new())),
             _ => None,
         }
     }

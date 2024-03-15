@@ -1,7 +1,7 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct DereferenceNode {
@@ -16,7 +16,6 @@ impl DereferenceNode {
     pub fn node(&self) -> &Box<dyn Node> {
         &self.node
     }
-
 }
 
 impl NodeToAny for DereferenceNode {

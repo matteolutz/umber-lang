@@ -1,7 +1,7 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct ForNode {
@@ -38,7 +38,6 @@ impl ForNode {
     pub fn body(&self) -> &Box<dyn Node> {
         &self.body
     }
-
 }
 
 impl NodeToAny for ForNode {
@@ -49,7 +48,11 @@ impl NodeToAny for ForNode {
 
 impl Display for ForNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<ForNode>[Init: {}, Condition: {}, Next: {}, Body: {}]", self.init_stmt, self.condition, self.next_expr, self.body)
+        write!(
+            f,
+            "<ForNode>[Init: {}, Condition: {}, Next: {}, Body: {}]",
+            self.init_stmt, self.condition, self.next_expr, self.body
+        )
     }
 }
 

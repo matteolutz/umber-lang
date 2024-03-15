@@ -2,19 +2,23 @@ use clap::ValueEnum;
 
 pub enum CallingConvention {
     Unix,
-    Win
+    Win,
 }
 
 #[derive(ValueEnum, Copy, Clone, Debug)]
 #[warn(non_camel_case_types)]
-pub enum TargetObjectType { X86_64, Win64, Macos }
+pub enum TargetObjectType {
+    X86_64,
+    Win64,
+    Macos,
+}
 
 impl TargetObjectType {
     pub fn object_format(&self) -> &'static str {
         match self {
             Self::X86_64 => "elf64",
             Self::Win64 => "win64",
-            Self::Macos => "macho64"
+            Self::Macos => "macho64",
         }
     }
 
@@ -22,7 +26,7 @@ impl TargetObjectType {
         match self {
             Self::X86_64 => "o",
             Self::Win64 => "obj",
-            Self::Macos => "o"
+            Self::Macos => "o",
         }
     }
 
@@ -30,13 +34,13 @@ impl TargetObjectType {
         match self {
             Self::X86_64 => CallingConvention::Unix,
             Self::Win64 => CallingConvention::Win,
-            Self::Macos => CallingConvention::Unix
+            Self::Macos => CallingConvention::Unix,
         }
     }
 }
 
 pub enum SyscallTable {
-    Exit
+    Exit,
 }
 
 impl SyscallTable {
@@ -45,8 +49,8 @@ impl SyscallTable {
             Self::Exit => match arch {
                 TargetObjectType::X86_64 => 60,
                 TargetObjectType::Win64 => 1,
-                TargetObjectType::Macos => 0x2000001
-            }
+                TargetObjectType::Macos => 0x2000001,
+            },
         }
     }
 }

@@ -16,30 +16,57 @@ pub struct Token {
 }
 
 impl Token {
-
     pub fn new_without_value(tok_type: TokenType, pos_start: Position, pos_end: Position) -> Token {
         Token::new(tok_type, None, pos_start, pos_end, TOKEN_FLAGS_NULL)
     }
 
-    pub fn new_with_value(tok_type: TokenType, tok_value: String, pos_start: Position, pos_end: Position) -> Token {
-        Token::new(tok_type, Some(tok_value), pos_start, pos_end, TOKEN_FLAGS_NULL)
+    pub fn new_with_value(
+        tok_type: TokenType,
+        tok_value: String,
+        pos_start: Position,
+        pos_end: Position,
+    ) -> Token {
+        Token::new(
+            tok_type,
+            Some(tok_value),
+            pos_start,
+            pos_end,
+            TOKEN_FLAGS_NULL,
+        )
     }
 
-    pub fn new_with_flags(tok_type: TokenType, tok_value: String, pos_start: Position, pos_end: Position, flags: u8) -> Token {
+    pub fn new_with_flags(
+        tok_type: TokenType,
+        tok_value: String,
+        pos_start: Position,
+        pos_end: Position,
+        flags: u8,
+    ) -> Token {
         Token::new(tok_type, Some(tok_value), pos_start, pos_end, flags)
     }
 
-    pub fn new_with_flags_no_value(tok_type: TokenType, pos_start: Position, pos_end: Position, flags: u8) -> Token {
+    pub fn new_with_flags_no_value(
+        tok_type: TokenType,
+        pos_start: Position,
+        pos_end: Position,
+        flags: u8,
+    ) -> Token {
         Token::new(tok_type, None, pos_start, pos_end, flags)
     }
 
-    pub fn new(tok_type: TokenType, tok_value: Option<String>, pos_start: Position, pos_end: Position, flags: u8) -> Token {
+    pub fn new(
+        tok_type: TokenType,
+        tok_value: Option<String>,
+        pos_start: Position,
+        pos_end: Position,
+        flags: u8,
+    ) -> Token {
         Token {
             tok_type,
             tok_value,
             pos_start,
             pos_end,
-            flags
+            flags,
         }
     }
 
@@ -59,7 +86,9 @@ impl Token {
         &self.pos_end
     }
 
-    pub fn flags(&self) -> &u8 { &self.flags }
+    pub fn flags(&self) -> &u8 {
+        &self.flags
+    }
 
     pub fn matches_keyword(&self, value_str: &str) -> bool {
         self.matches(TokenType::Keyword, value_str)
@@ -76,18 +105,25 @@ impl Token {
 
         self.tok_type == token_type && self.tok_value.as_ref().unwrap() == token_value
     }
-
 }
 
 impl PartialEq for Token {
     fn eq(&self, other: &Self) -> bool {
-        self.matches(other.token_type(), other.token_value().as_ref().unwrap().as_str())
+        self.matches(
+            other.token_type(),
+            other.token_value().as_ref().unwrap().as_str(),
+        )
     }
 }
 
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}:{}", self.tok_type, self.tok_value.as_ref().unwrap_or(&String::from("<NULL>")))
+        write!(
+            f,
+            "{:?}:{}",
+            self.tok_type,
+            self.tok_value.as_ref().unwrap_or(&String::from("<NULL>"))
+        )
     }
 }
 
@@ -142,38 +178,8 @@ pub enum TokenType {
 }
 
 pub static KEYWORDS: [&'static str; 34] = [
-    "let",
-    "mut",
-    "const",
-    "if",
-    "else",
-    "for",
-    "while",
-    "fun",
-    "return",
-    "continue",
-    "break",
-    "extern",
-    "asm",
-    "sizeof",
-    "syscall",
-    "u64",
-    "u32",
-    "u16",
-    "u8",
-    "i64",
-    "i32",
-    "i16",
-    "i8",
-    "f64",
-    "string",
-    "bool",
-    "char",
-    "void",
-    "as",
-    "static",
-    "struct",
-    "import",
-    "macro",
-    "generic"
+    "let", "mut", "const", "if", "else", "for", "while", "fun", "return", "continue", "break",
+    "extern", "asm", "sizeof", "syscall", "u64", "u32", "u16", "u8", "i64", "i32", "i16", "i8",
+    "f64", "string", "bool", "char", "void", "as", "static", "struct", "import", "macro",
+    "generic",
 ];

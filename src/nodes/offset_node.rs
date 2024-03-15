@@ -1,22 +1,26 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct OffsetNode {
     node: Box<dyn Node>,
     offset_node: Box<dyn Node>,
-    pointee_type: Box<dyn ValueType>
+    pointee_type: Box<dyn ValueType>,
 }
 
 impl OffsetNode {
-    pub fn new(node: Box<dyn Node>, offset_node: Box<dyn Node>, pointee_type: Box<dyn ValueType>) -> Self {
+    pub fn new(
+        node: Box<dyn Node>,
+        offset_node: Box<dyn Node>,
+        pointee_type: Box<dyn ValueType>,
+    ) -> Self {
         Self {
             node,
             offset_node,
-            pointee_type
+            pointee_type,
         }
     }
 
@@ -29,7 +33,6 @@ impl OffsetNode {
     pub fn pointee_type(&self) -> &Box<dyn ValueType> {
         &self.pointee_type
     }
-
 }
 
 impl NodeToAny for OffsetNode {

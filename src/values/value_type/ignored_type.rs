@@ -1,12 +1,11 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::token::Token;
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct IgnoredType {}
-
 
 impl IgnoredType {
     pub fn new() -> Self {

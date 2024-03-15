@@ -1,22 +1,27 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct ExternNode {
     top_level_statement: Box<dyn Node>,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl ExternNode {
     pub fn new(top_level_statement: Box<dyn Node>, pos_start: Position, pos_end: Position) -> Self {
-        Self { top_level_statement, pos_start, pos_end }
+        Self {
+            top_level_statement,
+            pos_start,
+            pos_end,
+        }
     }
 
-    pub fn top_level_statement(&self) -> &Box<dyn Node> { &self.top_level_statement }
-
+    pub fn top_level_statement(&self) -> &Box<dyn Node> {
+        &self.top_level_statement
+    }
 }
 
 impl NodeToAny for ExternNode {

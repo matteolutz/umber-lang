@@ -10,17 +10,21 @@ pub struct VarTypedAssignNode {
     var_name: String,
     value_node: Box<dyn Node>,
     value_type: Box<dyn ValueType>,
-    pos_start: Position
+    pos_start: Position,
 }
 
 impl VarTypedAssignNode {
-
-    pub fn new(var_name: String, value_node: Box<dyn Node>, value_type: Box<dyn ValueType>, pos_start: Position) -> Self {
+    pub fn new(
+        var_name: String,
+        value_node: Box<dyn Node>,
+        value_type: Box<dyn ValueType>,
+        pos_start: Position,
+    ) -> Self {
         Self {
             var_name,
             value_node,
             value_type,
-            pos_start
+            pos_start,
         }
     }
 
@@ -36,12 +40,15 @@ impl VarTypedAssignNode {
     pub fn pos_start(&self) -> &Position {
         &self.pos_start
     }
-
 }
 
 impl Display for VarTypedAssignNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<VarTypedAssignNode>[Name: {}, Value: {}]", self.var_name, self.value_node)
+        write!(
+            f,
+            "<VarTypedAssignNode>[Name: {}, Value: {}]",
+            self.var_name, self.value_node
+        )
     }
 }
 

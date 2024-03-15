@@ -3,8 +3,8 @@ use std::fmt::{Display, Formatter};
 
 use crate::token::{Token, TokenType};
 use crate::values::value_size::ValueSize;
-use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::value_type::bool_type::BoolType;
+use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 #[derive(Clone)]
 pub struct PointerType {
@@ -36,7 +36,12 @@ impl ValueTypeAsAny for PointerType {
 
 impl Display for PointerType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}*{}", self.pointee_type, if self.is_mutable {  " mut" } else { "" })
+        write!(
+            f,
+            "{}*{}",
+            self.pointee_type,
+            if self.is_mutable { " mut" } else { "" }
+        )
     }
 }
 
@@ -46,22 +51,37 @@ impl ValueType for PointerType {
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
-        self.value_type() == other.value_type() && self.pointee_type.eq(other.as_any().downcast_ref::<Self>().unwrap().pointee_type()) && self.is_mutable == other.as_any().downcast_ref::<Self>().unwrap().is_mutable
+        self.value_type() == other.value_type()
+            && self.pointee_type.eq(other
+                .as_any()
+                .downcast_ref::<Self>()
+                .unwrap()
+                .pointee_type())
+            && self.is_mutable == other.as_any().downcast_ref::<Self>().unwrap().is_mutable
     }
 
     fn is_valid_bin_op(&self, op: &Token, t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {
         if (t.value_type() == ValueTypes::U64 || t.value_type() == ValueTypes::Pointer)
-            && (op.token_type() == TokenType::Plus || op.token_type() == TokenType::Minus
-        ) {
+            && (op.token_type() == TokenType::Plus || op.token_type() == TokenType::Minus)
+        {
             return Some(self.box_clone());
         }
 
         if (t.value_type() == ValueTypes::U64 || t.value_type() == ValueTypes::Pointer)
-            && (op.token_type() == TokenType::Ee || op.token_type() == TokenType::Ne || op.token_type() == TokenType::Gt || op.token_type() == TokenType::Lt || op.token_type() == TokenType::Gte || op.token_type() == TokenType::Lte) {
+            && (op.token_type() == TokenType::Ee
+                || op.token_type() == TokenType::Ne
+                || op.token_type() == TokenType::Gt
+                || op.token_type() == TokenType::Lt
+                || op.token_type() == TokenType::Gte
+                || op.token_type() == TokenType::Lte)
+        {
             return Some(Box::new(BoolType::new()));
         }
 
-        if op.token_type() == TokenType::PointerAssign && t.eq(&self.pointee_type) && self.is_mutable {
+        if op.token_type() == TokenType::PointerAssign
+            && t.eq(&self.pointee_type)
+            && self.is_mutable
+        {
             return Some(self.pointee_type.box_clone());
         }
 

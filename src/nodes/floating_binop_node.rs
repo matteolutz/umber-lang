@@ -17,7 +17,7 @@ impl FloatingBinOpNode {
         Self {
             right_node,
             op_token,
-            left_node
+            left_node,
         }
     }
 
@@ -30,12 +30,15 @@ impl FloatingBinOpNode {
     pub fn right_node(&self) -> &Box<dyn Node> {
         &self.right_node
     }
-
 }
 
 impl Display for FloatingBinOpNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<FloatingBinOpNode>[Left: {}, Op: {}, Right: {}]", self.left_node, self.op_token, self.right_node)
+        write!(
+            f,
+            "<FloatingBinOpNode>[Left: {}, Op: {}, Right: {}]",
+            self.left_node, self.op_token, self.right_node
+        )
     }
 }
 

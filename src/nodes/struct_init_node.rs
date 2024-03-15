@@ -1,13 +1,13 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct StructInitNode {
     struct_name: String,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl StructInitNode {
@@ -15,7 +15,7 @@ impl StructInitNode {
         Self {
             struct_name,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 

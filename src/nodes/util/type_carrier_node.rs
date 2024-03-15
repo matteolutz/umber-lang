@@ -1,14 +1,14 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct TypeCarrierNode {
     carried_type: Box<dyn ValueType>,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl TypeCarrierNode {
@@ -16,7 +16,7 @@ impl TypeCarrierNode {
         Self {
             carried_type,
             pos_start: Position::empty(),
-            pos_end: Position::empty()
+            pos_end: Position::empty(),
         }
     }
 

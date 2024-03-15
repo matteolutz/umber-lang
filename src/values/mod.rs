@@ -1,2 +1,2 @@
-pub mod value_type;
 pub mod value_size;
+pub mod value_type;

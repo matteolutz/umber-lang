@@ -1,14 +1,14 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_size::ValueSize;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct ReadBytesNode {
     node: Box<dyn Node>,
     bytes: ValueSize,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl ReadBytesNode {
@@ -16,7 +16,7 @@ impl ReadBytesNode {
         Self {
             node,
             bytes,
-            pos_end
+            pos_end,
         }
     }
 
@@ -26,7 +26,6 @@ impl ReadBytesNode {
     pub fn bytes(&self) -> &ValueSize {
         &self.bytes
     }
-
 }
 
 impl NodeToAny for ReadBytesNode {
@@ -37,7 +36,11 @@ impl NodeToAny for ReadBytesNode {
 
 impl Display for ReadBytesNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<ReadBytesNode>[Node: {}, Bytes: {}]", self.node, self.bytes)
+        write!(
+            f,
+            "<ReadBytesNode>[Node: {}, Bytes: {}]",
+            self.node, self.bytes
+        )
     }
 }
 

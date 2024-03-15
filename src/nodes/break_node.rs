@@ -7,18 +7,13 @@ use crate::position::Position;
 #[derive(Clone)]
 pub struct BreakNode {
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl BreakNode {
-
     pub fn new(pos_start: Position, pos_end: Position) -> Self {
-        BreakNode {
-            pos_start,
-            pos_end
-        }
+        BreakNode { pos_start, pos_end }
     }
-
 }
 
 impl Display for BreakNode {
@@ -34,7 +29,6 @@ impl NodeToAny for BreakNode {
 }
 
 impl Node for BreakNode {
-
     fn pos_start(&self) -> &Position {
         &self.pos_start
     }

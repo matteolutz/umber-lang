@@ -10,31 +10,36 @@ pub struct VarTypedAccessNode {
     var_name: String,
     value_type: Box<dyn ValueType>,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl VarTypedAccessNode {
-
-    pub fn new(var_name: String, value_type: Box<dyn ValueType>, pos_start: Position, pos_end: Position) -> Self {
+    pub fn new(
+        var_name: String,
+        value_type: Box<dyn ValueType>,
+        pos_start: Position,
+        pos_end: Position,
+    ) -> Self {
         Self {
             var_name,
             value_type,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
     pub fn var_name(&self) -> &str {
         &self.var_name
     }
-    pub fn value_type(&self) -> &Box<dyn ValueType> { &self.value_type }
+    pub fn value_type(&self) -> &Box<dyn ValueType> {
+        &self.value_type
+    }
     pub fn pos_start(&self) -> &Position {
         &self.pos_start
     }
     pub fn pos_end(&self) -> &Position {
         &self.pos_end
     }
-
 }
 
 impl Display for VarTypedAccessNode {

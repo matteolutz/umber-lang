@@ -1,13 +1,13 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct StackAllocationNode {
     size_in_bytes: u64,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl StackAllocationNode {
@@ -15,7 +15,7 @@ impl StackAllocationNode {
         Self {
             size_in_bytes,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
@@ -23,7 +23,6 @@ impl StackAllocationNode {
         &self.size_in_bytes
     }
 }
-
 
 impl Display for StackAllocationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

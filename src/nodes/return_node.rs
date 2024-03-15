@@ -8,27 +8,35 @@ use crate::position::Position;
 pub struct ReturnNode {
     node_to_return: Option<Box<dyn Node>>,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl ReturnNode {
-
-    pub fn new(node_to_return: Option<Box<dyn Node>>, pos_start: Position, pos_end: Position) -> Self {
+    pub fn new(
+        node_to_return: Option<Box<dyn Node>>,
+        pos_start: Position,
+        pos_end: Position,
+    ) -> Self {
         ReturnNode {
             node_to_return,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
-    pub fn node_to_return(&self) -> &Option<Box<dyn Node>> { &self.node_to_return }
-
+    pub fn node_to_return(&self) -> &Option<Box<dyn Node>> {
+        &self.node_to_return
+    }
 }
 
 impl Display for ReturnNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if self.node_to_return.is_some() {
-            write!(f, "<ReturnNode>[Node: {}]", self.node_to_return.as_ref().unwrap())
+            write!(
+                f,
+                "<ReturnNode>[Node: {}]",
+                self.node_to_return.as_ref().unwrap()
+            )
         } else {
             write!(f, "<ReturnNode>[]")
         }

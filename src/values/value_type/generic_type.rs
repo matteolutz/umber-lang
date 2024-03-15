@@ -1,8 +1,8 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::token::Token;
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct GenericType {
@@ -11,9 +11,7 @@ pub struct GenericType {
 
 impl GenericType {
     pub fn new(generic_name: String) -> GenericType {
-        Self {
-            generic_name
-        }
+        Self { generic_name }
     }
 
     pub fn name(&self) -> &str {
@@ -39,7 +37,13 @@ impl ValueType for GenericType {
     }
 
     fn eq(&self, other: &Box<dyn ValueType>) -> bool {
-        self.value_type() == other.value_type() && self.generic_name == other.as_any().downcast_ref::<GenericType>().unwrap().generic_name
+        self.value_type() == other.value_type()
+            && self.generic_name
+                == other
+                    .as_any()
+                    .downcast_ref::<GenericType>()
+                    .unwrap()
+                    .generic_name
     }
 
     fn is_valid_bin_op(&self, _op: &Token, _t: &Box<dyn ValueType>) -> Option<Box<dyn ValueType>> {

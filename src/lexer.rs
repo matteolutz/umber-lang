@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use crate::{error, utils};
 use crate::error::Error;
 use crate::position::Position;
-use crate::token::{KEYWORDS, Token, TOKEN_FLAGS_IS_ASSIGN, TOKEN_FLAGS_NULL, TokenType};
+use crate::token::{Token, TokenType, KEYWORDS, TOKEN_FLAGS_IS_ASSIGN, TOKEN_FLAGS_NULL};
+use crate::{error, utils};
+use std::path::PathBuf;
 
 pub struct Lexer {
     _file_path: PathBuf,
@@ -12,13 +12,16 @@ pub struct Lexer {
 }
 
 impl Lexer {
-
     pub fn new(file_path: PathBuf, file_text: String) -> Self {
         Self {
             pos: Position::new(file_path.clone()),
-            current_char: if file_text.len() > 0 { Some(file_text.chars().nth(0).unwrap()) } else { None },
+            current_char: if file_text.len() > 0 {
+                Some(file_text.chars().nth(0).unwrap())
+            } else {
+                None
+            },
             _file_path: file_path,
-            file_text
+            file_text,
         }
     }
 
@@ -33,7 +36,11 @@ impl Lexer {
     }
 
     pub fn make_tokens(&mut self) -> Result<Vec<Token>, Error> {
-        let mut tokens: Vec<Token> = vec![Token::new_without_value(TokenType::Lcurly, self.pos.clone(), self.pos.clone())];
+        let mut tokens: Vec<Token> = vec![Token::new_without_value(
+            TokenType::Lcurly,
+            self.pos.clone(),
+            self.pos.clone(),
+        )];
 
         while self.current_char.is_some() {
             let current = self.current_char.unwrap();
@@ -41,7 +48,11 @@ impl Lexer {
             if current == ' ' || current == '\t' || current == '\n' || current == '\r' {
                 self.advance();
             } else if current == ';' {
-                tokens.push(Token::new_without_value(TokenType::Newline, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Newline,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if utils::is_digit(&current) {
                 tokens.push(self.make_number()?);
@@ -66,25 +77,53 @@ impl Lexer {
             } else if current == '^' {
                 tokens.push(self.make_bit_xor());
             } else if current == ':' {
-                tokens.push(Token::new_without_value(TokenType::Colon, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Colon,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == '(' {
-                tokens.push(Token::new_without_value(TokenType::Lparen, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Lparen,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == ')' {
-                tokens.push(Token::new_without_value(TokenType::Rparen, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Rparen,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == '[' {
-                tokens.push(Token::new_without_value(TokenType::Lsquare, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Lsquare,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == ']' {
-                tokens.push(Token::new_without_value(TokenType::Rsquare, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Rsquare,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == '{' {
-                tokens.push(Token::new_without_value(TokenType::Lcurly, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Lcurly,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == '}' {
-                tokens.push(Token::new_without_value(TokenType::Rcurly, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Rcurly,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == '!' {
                 tokens.push(self.make_not_equals());
@@ -99,7 +138,11 @@ impl Lexer {
             } else if current == '|' {
                 tokens.push(self.make_or());
             } else if current == '~' {
-                tokens.push(Token::new_without_value(TokenType::BitNot, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::BitNot,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == '@' {
                 let pos_start = self.pos.clone();
@@ -107,37 +150,76 @@ impl Lexer {
                 self.advance();
 
                 if self.current_char.is_some() && self.current_char.unwrap() == '=' {
-                    tokens.push(Token::new_without_value(TokenType::PointerAssign, pos_start, self.pos.clone()));
+                    tokens.push(Token::new_without_value(
+                        TokenType::PointerAssign,
+                        pos_start,
+                        self.pos.clone(),
+                    ));
                     self.advance();
                     continue;
                 }
 
-                if self.current_char.is_none() || !utils::is_digit(self.current_char.as_ref().unwrap()) {
-                    return Err(error::illegal_character_error(pos_start, self.pos.clone(), "Expected number after '@'!"));
+                if self.current_char.is_none()
+                    || !utils::is_digit(self.current_char.as_ref().unwrap())
+                {
+                    return Err(error::illegal_character_error(
+                        pos_start,
+                        self.pos.clone(),
+                        "Expected number after '@'!",
+                    ));
                 }
 
                 let number = self.make_number()?;
                 if number.token_type() != TokenType::U64 {
-                    return Err(error::illegal_character_error(pos_start, self.pos.clone(), "Expected integer number after '@'!"));
+                    return Err(error::illegal_character_error(
+                        pos_start,
+                        self.pos.clone(),
+                        "Expected integer number after '@'!",
+                    ));
                 }
 
-                tokens.push(Token::new_with_value(TokenType::ReadBytes, number.token_value().as_ref().unwrap().clone(), pos_start, self.pos.clone()));
+                tokens.push(Token::new_with_value(
+                    TokenType::ReadBytes,
+                    number.token_value().as_ref().unwrap().clone(),
+                    pos_start,
+                    self.pos.clone(),
+                ));
             } else if current == ',' {
-                tokens.push(Token::new_without_value(TokenType::Comma, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Comma,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else if current == '.' {
-                tokens.push(Token::new_without_value(TokenType::Dot, self.pos.clone(), self.pos.clone()));
+                tokens.push(Token::new_without_value(
+                    TokenType::Dot,
+                    self.pos.clone(),
+                    self.pos.clone(),
+                ));
                 self.advance();
             } else {
                 let pos_start = self.pos.clone();
                 self.advance();
 
-                return Err(error::illegal_character_error(pos_start, self.pos.clone(), format!("'{}'", current).as_str()));
+                return Err(error::illegal_character_error(
+                    pos_start,
+                    self.pos.clone(),
+                    format!("'{}'", current).as_str(),
+                ));
             }
         }
 
-        tokens.push(Token::new_without_value(TokenType::Rcurly, self.pos.clone(), self.pos.clone()));
-        tokens.push(Token::new_without_value(TokenType::Eof, self.pos.clone(), self.pos.clone()));
+        tokens.push(Token::new_without_value(
+            TokenType::Rcurly,
+            self.pos.clone(),
+            self.pos.clone(),
+        ));
+        tokens.push(Token::new_without_value(
+            TokenType::Eof,
+            self.pos.clone(),
+            self.pos.clone(),
+        ));
         Ok(tokens)
     }
 
@@ -157,7 +239,6 @@ impl Lexer {
 
         let mut found_asterisk = false;
         while self.current_char.is_some() {
-
             if self.current_char.unwrap() == '*' {
                 found_asterisk = true;
             } else if self.current_char.unwrap() == '/' && found_asterisk {
@@ -170,7 +251,11 @@ impl Lexer {
             self.advance();
         }
 
-        Err(error::expected_character_error(pos_start, self.pos.clone(), "Expected '*/'!"))
+        Err(error::expected_character_error(
+            pos_start,
+            self.pos.clone(),
+            "Expected '*/'!",
+        ))
     }
 
     fn make_number(&mut self) -> Result<Token, Error> {
@@ -178,7 +263,10 @@ impl Lexer {
         let mut dot_count: u8 = 0;
         let pos_start = self.pos.clone();
 
-        while self.current_char.is_some() && (utils::is_digit(self.current_char.as_ref().unwrap()) || self.current_char.unwrap() == '.') {
+        while self.current_char.is_some()
+            && (utils::is_digit(self.current_char.as_ref().unwrap())
+                || self.current_char.unwrap() == '.')
+        {
             let current = self.current_char.unwrap();
 
             if current == '.' {
@@ -194,14 +282,27 @@ impl Lexer {
             self.advance();
         }
 
-        Ok(Token::new_with_value(if dot_count == 0 { TokenType::U64 } else { TokenType::F64 }, num_str, pos_start, self.pos.clone()))
+        Ok(Token::new_with_value(
+            if dot_count == 0 {
+                TokenType::U64
+            } else {
+                TokenType::F64
+            },
+            num_str,
+            pos_start,
+            self.pos.clone(),
+        ))
     }
 
     fn make_identifier(&mut self) -> Token {
         let mut id_str = String::new();
         let pos_start = self.pos.clone();
 
-        while self.current_char.is_some() && (utils::is_digit(self.current_char.as_ref().unwrap()) || utils::is_alpha(self.current_char.as_ref().unwrap()) || self.current_char.unwrap() == '_') {
+        while self.current_char.is_some()
+            && (utils::is_digit(self.current_char.as_ref().unwrap())
+                || utils::is_alpha(self.current_char.as_ref().unwrap())
+                || self.current_char.unwrap() == '_')
+        {
             id_str.push(self.current_char.unwrap());
             self.advance();
         }
@@ -246,7 +347,11 @@ impl Lexer {
         }
 
         if self.current_char.is_none() {
-            return Err(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected escaped character, after '''!"));
+            return Err(error::invalid_syntax_error(
+                pos_start,
+                self.pos.clone(),
+                "Expected escaped character, after '''!",
+            ));
         }
 
         new_char = self.current_char.unwrap();
@@ -254,19 +359,32 @@ impl Lexer {
             if let Some(c) = utils::escape_char(&new_char) {
                 new_char = c;
             } else {
-                return Err(error::invalid_syntax_error(pos_start, self.pos.clone(), "Invalid escaped character!"));
+                return Err(error::invalid_syntax_error(
+                    pos_start,
+                    self.pos.clone(),
+                    "Invalid escaped character!",
+                ));
             }
         }
 
         self.advance();
 
         if self.current_char.is_none() || self.current_char.unwrap() != '\'' {
-            return Err(error::invalid_syntax_error(pos_start, self.pos.clone(), "Expected ' after character!"));
+            return Err(error::invalid_syntax_error(
+                pos_start,
+                self.pos.clone(),
+                "Expected ' after character!",
+            ));
         }
 
         self.advance();
 
-        Ok(Token::new_with_value(TokenType::Char, new_char.to_string(), pos_start, self.pos.clone()))
+        Ok(Token::new_with_value(
+            TokenType::Char,
+            new_char.to_string(),
+            pos_start,
+            self.pos.clone(),
+        ))
     }
 
     fn make_minus_or_arrow(&mut self) -> Token {
@@ -450,7 +568,12 @@ impl Lexer {
             return Ok(None);
         }
 
-        Ok(Some(Token::new_with_flags_no_value(TokenType::Div, pos_start, self.pos.clone(), flags)))
+        Ok(Some(Token::new_with_flags_no_value(
+            TokenType::Div,
+            pos_start,
+            self.pos.clone(),
+            flags,
+        )))
     }
 
     fn make_modulo(&mut self) -> Token {
@@ -480,7 +603,6 @@ impl Lexer {
 
         Token::new_with_flags_no_value(TokenType::BitXor, pos_start, self.pos.clone(), flags)
     }
-
 }
 
 #[cfg(test)]
@@ -518,6 +640,4 @@ mod tests {
 
         Ok(())
     }
-
-
 }

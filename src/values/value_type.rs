@@ -4,24 +4,24 @@ use std::fmt::Display;
 use crate::token::Token;
 use crate::values::value_size::ValueSize;
 
-pub mod u64_type;
 pub mod bool_type;
-pub mod string_type;
-pub mod function_type;
-pub mod void_type;
-pub mod pointer_type;
 pub mod char_type;
-pub mod struct_type;
-pub mod ignored_type;
-pub mod u32_type;
-pub mod u16_type;
-pub mod u8_type;
-pub mod i64_type;
-pub mod i32_type;
-pub mod i16_type;
-pub mod i8_type;
-pub mod generic_type;
 pub mod f64_type;
+pub mod function_type;
+pub mod generic_type;
+pub mod i16_type;
+pub mod i32_type;
+pub mod i64_type;
+pub mod i8_type;
+pub mod ignored_type;
+pub mod pointer_type;
+pub mod string_type;
+pub mod struct_type;
+pub mod u16_type;
+pub mod u32_type;
+pub mod u64_type;
+pub mod u8_type;
+pub mod void_type;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueTypes {
@@ -42,7 +42,7 @@ pub enum ValueTypes {
     Struct,
     Generic,
     Ignored,
-    F64
+    F64,
 }
 
 pub trait ValueTypeAsAny {

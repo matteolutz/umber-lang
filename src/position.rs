@@ -1,15 +1,14 @@
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
 pub struct Position {
     index: usize,
     line: usize,
     col: usize,
-    file_path: PathBuf
+    file_path: PathBuf,
 }
 
 impl Position {
-
     pub fn new(file_path: PathBuf) -> Self {
         Position {
             line: 0,
@@ -53,5 +52,4 @@ impl Position {
     pub fn file_name(&self) -> &PathBuf {
         &self.file_path
     }
-
 }

@@ -1,14 +1,14 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct CastNode {
     node: Box<dyn Node>,
     cast_type: Box<dyn ValueType>,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl CastNode {
@@ -16,7 +16,7 @@ impl CastNode {
         Self {
             node,
             cast_type,
-            pos_end
+            pos_end,
         }
     }
 
@@ -36,7 +36,11 @@ impl NodeToAny for CastNode {
 
 impl Display for CastNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<CastNode>[Node: {}, CastType: {}]", self.node, self.cast_type)
+        write!(
+            f,
+            "<CastNode>[Node: {}, CastType: {}]",
+            self.node, self.cast_type
+        )
     }
 }
 

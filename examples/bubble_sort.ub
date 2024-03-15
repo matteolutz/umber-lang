@@ -1,6 +1,6 @@
 import "std.ub";
 
-/// Efficient bubble sort algorithm
+/// "Efficient" bubble sort algorithm
 fun bubble_sort(arr: u64 *mut, len: u64): void {
     let mut has_swapped: bool = true;
     let mut num_of_iters: u64 = 0;

@@ -10,14 +10,13 @@ pub struct ParseResult {
 }
 
 impl ParseResult {
-
     pub fn new() -> Self {
         ParseResult {
             error: None,
             node: None,
             last_registered_advance_count: 0,
             advance_count: 0,
-            to_reverse_count: 0
+            to_reverse_count: 0,
         }
     }
 
@@ -58,14 +57,21 @@ impl ParseResult {
         self.error = Some(error);
     }
 
-    pub fn has_error(&self) -> bool { return self.error.is_some(); }
-    pub fn has_node(&self) -> bool { return self.node.is_some(); }
+    pub fn has_error(&self) -> bool {
+        return self.error.is_some();
+    }
+    pub fn has_node(&self) -> bool {
+        return self.node.is_some();
+    }
 
-    pub fn node(&self) -> &Option<Box<dyn Node>> { return &self.node; }
-    pub fn error(&self) -> &Option<Error> { return &self.error; }
+    pub fn node(&self) -> &Option<Box<dyn Node>> {
+        return &self.node;
+    }
+    pub fn error(&self) -> &Option<Error> {
+        return &self.error;
+    }
 
     pub fn to_reverse_count(&self) -> usize {
         self.to_reverse_count
     }
-
 }

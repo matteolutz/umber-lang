@@ -11,17 +11,13 @@ pub struct StringNode {
 }
 
 impl StringNode {
-
     pub fn new(token: Token) -> Self {
-        StringNode {
-            token
-        }
+        StringNode { token }
     }
 
     pub fn get_string(&self) -> String {
         self.token.token_value().as_ref().unwrap().clone()
     }
-
 }
 
 impl Display for StringNode {

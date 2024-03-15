@@ -15,13 +15,19 @@ pub struct FunctionDeclarationNode {
 }
 
 impl FunctionDeclarationNode {
-    pub fn new(var_name: String, args: Vec<(String, Box<dyn ValueType>)>, return_type: Box<dyn ValueType>, pos_start: Position, pos_end: Position) -> Self {
+    pub fn new(
+        var_name: String,
+        args: Vec<(String, Box<dyn ValueType>)>,
+        return_type: Box<dyn ValueType>,
+        pos_start: Position,
+        pos_end: Position,
+    ) -> Self {
         FunctionDeclarationNode {
             var_name,
             args,
             return_type,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
@@ -31,13 +37,19 @@ impl FunctionDeclarationNode {
     pub fn args(&self) -> &Vec<(String, Box<dyn ValueType>)> {
         &self.args
     }
-    pub fn return_type(&self) -> &Box<dyn ValueType> { &self.return_type }
-
+    pub fn return_type(&self) -> &Box<dyn ValueType> {
+        &self.return_type
+    }
 }
 
 impl Display for FunctionDeclarationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<FunctionDeclarationNode>[Name: {}, Args: {}]", self.var_name, self.args.len())
+        write!(
+            f,
+            "<FunctionDeclarationNode>[Name: {}, Args: {}]",
+            self.var_name,
+            self.args.len()
+        )
     }
 }
 

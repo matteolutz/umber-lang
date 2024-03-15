@@ -12,11 +12,18 @@ pub struct FunctionDefinitionNode {
     return_type: Box<dyn ValueType>,
     body_node: Box<dyn Node>,
     generics: Vec<String>,
-    pos_start: Position
+    pos_start: Position,
 }
 
 impl FunctionDefinitionNode {
-    pub fn new(var_name: String, args: Vec<(String, Box<dyn ValueType>)>, return_type: Box<dyn ValueType>, body_node: Box<dyn Node>, generics: Vec<String>, pos_start: Position) -> Self {
+    pub fn new(
+        var_name: String,
+        args: Vec<(String, Box<dyn ValueType>)>,
+        return_type: Box<dyn ValueType>,
+        body_node: Box<dyn Node>,
+        generics: Vec<String>,
+        pos_start: Position,
+    ) -> Self {
         FunctionDefinitionNode {
             var_name,
             args,
@@ -33,19 +40,27 @@ impl FunctionDefinitionNode {
     pub fn args(&self) -> &Vec<(String, Box<dyn ValueType>)> {
         &self.args
     }
-    pub fn return_type(&self) -> &Box<dyn ValueType> { &self.return_type }
+    pub fn return_type(&self) -> &Box<dyn ValueType> {
+        &self.return_type
+    }
     pub fn body_node(&self) -> &Box<dyn Node> {
         &self.body_node
     }
     pub fn generics(&self) -> &Vec<String> {
         &self.generics
     }
-
 }
 
 impl Display for FunctionDefinitionNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<FunctionDefinitionNode>[Name: {}, Args: {}, Body: {}, Generics: {:?}]", self.var_name, self.args.len(), self.body_node, self.generics)
+        write!(
+            f,
+            "<FunctionDefinitionNode>[Name: {}, Args: {}, Body: {}, Generics: {:?}]",
+            self.var_name,
+            self.args.len(),
+            self.body_node,
+            self.generics
+        )
     }
 }
 

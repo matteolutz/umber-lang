@@ -1,14 +1,14 @@
+use same_file::is_same_file;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use same_file::is_same_file;
 
 use crate::error;
 use crate::error::Error;
 use crate::lexer::Lexer;
-use crate::nodes::{Node, NodeType};
 use crate::nodes::accessor_node::AccessorNode;
 use crate::nodes::address_of_node::AddressOfNode;
+use crate::nodes::array_node::ArrayNode;
 use crate::nodes::asm_node::AssemblyNode;
 use crate::nodes::binop_node::BinOpNode;
 use crate::nodes::break_node::BreakNode;
@@ -19,6 +19,7 @@ use crate::nodes::const_def_node::ConstDefinitionNode;
 use crate::nodes::continue_node::ContinueNode;
 use crate::nodes::dereference_node::DereferenceNode;
 use crate::nodes::extern_node::ExternNode;
+use crate::nodes::floating_point_node::FloatingPointNode;
 use crate::nodes::for_node::ForNode;
 use crate::nodes::functiondecl_node::FunctionDeclarationNode;
 use crate::nodes::functiondef_node::FunctionDefinitionNode;
@@ -27,8 +28,6 @@ use crate::nodes::if_node::elsecase::ElseCase;
 use crate::nodes::if_node::IfNode;
 use crate::nodes::ignored_node::IgnoredNode;
 use crate::nodes::import_node::ImportNode;
-use crate::nodes::array_node::ArrayNode;
-use crate::nodes::floating_point_node::FloatingPointNode;
 use crate::nodes::macro_def_node::MacroDefNode;
 use crate::nodes::number_node::NumberNode;
 use crate::nodes::read_bytes_node::ReadBytesNode;
@@ -47,8 +46,9 @@ use crate::nodes::var_node::access::VarAccessNode;
 use crate::nodes::var_node::assign::VarAssignNode;
 use crate::nodes::var_node::declare::VarDeclarationNode;
 use crate::nodes::while_node::WhileNode;
+use crate::nodes::{Node, NodeType};
 use crate::results::parse::ParseResult;
-use crate::token::{Token, TOKEN_FLAGS_IS_ASSIGN, TokenType};
+use crate::token::{Token, TokenType, TOKEN_FLAGS_IS_ASSIGN};
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::bool_type::BoolType;
 use crate::values::value_type::char_type::CharType;
@@ -58,15 +58,15 @@ use crate::values::value_type::i16_type::I16Type;
 use crate::values::value_type::i32_type::I32Type;
 use crate::values::value_type::i64_type::I64Type;
 use crate::values::value_type::i8_type::I8Type;
-use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::pointer_type::PointerType;
 use crate::values::value_type::string_type::StringType;
 use crate::values::value_type::struct_type::StructType;
 use crate::values::value_type::u16_type::U16Type;
 use crate::values::value_type::u32_type::U32Type;
+use crate::values::value_type::u64_type::U64Type;
 use crate::values::value_type::u8_type::U8Type;
-use crate::values::value_type::ValueType;
 use crate::values::value_type::void_type::VoidType;
+use crate::values::value_type::ValueType;
 
 macro_rules! advance {
     ($self:ident, $res:ident) => {
@@ -78,7 +78,11 @@ macro_rules! advance {
 macro_rules! expect_token {
     ($self:ident, $res:ident, $token_type:expr, $repr:literal) => {
         if $self.current_token().token_type() != $token_type {
-            $res.failure(error::invalid_syntax_error($self.current_token().pos_start().clone(), $self.current_token().pos_end().clone(), format!("Expected token '{}' of type '{:?}'!", $repr, $token_type).as_str()));
+            $res.failure(error::invalid_syntax_error(
+                $self.current_token().pos_start().clone(),
+                $self.current_token().pos_end().clone(),
+                format!("Expected token '{}' of type '{:?}'!", $repr, $token_type).as_str(),
+            ));
             return $res;
         }
     };
@@ -87,21 +91,28 @@ macro_rules! expect_token {
 macro_rules! expect_keyword {
     ($self:ident, $res:ident, $keyword:literal) => {
         if !$self.current_token().matches_keyword($keyword) {
-            $res.failure(error::invalid_syntax_error($self.current_token().pos_start().clone(), $self.current_token().pos_end().clone(), format!("Expected keyword '{}'!", $keyword).as_str()));
-            return $res;
-        }
-    }
-}
-
-macro_rules! expect_token_value {
-    ($self:ident, $res:ident) => {
-        if $self.current_token().token_value().is_none() {
-            $res.failure(error::invalid_syntax_error($self.current_token().pos_start().clone(), $self.current_token().pos_end().clone(), "Expected token to have value!"));
+            $res.failure(error::invalid_syntax_error(
+                $self.current_token().pos_start().clone(),
+                $self.current_token().pos_end().clone(),
+                format!("Expected keyword '{}'!", $keyword).as_str(),
+            ));
             return $res;
         }
     };
 }
 
+macro_rules! expect_token_value {
+    ($self:ident, $res:ident) => {
+        if $self.current_token().token_value().is_none() {
+            $res.failure(error::invalid_syntax_error(
+                $self.current_token().pos_start().clone(),
+                $self.current_token().pos_end().clone(),
+                "Expected token to have value!",
+            ));
+            return $res;
+        }
+    };
+}
 
 #[derive(Copy, Clone)]
 enum BinOpFunction {
@@ -121,7 +132,12 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(tokens: Vec<Token>, include_paths: &'a Vec<String>, macros: &'a mut HashMap<String, Box<dyn Node>>, already_included: &'a mut Vec<PathBuf>) -> Self {
+    pub fn new(
+        tokens: Vec<Token>,
+        include_paths: &'a Vec<String>,
+        macros: &'a mut HashMap<String, Box<dyn Node>>,
+        already_included: &'a mut Vec<PathBuf>,
+    ) -> Self {
         if tokens.is_empty() {
             panic!("No tokens were provided!");
         }
@@ -143,7 +159,9 @@ impl<'a> Parser<'a> {
         &self.already_included
     }
 
-    fn current_token(&self) -> &Token { return &self.tokens[self.token_index]; }
+    fn current_token(&self) -> &Token {
+        return &self.tokens[self.token_index];
+    }
 
     fn advance(&mut self) -> () {
         self.token_index += 1;
@@ -162,7 +180,11 @@ impl<'a> Parser<'a> {
         }
 
         if self.current_token().token_type() != TokenType::Eof {
-            return Err(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected end of file!"));
+            return Err(error::invalid_syntax_error(
+                self.current_token().pos_start().clone(),
+                self.current_token().pos_end().clone(),
+                "Expected end of file!",
+            ));
         }
 
         return Ok(stmts.unwrap());
@@ -175,7 +197,12 @@ impl<'a> Parser<'a> {
 
         expect_token!(self, res, TokenType::Keyword, "intrinsic type");
 
-        let s = self.current_token().token_value().as_ref().unwrap().as_str();
+        let s = self
+            .current_token()
+            .token_value()
+            .as_ref()
+            .unwrap()
+            .as_str();
 
         let base_type: Box<dyn ValueType> = match s {
             "u64" => Box::new(U64Type::new()),
@@ -199,7 +226,7 @@ impl<'a> Parser<'a> {
                 let struct_name = self.current_token().token_value().as_ref().unwrap().clone();
 
                 Box::new(StructType::new(struct_name))
-            },
+            }
             "generic" => {
                 advance!(self, res);
 
@@ -208,9 +235,13 @@ impl<'a> Parser<'a> {
                 let generic_name = self.current_token().token_value().as_ref().unwrap().clone();
 
                 Box::new(GenericType::new(generic_name))
-            },
+            }
             _ => {
-                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected intrinsic type!"));
+                res.failure(error::invalid_syntax_error(
+                    self.current_token().pos_start().clone(),
+                    self.current_token().pos_end().clone(),
+                    "Expected intrinsic type!",
+                ));
                 return res;
             }
         };
@@ -315,7 +346,12 @@ impl<'a> Parser<'a> {
             return res;
         }
 
-        res.success(Box::new(ForNode::new(init_expr.unwrap(), condition.unwrap(), next_expr.unwrap(), statements.unwrap())));
+        res.success(Box::new(ForNode::new(
+            init_expr.unwrap(),
+            condition.unwrap(),
+            next_expr.unwrap(),
+            statements.unwrap(),
+        )));
         res
     }
 
@@ -356,7 +392,13 @@ impl<'a> Parser<'a> {
         if res.has_error() {
             return res;
         }
-        let element_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+        let element_type = type_carrier
+            .unwrap()
+            .as_any()
+            .downcast_ref::<TypeCarrierNode>()
+            .unwrap()
+            .carried_type()
+            .clone();
 
         expect_token!(self, res, TokenType::Gt, ">");
 
@@ -367,7 +409,13 @@ impl<'a> Parser<'a> {
 
             expect_token!(self, res, TokenType::U64, "size");
 
-            let length = self.current_token().token_value().as_ref().unwrap().parse::<usize>().unwrap();
+            let length = self
+                .current_token()
+                .token_value()
+                .as_ref()
+                .unwrap()
+                .parse::<usize>()
+                .unwrap();
 
             advance!(self, res);
 
@@ -375,12 +423,22 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            res.success(Box::new(ArrayNode::new(length, vec![], element_type, pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(ArrayNode::new(
+                length,
+                vec![],
+                element_type,
+                pos_start,
+                self.current_token().pos_end().clone(),
+            )));
             return res;
         }
 
         if self.current_token().token_type() == TokenType::Rsquare {
-            res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected int or array element!"));
+            res.failure(error::invalid_syntax_error(
+                self.current_token().pos_start().clone(),
+                self.current_token().pos_end().clone(),
+                "Expected int or array element!",
+            ));
             return res;
         }
 
@@ -405,7 +463,13 @@ impl<'a> Parser<'a> {
 
         advance!(self, res);
 
-        res.success(Box::new(ArrayNode::new(elements.len(), elements, element_type, pos_start, self.current_token().pos_end().clone())));
+        res.success(Box::new(ArrayNode::new(
+            elements.len(),
+            elements,
+            element_type,
+            pos_start,
+            self.current_token().pos_end().clone(),
+        )));
         res
     }
 
@@ -456,7 +520,11 @@ impl<'a> Parser<'a> {
 
             for (key, _) in &args {
                 if &arg_name == key {
-                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
+                    res.failure(error::invalid_syntax_error(
+                        self.current_token().pos_start().clone(),
+                        self.current_token().pos_end().clone(),
+                        format!("Argument name '{}' was already declared!", &arg_name).as_str(),
+                    ));
                     return res;
                 }
             }
@@ -473,7 +541,13 @@ impl<'a> Parser<'a> {
             if res.has_error() {
                 return res;
             }
-            let arg_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+            let arg_type = type_carrier
+                .unwrap()
+                .as_any()
+                .downcast_ref::<TypeCarrierNode>()
+                .unwrap()
+                .carried_type()
+                .clone();
 
             args.push((arg_name, arg_type));
 
@@ -486,7 +560,11 @@ impl<'a> Parser<'a> {
 
                 for (key, _) in &args {
                     if &arg_name == key {
-                        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Argument name '{}' was already declared!", &arg_name).as_str()));
+                        res.failure(error::invalid_syntax_error(
+                            self.current_token().pos_start().clone(),
+                            self.current_token().pos_end().clone(),
+                            format!("Argument name '{}' was already declared!", &arg_name).as_str(),
+                        ));
                         return res;
                     }
                 }
@@ -503,7 +581,13 @@ impl<'a> Parser<'a> {
                 if res.has_error() {
                     return res;
                 }
-                let arg_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+                let arg_type = type_carrier
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<TypeCarrierNode>()
+                    .unwrap()
+                    .carried_type()
+                    .clone();
 
                 args.push((arg_name, arg_type));
             }
@@ -523,10 +607,22 @@ impl<'a> Parser<'a> {
         if res.has_error() {
             return res;
         }
-        let return_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+        let return_type = type_carrier
+            .unwrap()
+            .as_any()
+            .downcast_ref::<TypeCarrierNode>()
+            .unwrap()
+            .carried_type()
+            .clone();
 
         if self.current_token().token_type() == TokenType::Newline {
-            res.success(Box::new(FunctionDeclarationNode::new(func_name, args, return_type, pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(FunctionDeclarationNode::new(
+                func_name,
+                args,
+                return_type,
+                pos_start,
+                self.current_token().pos_end().clone(),
+            )));
             return res;
         }
 
@@ -535,7 +631,14 @@ impl<'a> Parser<'a> {
             return res;
         }
 
-        res.success(Box::new(FunctionDefinitionNode::new(func_name, args, return_type, func_body.unwrap(), generics, pos_start)));
+        res.success(Box::new(FunctionDefinitionNode::new(
+            func_name,
+            args,
+            return_type,
+            func_body.unwrap(),
+            generics,
+            pos_start,
+        )));
         res
     }
 
@@ -545,10 +648,15 @@ impl<'a> Parser<'a> {
             BinOpFunction::Comp => self.comp_expression(),
             BinOpFunction::Term => self.term(),
             BinOpFunction::Factor => self.factor(),
-            BinOpFunction::Call => self.call()
+            BinOpFunction::Call => self.call(),
         }
     }
-    fn bin_operation(&mut self, fn_a: BinOpFunction, ops: Vec<TokenType>, fn_b: BinOpFunction) -> ParseResult {
+    fn bin_operation(
+        &mut self,
+        fn_a: BinOpFunction,
+        ops: Vec<TokenType>,
+        fn_b: BinOpFunction,
+    ) -> ParseResult {
         let mut res = ParseResult::new();
 
         let mut left = res.register_res(self.eval_bin_op_function(fn_a));
@@ -566,7 +674,11 @@ impl<'a> Parser<'a> {
                 return res;
             }
 
-            left = Some(Box::new(BinOpNode::new(left.unwrap(), op_token, right.unwrap())));
+            left = Some(Box::new(BinOpNode::new(
+                left.unwrap(),
+                op_token,
+                right.unwrap(),
+            )));
         }
 
         res.success(left.unwrap());
@@ -595,7 +707,9 @@ impl<'a> Parser<'a> {
         expect_token!(self, res, TokenType::Newline, ";");
         advance!(self, res);
 
-        while self.current_token().token_type() != TokenType::Eof && self.current_token().token_type() != TokenType::Rcurly {
+        while self.current_token().token_type() != TokenType::Eof
+            && self.current_token().token_type() != TokenType::Rcurly
+        {
             let statement = res.register_res(self.statement(is_top_level));
             if res.has_error() {
                 return res;
@@ -608,7 +722,11 @@ impl<'a> Parser<'a> {
 
         advance!(self, res);
 
-        res.success(Box::new(StatementsNode::new(statements, pos_start, self.current_token().pos_end().clone())));
+        res.success(Box::new(StatementsNode::new(
+            statements,
+            pos_start,
+            self.current_token().pos_end().clone(),
+        )));
         res
     }
 
@@ -647,7 +765,13 @@ impl<'a> Parser<'a> {
                 if res.has_error() {
                     return res;
                 }
-                let const_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+                let const_type = type_carrier
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<TypeCarrierNode>()
+                    .unwrap()
+                    .carried_type()
+                    .clone();
 
                 expect_token!(self, res, TokenType::Eq, "=");
 
@@ -658,7 +782,12 @@ impl<'a> Parser<'a> {
                     return res;
                 }
 
-                res.success(Box::new(ConstDefinitionNode::new(name, value_node.unwrap(), const_type, pos_start)));
+                res.success(Box::new(ConstDefinitionNode::new(
+                    name,
+                    value_node.unwrap(),
+                    const_type,
+                    pos_start,
+                )));
                 return res;
             }
 
@@ -692,7 +821,13 @@ impl<'a> Parser<'a> {
                         return res;
                     }
 
-                    let field_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+                    let field_type = type_carrier
+                        .unwrap()
+                        .as_any()
+                        .downcast_ref::<TypeCarrierNode>()
+                        .unwrap()
+                        .carried_type()
+                        .clone();
 
                     fields.push((field_name, field_type));
 
@@ -707,7 +842,12 @@ impl<'a> Parser<'a> {
 
                 advance!(self, res);
 
-                res.success(Box::new(StructDefinitionNode::new(name, fields, pos_start, self.current_token().pos_end().clone())));
+                res.success(Box::new(StructDefinitionNode::new(
+                    name,
+                    fields,
+                    pos_start,
+                    self.current_token().pos_end().clone(),
+                )));
                 return res;
             }
 
@@ -719,26 +859,39 @@ impl<'a> Parser<'a> {
                 expect_token!(self, res, TokenType::String, "name of module");
 
                 let module_name = self.current_token().token_value().as_ref().unwrap().clone();
-                let mut module_path = Path::join(Path::new(self.current_token().pos_start().file_name()).parent().unwrap(), Path::new(&module_name));
+                let mut module_path = Path::join(
+                    Path::new(self.current_token().pos_start().file_name())
+                        .parent()
+                        .unwrap(),
+                    Path::new(&module_name),
+                );
 
                 advance!(self, res);
 
                 let mut include_paths = self.include_paths.clone();
                 include_paths.reverse();
 
-                while (!module_path.exists() || !module_path.is_file()) && !include_paths.is_empty() {
+                while (!module_path.exists() || !module_path.is_file()) && !include_paths.is_empty()
+                {
                     let ip = include_paths.pop().unwrap();
                     module_path = Path::new(ip.as_str()).join(&module_name);
                 }
 
                 if !module_path.exists() || !module_path.is_file() {
-                    res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), format!("Module '{}' not found!", &module_name).as_str()));
+                    res.failure(error::invalid_syntax_error(
+                        self.current_token().pos_start().clone(),
+                        self.current_token().pos_end().clone(),
+                        format!("Module '{}' not found!", &module_name).as_str(),
+                    ));
                     return res;
                 }
 
                 for ai in self.already_included.iter() {
                     if is_same_file(ai, &module_path).unwrap_or(true) {
-                        res.success(Box::new(IgnoredNode::new(self.current_token().pos_start().clone(), self.current_token().pos_end().clone())));
+                        res.success(Box::new(IgnoredNode::new(
+                            self.current_token().pos_start().clone(),
+                            self.current_token().pos_end().clone(),
+                        )));
                         return res;
                     }
                 }
@@ -746,8 +899,20 @@ impl<'a> Parser<'a> {
                 let file_text_res = fs::read_to_string(module_path.clone());
 
                 if let Err(file_err) = file_text_res {
-                    res.failure(error::semantic_error_with_parent(pos_start.clone(), self.current_token().pos_end().clone(), format!("Failed to import module '{}'!", &module_name).as_str(),
-                                                                  error::io_error(pos_start, self.current_token().pos_end().clone(), format!("File '{}' couldn't be opened!\n\t{}", module_path.to_str().unwrap(), file_err.to_string()).as_str()),
+                    res.failure(error::semantic_error_with_parent(
+                        pos_start.clone(),
+                        self.current_token().pos_end().clone(),
+                        format!("Failed to import module '{}'!", &module_name).as_str(),
+                        error::io_error(
+                            pos_start,
+                            self.current_token().pos_end().clone(),
+                            format!(
+                                "File '{}' couldn't be opened!\n\t{}",
+                                module_path.to_str().unwrap(),
+                                file_err.to_string()
+                            )
+                            .as_str(),
+                        ),
                     ));
                     return res;
                 }
@@ -758,16 +923,31 @@ impl<'a> Parser<'a> {
                 let lexer_res = l.make_tokens();
 
                 if let Err(lexing_error) = lexer_res {
-                    res.failure(error::semantic_error_with_parent(pos_start, self.current_token().pos_end().clone(), format!("Failed to import module '{}'!", &module_name).as_str(), lexing_error));
+                    res.failure(error::semantic_error_with_parent(
+                        pos_start,
+                        self.current_token().pos_end().clone(),
+                        format!("Failed to import module '{}'!", &module_name).as_str(),
+                        lexing_error,
+                    ));
                     return res;
                 }
                 let tokens = lexer_res.unwrap();
 
-                let mut p = Parser::new(tokens, self.include_paths, self.macros, self.already_included);
+                let mut p = Parser::new(
+                    tokens,
+                    self.include_paths,
+                    self.macros,
+                    self.already_included,
+                );
                 let parse_res = p.parse();
 
                 if let Err(parse_error) = parse_res {
-                    res.failure(error::semantic_error_with_parent(pos_start, self.current_token().pos_end().clone(), format!("Failed to import module '{}'!", &module_name).as_str(), parse_error));
+                    res.failure(error::semantic_error_with_parent(
+                        pos_start,
+                        self.current_token().pos_end().clone(),
+                        format!("Failed to import module '{}'!", &module_name).as_str(),
+                        parse_error,
+                    ));
                     return res;
                 }
                 let root_node = parse_res.unwrap();
@@ -796,9 +976,13 @@ impl<'a> Parser<'a> {
                     return res;
                 }
 
-                self.macros.insert(name, macro_body.as_ref().unwrap().clone());
+                self.macros
+                    .insert(name, macro_body.as_ref().unwrap().clone());
 
-                res.success(Box::new(MacroDefNode::new(pos_start, self.current_token().pos_end().clone())));
+                res.success(Box::new(MacroDefNode::new(
+                    pos_start,
+                    self.current_token().pos_end().clone(),
+                )));
                 return res;
             }
 
@@ -825,10 +1009,22 @@ impl<'a> Parser<'a> {
                 if res.has_error() {
                     return res;
                 }
-                let in_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+                let in_type = type_carrier
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<TypeCarrierNode>()
+                    .unwrap()
+                    .carried_type()
+                    .clone();
 
                 if self.current_token().token_type() == TokenType::Newline {
-                    res.success(Box::new(StaticDeclarationNode::new(static_name, in_type, is_mutable, pos_start, self.current_token().pos_end().clone())));
+                    res.success(Box::new(StaticDeclarationNode::new(
+                        static_name,
+                        in_type,
+                        is_mutable,
+                        pos_start,
+                        self.current_token().pos_end().clone(),
+                    )));
                     return res;
                 }
 
@@ -841,7 +1037,13 @@ impl<'a> Parser<'a> {
                     return res;
                 }
 
-                res.success(Box::new(StaticDefinitionNode::new(static_name, in_type, expr.unwrap(), is_mutable, pos_start)));
+                res.success(Box::new(StaticDefinitionNode::new(
+                    static_name,
+                    in_type,
+                    expr.unwrap(),
+                    is_mutable,
+                    pos_start,
+                )));
                 return res;
             }
 
@@ -855,7 +1057,11 @@ impl<'a> Parser<'a> {
                     return res;
                 }
 
-                res.success(Box::new(ExternNode::new(top_level_statement.unwrap(), pos_start, self.current_token().pos_end().clone())));
+                res.success(Box::new(ExternNode::new(
+                    top_level_statement.unwrap(),
+                    pos_start,
+                    self.current_token().pos_end().clone(),
+                )));
                 return res;
             }
         } else {
@@ -877,27 +1083,42 @@ impl<'a> Parser<'a> {
                     self.reverse(res.to_reverse_count());
                 }
 
-                res.success(Box::new(ReturnNode::new(expr, pos_start, self.current_token().pos_end().clone())));
+                res.success(Box::new(ReturnNode::new(
+                    expr,
+                    pos_start,
+                    self.current_token().pos_end().clone(),
+                )));
                 return res;
             }
 
             if self.current_token().matches_keyword("continue") {
                 advance!(self, res);
 
-                res.success(Box::new(ContinueNode::new(pos_start, self.current_token().pos_end().clone())));
+                res.success(Box::new(ContinueNode::new(
+                    pos_start,
+                    self.current_token().pos_end().clone(),
+                )));
                 return res;
             }
 
             if self.current_token().matches_keyword("break") {
                 advance!(self, res);
 
-                res.success(Box::new(BreakNode::new(pos_start, self.current_token().pos_end().clone())));
+                res.success(Box::new(BreakNode::new(
+                    pos_start,
+                    self.current_token().pos_end().clone(),
+                )));
                 return res;
             }
 
             let expr = res.register_res(self.expression());
             if res.has_error() {
-                res.failure(error::invalid_syntax_error_with_parent(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected non top level statement or expression!", res.error().as_ref().unwrap().clone()));
+                res.failure(error::invalid_syntax_error_with_parent(
+                    self.current_token().pos_start().clone(),
+                    self.current_token().pos_end().clone(),
+                    "Expected non top level statement or expression!",
+                    res.error().as_ref().unwrap().clone(),
+                ));
                 return res;
             }
 
@@ -905,7 +1126,11 @@ impl<'a> Parser<'a> {
             return res;
         }
 
-        res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected statement or expression!"));
+        res.failure(error::invalid_syntax_error(
+            self.current_token().pos_start().clone(),
+            self.current_token().pos_end().clone(),
+            "Expected statement or expression!",
+        ));
         res
     }
 
@@ -919,7 +1144,17 @@ impl<'a> Parser<'a> {
                 return res;
             }
 
-            let ttype = type_node_res.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().as_any().downcast_ref::<StructType>().unwrap().name().to_string();
+            let ttype = type_node_res
+                .unwrap()
+                .as_any()
+                .downcast_ref::<TypeCarrierNode>()
+                .unwrap()
+                .carried_type()
+                .as_any()
+                .downcast_ref::<StructType>()
+                .unwrap()
+                .name()
+                .to_string();
 
             expect_token!(self, res, TokenType::Lcurly, "{");
 
@@ -929,7 +1164,11 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            res.success(Box::new(StructInitNode::new(ttype, pos_start.clone(), self.current_token().pos_end().clone())));
+            res.success(Box::new(StructInitNode::new(
+                ttype,
+                pos_start.clone(),
+                self.current_token().pos_end().clone(),
+            )));
             return res;
         }
 
@@ -950,7 +1189,11 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            res.success(Box::new(AssemblyNode::new(asm_str, pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(AssemblyNode::new(
+                asm_str,
+                pos_start,
+                self.current_token().pos_end().clone(),
+            )));
             return res;
         }
 
@@ -980,7 +1223,13 @@ impl<'a> Parser<'a> {
             if res.has_error() {
                 return res;
             }
-            let var_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+            let var_type = type_carrier
+                .unwrap()
+                .as_any()
+                .downcast_ref::<TypeCarrierNode>()
+                .unwrap()
+                .carried_type()
+                .clone();
 
             expect_token!(self, res, TokenType::Eq, "=");
 
@@ -991,7 +1240,13 @@ impl<'a> Parser<'a> {
                 return res;
             }
 
-            res.success(Box::new(VarDeclarationNode::new(var_name, var_type, expr.unwrap(), is_mutable, pos_start)));
+            res.success(Box::new(VarDeclarationNode::new(
+                var_name,
+                var_type,
+                expr.unwrap(),
+                is_mutable,
+                pos_start,
+            )));
             return res;
         }
 
@@ -1029,22 +1284,44 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            res.success(Box::new(SyscallNode::new(exprs, pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(SyscallNode::new(
+                exprs,
+                pos_start,
+                self.current_token().pos_end().clone(),
+            )));
             return res;
         }
 
-        let node = res.register_res(self.bin_operation(BinOpFunction::Comp, vec![TokenType::And, TokenType::Or], BinOpFunction::Comp));
+        let node = res.register_res(self.bin_operation(
+            BinOpFunction::Comp,
+            vec![TokenType::And, TokenType::Or],
+            BinOpFunction::Comp,
+        ));
         if res.has_error() {
-            res.failure(error::invalid_syntax_error_with_parent(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected comparison expression!", res.error().as_ref().unwrap().clone()));
+            res.failure(error::invalid_syntax_error_with_parent(
+                self.current_token().pos_start().clone(),
+                self.current_token().pos_end().clone(),
+                "Expected comparison expression!",
+                res.error().as_ref().unwrap().clone(),
+            ));
             return res;
         }
 
         if self.current_token().token_type() == TokenType::ReadBytes {
             let token = self.current_token().clone();
 
-            let bytes: u64 = token.token_value().as_ref().unwrap().parse::<u64>().unwrap();
+            let bytes: u64 = token
+                .token_value()
+                .as_ref()
+                .unwrap()
+                .parse::<u64>()
+                .unwrap();
             if bytes != 1 && bytes != 2 && bytes != 4 && bytes != 8 {
-                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Invalid number of bytes!"));
+                res.failure(error::invalid_syntax_error(
+                    self.current_token().pos_start().clone(),
+                    self.current_token().pos_end().clone(),
+                    "Invalid number of bytes!",
+                ));
                 return res;
             }
 
@@ -1058,7 +1335,11 @@ impl<'a> Parser<'a> {
 
             advance!(self, res);
 
-            res.success(Box::new(ReadBytesNode::new(node.unwrap(), size, self.current_token().pos_end().clone())));
+            res.success(Box::new(ReadBytesNode::new(
+                node.unwrap(),
+                size,
+                self.current_token().pos_end().clone(),
+            )));
             return res;
         }
 
@@ -1083,7 +1364,12 @@ impl<'a> Parser<'a> {
             BinOpFunction::Arith,
         ));
         if res.has_error() {
-            res.failure(error::invalid_syntax_error_with_parent(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected arithmetic expression!", res.error().as_ref().unwrap().clone()));
+            res.failure(error::invalid_syntax_error_with_parent(
+                self.current_token().pos_start().clone(),
+                self.current_token().pos_end().clone(),
+                "Expected arithmetic expression!",
+                res.error().as_ref().unwrap().clone(),
+            ));
             return res;
         }
 
@@ -1094,10 +1380,7 @@ impl<'a> Parser<'a> {
     fn arith_expression(&mut self) -> ParseResult {
         self.bin_operation(
             BinOpFunction::Term,
-            vec![
-                TokenType::Plus,
-                TokenType::Minus,
-            ],
+            vec![TokenType::Plus, TokenType::Minus],
             BinOpFunction::Term,
         )
     }
@@ -1105,11 +1388,7 @@ impl<'a> Parser<'a> {
     fn term(&mut self) -> ParseResult {
         self.bin_operation(
             BinOpFunction::Factor,
-            vec![
-                TokenType::Mul,
-                TokenType::Div,
-                TokenType::Modulo,
-            ],
+            vec![TokenType::Mul, TokenType::Div, TokenType::Modulo],
             BinOpFunction::Factor,
         )
     }
@@ -1158,16 +1437,26 @@ impl<'a> Parser<'a> {
             }
 
             if factor.as_ref().unwrap().node_type() != NodeType::VarAccess {
-                res.failure(error::invalid_syntax_error(pos_start, self.current_token().pos_end().clone(), "Expected variable!"));
+                res.failure(error::invalid_syntax_error(
+                    pos_start,
+                    self.current_token().pos_end().clone(),
+                    "Expected variable!",
+                ));
                 return res;
             }
 
-            let var_access_node = factor.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap();
+            let var_access_node = factor
+                .as_ref()
+                .unwrap()
+                .as_any()
+                .downcast_ref::<VarAccessNode>()
+                .unwrap();
 
-            res.success(Box::new(
-                AddressOfNode::new(
-                    var_access_node.var_name().to_string(),
-                    pos_start, self.current_token().pos_end().clone())));
+            res.success(Box::new(AddressOfNode::new(
+                var_access_node.var_name().to_string(),
+                pos_start,
+                self.current_token().pos_end().clone(),
+            )));
             return res;
         }
 
@@ -1202,7 +1491,12 @@ impl<'a> Parser<'a> {
             } else {
                 let new_arg = res.register_res(self.expression());
                 if res.has_error() {
-                    res.failure(error::invalid_syntax_error_with_parent(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected expression as function call argument!", res.error().as_ref().unwrap().clone()));
+                    res.failure(error::invalid_syntax_error_with_parent(
+                        self.current_token().pos_start().clone(),
+                        self.current_token().pos_end().clone(),
+                        "Expected expression as function call argument!",
+                        res.error().as_ref().unwrap().clone(),
+                    ));
                     return res;
                 }
 
@@ -1214,7 +1508,12 @@ impl<'a> Parser<'a> {
 
                     let new_arg = res.register_res(self.expression());
                     if res.has_error() {
-                        res.failure(error::invalid_syntax_error_with_parent(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Expected expression as function call argument!", res.error().as_ref().unwrap().clone()));
+                        res.failure(error::invalid_syntax_error_with_parent(
+                            self.current_token().pos_start().clone(),
+                            self.current_token().pos_end().clone(),
+                            "Expected expression as function call argument!",
+                            res.error().as_ref().unwrap().clone(),
+                        ));
                         return res;
                     }
 
@@ -1228,13 +1527,29 @@ impl<'a> Parser<'a> {
 
             //res.success(Box::new(CallNode::new(atom.unwrap(), arg_nodes)));
             if atom.as_ref().unwrap().node_type() != NodeType::VarAccess {
-                res.failure(error::invalid_syntax_error(self.current_token().pos_start().clone(), self.current_token().pos_end().clone(), "Dynamic calls aren't implemented yet!"));
+                res.failure(error::invalid_syntax_error(
+                    self.current_token().pos_start().clone(),
+                    self.current_token().pos_end().clone(),
+                    "Dynamic calls aren't implemented yet!",
+                ));
             }
 
-            atom = Some(Box::new(CallNode::new(atom.as_ref().unwrap().as_any().downcast_ref::<VarAccessNode>().unwrap().var_name().to_string(), arg_nodes, atom.as_ref().unwrap().pos_start().clone())))
+            atom = Some(Box::new(CallNode::new(
+                atom.as_ref()
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<VarAccessNode>()
+                    .unwrap()
+                    .var_name()
+                    .to_string(),
+                arg_nodes,
+                atom.as_ref().unwrap().pos_start().clone(),
+            )))
         }
 
-        while self.current_token().token_type() == TokenType::Lsquare || self.current_token().token_type() == TokenType::Dot {
+        while self.current_token().token_type() == TokenType::Lsquare
+            || self.current_token().token_type() == TokenType::Dot
+        {
             let token = self.current_token().clone();
 
             let s_pos_start = self.current_token().pos_start().clone();
@@ -1249,13 +1564,25 @@ impl<'a> Parser<'a> {
 
                 expect_token!(self, res, TokenType::Rsquare, "]");
 
-                atom = Some(Box::new(BinOpNode::new(atom.unwrap(), Token::new_without_value(TokenType::Offset, s_pos_start, self.current_token().pos_end().clone()), expr.unwrap())));
+                atom = Some(Box::new(BinOpNode::new(
+                    atom.unwrap(),
+                    Token::new_without_value(
+                        TokenType::Offset,
+                        s_pos_start,
+                        self.current_token().pos_end().clone(),
+                    ),
+                    expr.unwrap(),
+                )));
             } else if token.token_type() == TokenType::Dot {
                 expect_token!(self, res, TokenType::Identifier, "accessor");
                 expect_token_value!(self, res);
 
                 let accessor = self.current_token().token_value().as_ref().unwrap().clone();
-                atom = Some(Box::new(AccessorNode::new(atom.unwrap(), accessor, self.current_token().pos_end().clone())));
+                atom = Some(Box::new(AccessorNode::new(
+                    atom.unwrap(),
+                    accessor,
+                    self.current_token().pos_end().clone(),
+                )));
             }
 
             advance!(self, res);
@@ -1268,9 +1595,19 @@ impl<'a> Parser<'a> {
             if res.has_error() {
                 return res;
             }
-            let cast_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+            let cast_type = type_carrier
+                .unwrap()
+                .as_any()
+                .downcast_ref::<TypeCarrierNode>()
+                .unwrap()
+                .carried_type()
+                .clone();
 
-            atom = Some(Box::new(CastNode::new(atom.unwrap(), cast_type, self.current_token().pos_end().clone())));
+            atom = Some(Box::new(CastNode::new(
+                atom.unwrap(),
+                cast_type,
+                self.current_token().pos_end().clone(),
+            )));
         }
 
         res.success(atom.unwrap());
@@ -1296,7 +1633,14 @@ impl<'a> Parser<'a> {
 
             node = Box::new(StringNode::new(token));
         } else if token.token_type() == TokenType::Char {
-            let actual_char = self.current_token().token_value().as_ref().unwrap().chars().next().unwrap();
+            let actual_char = self
+                .current_token()
+                .token_value()
+                .as_ref()
+                .unwrap()
+                .chars()
+                .next()
+                .unwrap();
             let pos_start = self.current_token().pos_start().clone();
             let pos_end = self.current_token().pos_start().clone();
 
@@ -1314,16 +1658,17 @@ impl<'a> Parser<'a> {
                 return res;
             }
 
-            if self.current_token().has_flag(TOKEN_FLAGS_IS_ASSIGN) && (self.current_token().token_type() == TokenType::Plus
-                || self.current_token().token_type() == TokenType::Minus
-                || self.current_token().token_type() == TokenType::Mul
-                || self.current_token().token_type() == TokenType::Div
-                || self.current_token().token_type() == TokenType::Modulo
-                || self.current_token().token_type() == TokenType::BitAnd
-                || self.current_token().token_type() == TokenType::BitOr
-                || self.current_token().token_type() == TokenType::BitXor
-                || self.current_token().token_type() == TokenType::BitShl
-                || self.current_token().token_type() == TokenType::BitShr)
+            if self.current_token().has_flag(TOKEN_FLAGS_IS_ASSIGN)
+                && (self.current_token().token_type() == TokenType::Plus
+                    || self.current_token().token_type() == TokenType::Minus
+                    || self.current_token().token_type() == TokenType::Mul
+                    || self.current_token().token_type() == TokenType::Div
+                    || self.current_token().token_type() == TokenType::Modulo
+                    || self.current_token().token_type() == TokenType::BitAnd
+                    || self.current_token().token_type() == TokenType::BitOr
+                    || self.current_token().token_type() == TokenType::BitXor
+                    || self.current_token().token_type() == TokenType::BitShl
+                    || self.current_token().token_type() == TokenType::BitShr)
             {
                 let op_token = self.current_token().clone();
 
@@ -1334,10 +1679,19 @@ impl<'a> Parser<'a> {
                     return res;
                 }
 
-                res.success(Box::new(VarAssignNode::new(var_name.clone(),
-                                                        Box::new(BinOpNode::new(
-                                                            Box::new(VarAccessNode::new(var_name, pos_start.clone(), self.current_token().pos_end().clone())), op_token, assign_expr.unwrap(),
-                                                        )), pos_start)));
+                res.success(Box::new(VarAssignNode::new(
+                    var_name.clone(),
+                    Box::new(BinOpNode::new(
+                        Box::new(VarAccessNode::new(
+                            var_name,
+                            pos_start.clone(),
+                            self.current_token().pos_end().clone(),
+                        )),
+                        op_token,
+                        assign_expr.unwrap(),
+                    )),
+                    pos_start,
+                )));
                 return res;
             }
 
@@ -1349,11 +1703,19 @@ impl<'a> Parser<'a> {
                     return res;
                 }
 
-                res.success(Box::new(VarAssignNode::new(var_name, expr.unwrap(), pos_start)));
+                res.success(Box::new(VarAssignNode::new(
+                    var_name,
+                    expr.unwrap(),
+                    pos_start,
+                )));
                 return res;
             }
 
-            node = Box::new(VarAccessNode::new(var_name, pos_start, self.current_token().pos_end().clone()));
+            node = Box::new(VarAccessNode::new(
+                var_name,
+                pos_start,
+                self.current_token().pos_end().clone(),
+            ));
         } else if token.token_type() == TokenType::Lparen {
             advance!(self, res);
 
@@ -1363,7 +1725,11 @@ impl<'a> Parser<'a> {
             }
 
             if self.current_token().token_type() != TokenType::Rparen {
-                res.failure(error::invalid_syntax_error(token.pos_start().clone(), self.current_token().pos_end().clone(), "Expected ')'!"));
+                res.failure(error::invalid_syntax_error(
+                    token.pos_start().clone(),
+                    self.current_token().pos_end().clone(),
+                    "Expected ')'!",
+                ));
                 return res;
             }
 
@@ -1409,15 +1775,29 @@ impl<'a> Parser<'a> {
             if res.has_error() {
                 return res;
             }
-            let in_type = type_carrier.unwrap().as_any().downcast_ref::<TypeCarrierNode>().unwrap().carried_type().clone();
+            let in_type = type_carrier
+                .unwrap()
+                .as_any()
+                .downcast_ref::<TypeCarrierNode>()
+                .unwrap()
+                .carried_type()
+                .clone();
 
             expect_token!(self, res, TokenType::Rsquare, "]");
 
             advance!(self, res);
 
-            node = Box::new(SizeOfNode::new(in_type, token.pos_start().clone(), self.current_token().pos_end().clone()));
+            node = Box::new(SizeOfNode::new(
+                in_type,
+                token.pos_start().clone(),
+                self.current_token().pos_end().clone(),
+            ));
         } else {
-            res.failure(error::invalid_syntax_error(token.pos_start().clone(), token.pos_end().clone(), "Expected atom!"));
+            res.failure(error::invalid_syntax_error(
+                token.pos_start().clone(),
+                token.pos_end().clone(),
+                "Expected atom!",
+            ));
             return res;
         }
 

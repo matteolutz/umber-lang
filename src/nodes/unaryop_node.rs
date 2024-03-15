@@ -13,10 +13,7 @@ pub struct UnaryOpNode {
 
 impl UnaryOpNode {
     pub fn new(op_token: Token, node: Box<dyn Node>) -> Self {
-        UnaryOpNode {
-            op_token,
-            node,
-        }
+        UnaryOpNode { op_token, node }
     }
 
     pub fn op_token(&self) -> &Token {
@@ -25,12 +22,15 @@ impl UnaryOpNode {
     pub fn node(&self) -> &Box<dyn Node> {
         &self.node
     }
-
 }
 
 impl Display for UnaryOpNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<UnaryOpNode>[Op: {}, Node: {}]", self.op_token, self.node)
+        write!(
+            f,
+            "<UnaryOpNode>[Op: {}, Node: {}]",
+            self.op_token, self.node
+        )
     }
 }
 

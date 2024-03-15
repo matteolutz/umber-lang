@@ -13,22 +13,22 @@ pub struct NumberNode {
 }
 
 impl NumberNode {
-
     pub fn new(token: Token, size: Box<dyn ValueType>) -> Self {
-        NumberNode {
-            token,
-            size,
-        }
+        NumberNode { token, size }
     }
 
     pub fn get_number(&self) -> u64 {
-        self.token.token_value().as_ref().unwrap().parse::<u64>().unwrap()
+        self.token
+            .token_value()
+            .as_ref()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap()
     }
 
     pub fn size(&self) -> &Box<dyn ValueType> {
         &self.size
     }
-
 }
 
 impl Display for NumberNode {

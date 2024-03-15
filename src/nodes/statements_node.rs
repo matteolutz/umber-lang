@@ -8,26 +8,38 @@ use crate::position::Position;
 pub struct StatementsNode {
     statement_nodes: Vec<Box<dyn Node>>,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl StatementsNode {
-
-    pub fn new(statement_nodes: Vec<Box<dyn Node>>, pos_start: Position, pos_end: Position) -> Self {
+    pub fn new(
+        statement_nodes: Vec<Box<dyn Node>>,
+        pos_start: Position,
+        pos_end: Position,
+    ) -> Self {
         StatementsNode {
             statement_nodes,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
-    pub fn statement_nodes(&self) -> &Vec<Box<dyn Node>> { &self.statement_nodes }
-
+    pub fn statement_nodes(&self) -> &Vec<Box<dyn Node>> {
+        &self.statement_nodes
+    }
 }
 
 impl Display for StatementsNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<StatementNodes>[{}]", self.statement_nodes.iter().map(|el| format!("{}", el)).collect::<Vec<String>>().join(","))
+        write!(
+            f,
+            "<StatementNodes>[{}]",
+            self.statement_nodes
+                .iter()
+                .map(|el| format!("{}", el))
+                .collect::<Vec<String>>()
+                .join(",")
+        )
     }
 }
 

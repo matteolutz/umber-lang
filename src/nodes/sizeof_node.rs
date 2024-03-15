@@ -1,14 +1,14 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct SizeOfNode {
     value_type: Box<dyn ValueType>,
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl SizeOfNode {
@@ -16,14 +16,13 @@ impl SizeOfNode {
         Self {
             value_type,
             pos_start,
-            pos_end
+            pos_end,
         }
     }
 
     pub fn value_type(&self) -> &Box<dyn ValueType> {
         &self.value_type
     }
-
 }
 
 impl NodeToAny for SizeOfNode {

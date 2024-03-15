@@ -7,18 +7,13 @@ use crate::position::Position;
 #[derive(Clone)]
 pub struct ContinueNode {
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl ContinueNode {
-
     pub fn new(pos_start: Position, pos_end: Position) -> Self {
-        ContinueNode {
-            pos_start,
-            pos_end
-        }
+        ContinueNode { pos_start, pos_end }
     }
-
 }
 
 impl Display for ContinueNode {

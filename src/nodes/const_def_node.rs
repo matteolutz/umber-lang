@@ -1,24 +1,29 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
 use crate::values::value_type::ValueType;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct ConstDefinitionNode {
     name: String,
     value: Box<dyn Node>,
     value_type: Box<dyn ValueType>,
-    pos_start: Position
+    pos_start: Position,
 }
 
 impl ConstDefinitionNode {
-    pub fn new(name: String, value: Box<dyn Node>, value_type: Box<dyn ValueType>, pos_start: Position) -> Self {
+    pub fn new(
+        name: String,
+        value: Box<dyn Node>,
+        value_type: Box<dyn ValueType>,
+        pos_start: Position,
+    ) -> Self {
         Self {
             name,
             value,
             value_type,
-            pos_start
+            pos_start,
         }
     }
 
@@ -31,7 +36,6 @@ impl ConstDefinitionNode {
     pub fn value_type(&self) -> &Box<dyn ValueType> {
         &self.value_type
     }
-
 }
 
 impl NodeToAny for ConstDefinitionNode {
@@ -42,7 +46,11 @@ impl NodeToAny for ConstDefinitionNode {
 
 impl Display for ConstDefinitionNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<ConstDefinitionNode>[Name: \"{}\", Value: {}]", self.name, self.value)
+        write!(
+            f,
+            "<ConstDefinitionNode>[Name: \"{}\", Value: {}]",
+            self.name, self.value
+        )
     }
 }
 

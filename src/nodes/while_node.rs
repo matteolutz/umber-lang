@@ -11,11 +11,10 @@ pub struct WhileNode {
 }
 
 impl WhileNode {
-
     pub fn new(condition_node: Box<dyn Node>, body_node: Box<dyn Node>) -> Self {
         WhileNode {
             condition_node,
-            body_node
+            body_node,
         }
     }
 
@@ -26,12 +25,15 @@ impl WhileNode {
     pub fn body_node(&self) -> &Box<dyn Node> {
         &self.body_node
     }
-
 }
 
 impl Display for WhileNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<WhileNode>[Cond.: {}, Body: {}]", self.condition_node, self.body_node)
+        write!(
+            f,
+            "<WhileNode>[Cond.: {}, Body: {}]",
+            self.condition_node, self.body_node
+        )
     }
 }
 

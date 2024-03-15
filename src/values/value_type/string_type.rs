@@ -1,20 +1,18 @@
 use std::any::Any;
 use std::fmt::{Display, Formatter};
 
-use crate::token::{Token};
+use crate::token::Token;
 use crate::values::value_size::ValueSize;
-use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::value_type::pointer_type::PointerType;
+use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 
 #[derive(Clone)]
 pub struct StringType {}
 
 impl StringType {
-
     pub fn new() -> Self {
         StringType {}
     }
-
 }
 
 impl ValueTypeAsAny for StringType {

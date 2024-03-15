@@ -1,8 +1,8 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::token::Token;
 use crate::values::value_size::ValueSize;
 use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct StructType {
@@ -11,15 +11,12 @@ pub struct StructType {
 
 impl StructType {
     pub fn new(name: String) -> Self {
-        Self {
-            name,
-        }
+        Self { name }
     }
 
     pub fn name(&self) -> &str {
         &self.name
     }
-
 }
 
 impl ValueTypeAsAny for StructType {

@@ -1,9 +1,9 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::token::{Token, TokenType};
 use crate::values::value_size::ValueSize;
-use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 use crate::values::value_type::bool_type::BoolType;
+use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct CharType {}
@@ -41,8 +41,19 @@ impl ValueType for CharType {
         }
 
         match op.token_type() {
-            TokenType::Minus | TokenType::Plus | TokenType::Mul | TokenType::Div | TokenType::Modulo | TokenType::BitOr | TokenType::BitAnd => Some(Box::new(CharType::new())),
-            TokenType::Ee | TokenType::Ne | TokenType::Gt | TokenType::Lt | TokenType::Gte | TokenType::Lte => Some(Box::new(BoolType::new())),
+            TokenType::Minus
+            | TokenType::Plus
+            | TokenType::Mul
+            | TokenType::Div
+            | TokenType::Modulo
+            | TokenType::BitOr
+            | TokenType::BitAnd => Some(Box::new(CharType::new())),
+            TokenType::Ee
+            | TokenType::Ne
+            | TokenType::Gt
+            | TokenType::Lt
+            | TokenType::Gte
+            | TokenType::Lte => Some(Box::new(BoolType::new())),
             _ => None,
         }
     }

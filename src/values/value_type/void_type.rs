@@ -9,11 +9,9 @@ use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 pub struct VoidType {}
 
 impl VoidType {
-
     pub fn new() -> Self {
         VoidType {}
     }
-
 }
 
 impl ValueTypeAsAny for VoidType {

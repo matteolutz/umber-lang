@@ -10,15 +10,14 @@ use crate::values::value_type::{ValueType, ValueTypeAsAny, ValueTypes};
 #[derive(Clone)]
 pub struct FunctionType {
     arg_types: Vec<Box<dyn ValueType>>,
-    return_type: Box<dyn ValueType>
+    return_type: Box<dyn ValueType>,
 }
 
 impl FunctionType {
-
     pub fn new(arg_types: Vec<Box<dyn ValueType>>, return_type: Box<dyn ValueType>) -> Self {
         FunctionType {
             arg_types,
-            return_type
+            return_type,
         }
     }
 
@@ -29,11 +28,12 @@ impl FunctionType {
     pub fn return_type(&self) -> &Box<dyn ValueType> {
         &self.return_type
     }
-
 }
 
 impl ValueTypeAsAny for FunctionType {
-    fn as_any(&self) -> &dyn Any { self }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl Display for FunctionType {

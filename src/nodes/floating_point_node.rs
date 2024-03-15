@@ -13,16 +13,17 @@ pub struct FloatingPointNode {
 }
 
 impl FloatingPointNode {
-
     pub fn new(token: Token, size: Box<dyn ValueType>) -> Self {
-        Self {
-            token,
-            size,
-        }
+        Self { token, size }
     }
 
     pub fn get_float(&self) -> f64 {
-        self.token.token_value().as_ref().unwrap().parse::<f64>().unwrap()
+        self.token
+            .token_value()
+            .as_ref()
+            .unwrap()
+            .parse::<f64>()
+            .unwrap()
     }
 
     // get the double ieee 754 representation of the float
@@ -72,12 +73,15 @@ impl FloatingPointNode {
     pub fn size(&self) -> &Box<dyn ValueType> {
         &self.size
     }
-
 }
 
 impl Display for FloatingPointNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<FloatingPointNode>[Token: {}, Size: {}]", self.token, self.size)
+        write!(
+            f,
+            "<FloatingPointNode>[Token: {}, Size: {}]",
+            self.token, self.size
+        )
     }
 }
 

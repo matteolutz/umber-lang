@@ -1,20 +1,17 @@
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use crate::nodes::{Node, NodeToAny, NodeType};
 use crate::position::Position;
+use std::any::Any;
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone)]
 pub struct IgnoredNode {
     pos_start: Position,
-    pos_end: Position
+    pos_end: Position,
 }
 
 impl IgnoredNode {
     pub fn new(pos_start: Position, pos_end: Position) -> Self {
-        Self {
-            pos_start,
-            pos_end
-        }
+        Self { pos_start, pos_end }
     }
 }
 
