@@ -1,0 +1,16 @@
+/*
+To run this on macho64, build this file with
+
+umber com -c main.ub -t macho64 -v
+ld ./build/main.o -o ./build/main -macos_version_min 13.0 -e _start
+
+*/
+
+fun main(argc: u64, argv: char *): u64 {
+    let str: char * = "Hello World!\n" as char *;
+    let str_len: u64 = 13;
+
+    syscall[0x02000004, 1, str as u64, str_len];
+
+    return 0;
+};
