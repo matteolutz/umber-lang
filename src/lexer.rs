@@ -261,11 +261,14 @@ impl Lexer {
     fn make_number(&mut self) -> Result<Token, Error> {
         let mut num_str = String::new();
         let mut dot_count: u8 = 0;
+        let mut base = 10;
         let pos_start = self.pos.clone();
 
         while self.current_char.is_some()
             && (utils::is_digit(self.current_char.as_ref().unwrap())
-                || self.current_char.unwrap() == '.')
+                || utils::is_alpha(self.current_char.as_ref().unwrap())
+                || self.current_char.unwrap() == '.'
+                || self.current_char.unwrap() == 'x')
         {
             let current = self.current_char.unwrap();
 
@@ -275,7 +278,26 @@ impl Lexer {
                 }
                 dot_count += 1;
                 num_str.push('.');
+            } else if current == 'x' {
+                if base == 16 || num_str.len() != 1 || num_str.chars().nth(0).unwrap() != '0' {
+                    return Err(error::illegal_character_error(
+                        pos_start,
+                        self.pos.clone(),
+                        "Unexpected 'x'",
+                    ));
+                }
+
+                base = 16;
+                num_str.push('x');
             } else {
+                if utils::is_alpha(&current) && base != 16 {
+                    return Err(error::illegal_character_error(
+                        pos_start,
+                        self.pos.clone(),
+                        "Unexpected character!",
+                    ));
+                }
+
                 num_str.push(current);
             }
 

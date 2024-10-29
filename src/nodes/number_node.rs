@@ -18,12 +18,14 @@ impl NumberNode {
     }
 
     pub fn get_number(&self) -> u64 {
-        self.token
-            .token_value()
-            .as_ref()
-            .unwrap()
-            .parse::<u64>()
-            .unwrap()
+        let token_value = self.token.token_value().as_ref().unwrap();
+
+        if !token_value.starts_with("0x") {
+            return token_value.parse::<u64>().unwrap();
+        }
+
+        let without_prefix = token_value.trim_start_matches("0x");
+        u64::from_str_radix(without_prefix, 16).unwrap()
     }
 
     pub fn size(&self) -> &Box<dyn ValueType> {

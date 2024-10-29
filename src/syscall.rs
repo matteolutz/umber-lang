@@ -10,7 +10,7 @@ pub enum CallingConvention {
 pub enum TargetObjectType {
     X86_64,
     Win64,
-    Macos,
+    Macho64,
 }
 
 impl TargetObjectType {
@@ -18,7 +18,7 @@ impl TargetObjectType {
         match self {
             Self::X86_64 => "elf64",
             Self::Win64 => "win64",
-            Self::Macos => "macho64",
+            Self::Macho64 => "macho64",
         }
     }
 
@@ -26,7 +26,7 @@ impl TargetObjectType {
         match self {
             Self::X86_64 => "o",
             Self::Win64 => "obj",
-            Self::Macos => "o",
+            Self::Macho64 => "o",
         }
     }
 
@@ -34,7 +34,15 @@ impl TargetObjectType {
         match self {
             Self::X86_64 => CallingConvention::Unix,
             Self::Win64 => CallingConvention::Win,
-            Self::Macos => CallingConvention::Unix,
+            Self::Macho64 => CallingConvention::Unix,
+        }
+    }
+
+    pub fn should_use_rel(&self) -> bool {
+        match self {
+            Self::X86_64 => false,
+            Self::Win64 => false,
+            Self::Macho64 => true,
         }
     }
 }
@@ -49,7 +57,7 @@ impl SyscallTable {
             Self::Exit => match arch {
                 TargetObjectType::X86_64 => 60,
                 TargetObjectType::Win64 => 1,
-                TargetObjectType::Macos => 0x2000001,
+                TargetObjectType::Macho64 => 0x2000001,
             },
         }
     }

@@ -77,11 +77,11 @@ pub struct Compiler {
 
     statics: HashMap<String, ValueSize>,
 
-    calling_convention: CallingConvention,
+    target_object_type: TargetObjectType,
 }
 
 impl Compiler {
-    pub fn new(calling_convention: CallingConvention) -> Self {
+    pub fn new(target_object_type: TargetObjectType) -> Self {
         Compiler {
             scratch_regs: 0,
             label_count: 0,
@@ -95,7 +95,7 @@ impl Compiler {
             externs: vec![],
             globals: vec![],
             statics: HashMap::new(),
-            calling_convention,
+            target_object_type,
         }
     }
 
@@ -343,12 +343,22 @@ impl Compiler {
                     .get_string(),
             );
             let reg = self.res_scratch();
-            writeln!(
-                w,
-                "\tmov     {}, QWORD {}",
-                self.scratch_name(reg),
-                str_label
-            )?;
+
+            if self.target_object_type.should_use_rel() {
+                writeln!(
+                    w,
+                    "\tlea     {}, [rel {}]",
+                    self.scratch_name(reg),
+                    str_label
+                )?;
+            } else {
+                writeln!(
+                    w,
+                    "\tmov     {}, QWORD {}",
+                    self.scratch_name(reg),
+                    str_label
+                )?;
+            }
             return Ok(Some(reg));
         }
 
@@ -653,13 +663,17 @@ impl Compiler {
             }
 
             for (i, _arg) in call_node.arg_nodes().iter().enumerate() {
-                if i >= self.number_arg_reg_size(&self.calling_convention) {
+                if i >= self.number_arg_reg_size(&self.target_object_type.calling_convention()) {
                     break;
                 };
                 writeln!(
                     w,
                     "\tpop     {}",
-                    self.number_arg_reg_name(i as u8, &ValueSize::Qword, &self.calling_convention)
+                    self.number_arg_reg_name(
+                        i as u8,
+                        &ValueSize::Qword,
+                        &self.target_object_type.calling_convention()
+                    )
                 )?;
             }
 
@@ -704,7 +718,8 @@ impl Compiler {
             for (i, (key, arg_type)) in func_def_node.args().iter().enumerate() {
                 self.register_var(key.clone(), arg_type.get_size());
 
-                let num_arg_regs = self.number_arg_reg_size(&self.calling_convention);
+                let num_arg_regs =
+                    self.number_arg_reg_size(&self.target_object_type.calling_convention());
                 if i >= num_arg_regs {
                     let reg = self.res_scratch();
 
@@ -733,7 +748,7 @@ impl Compiler {
                         self.number_arg_reg_name(
                             i as u8,
                             &arg_type.get_size(),
-                            &self.calling_convention
+                            &self.target_object_type.calling_convention()
                         )
                     )?;
                 }
@@ -847,7 +862,12 @@ impl Compiler {
             if self.is_static(var_assign_node.var_name()) {
                 writeln!(
                     w,
-                    "\tmov     [{}], {}",
+                    "\tmov     [{}{}], {}",
+                    if self.target_object_type.should_use_rel() {
+                        "rel "
+                    } else {
+                        ""
+                    },
                     self.get_static_name(var_assign_node.var_name()),
                     self.scratch_name(reg)
                 )?;
@@ -889,8 +909,13 @@ impl Compiler {
                 let reg = self.res_scratch();
                 writeln!(
                     w,
-                    "\tmov     {}, [{}]",
+                    "\tmov     {}, [{}{}]",
                     self.scratch_name(reg),
+                    if self.target_object_type.should_use_rel() {
+                        "rel "
+                    } else {
+                        ""
+                    },
                     self.get_static_name(var_access_node.var_name())
                 )?;
                 return Ok(Some(reg));
@@ -1344,7 +1369,7 @@ mod tests {
 
     #[test]
     pub fn compiler_register_distribution() {
-        let mut c = Compiler::new();
+        let mut c = Compiler::new(TargetObjectType::X86_64);
 
         c.res_scratch();
         assert_eq!(*c.scratch_regs(), 0b0000001);

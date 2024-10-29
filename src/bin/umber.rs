@@ -41,7 +41,7 @@ struct SubCompile {
     #[clap(short, long, action)]
     no_entry: bool,
 
-    /// Only compile, dont link
+    /// Only compile and assemble, dont link
     #[clap(short, long, action)]
     compile_only: bool,
 
@@ -143,7 +143,7 @@ fn compile(
     if verbose {
         print!("Generating assembly...")
     }
-    let mut compiler = umber_lang::compiler::Compiler::new(arch.calling_convention());
+    let mut compiler = umber_lang::compiler::Compiler::new(arch);
     let asm = compiler.compile_to_str(ast_root, no_entry, arch);
 
     if let Err(fmt_error) = asm {
