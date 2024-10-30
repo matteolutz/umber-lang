@@ -122,6 +122,16 @@ impl Validator {
         None
     }
 
+    fn get_symbol_mut(&mut self, name: &str) -> Option<&mut (Symbol, Position)> {
+        for s in self.type_stack.iter_mut().rev() {
+            if s.contains_key(name) {
+                return s.get_mut(name);
+            }
+        }
+
+        None
+    }
+
     fn declare_symbol(&mut self, name: String, sym: Symbol, pos: Position) {
         if self.type_stack.is_empty() {
             return;
@@ -132,6 +142,21 @@ impl Validator {
         }
 
         (self.type_stack.index_mut(self.type_stack.len() - 1)).insert(name, (sym, pos));
+    }
+
+    fn redeclare_symbol(&mut self, name: &str, sym: Symbol, pos: Position) {
+        if self.type_stack.is_empty() {
+            return;
+        }
+
+        let symbol = self.get_symbol_mut(name);
+        if symbol.is_none() {
+            return;
+        }
+
+        let symbol = symbol.unwrap();
+        symbol.0 = sym;
+        symbol.1 = pos;
     }
 
     fn push_child_scope(&mut self, scope_type: ScopeType) {
@@ -668,19 +693,25 @@ impl Validator {
     fn validate_function_def_node(&mut self, node: &FunctionDefinitionNode) -> ValidationResult {
         let mut res = ValidationResult::new();
 
-        if self.has_symbol(node.var_name()) {
-            res.failure(error::semantic_error(
-                node.pos_start().clone(),
-                node.pos_end().clone(),
-                format!(
-                    "Function or variable with name '{}' was already declared in this scope!",
-                    node.var_name()
-                )
-                .as_str(),
-            ));
-            return res;
+        let symbol = self.get_symbol(node.var_name());
+
+        if let Some((symbol, _)) = symbol {
+            // this means, that we declared the function somewhere, and we are now defining it
+            if symbol.value_type().value_type() != ValueTypes::Function || !symbol.is_mutable() {
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    format!(
+                        "Function or variable with name '{}' was already defined or declared in this scope!",
+                        node.var_name()
+                    )
+                    .as_str(),
+                ));
+                return res;
+            }
         }
 
+        /*
         if node.var_name() == "main" {
             if node.return_type().value_type() != ValueTypes::U64 {
                 res.failure(error::semantic_error(
@@ -728,6 +759,7 @@ impl Validator {
                 return res;
             }
         }
+        */
 
         let mut arg_types: Vec<Box<dyn ValueType>> = vec![];
         arg_types.reserve(node.args().len());
@@ -736,17 +768,53 @@ impl Validator {
             arg_types.push(value_type.clone());
         }
 
-        self.declare_symbol(
-            node.var_name().to_string(),
-            Symbol::new(
-                Box::new(FunctionType::new(
-                    arg_types.clone(),
-                    node.return_type().clone(),
-                )),
-                false,
-            ),
-            node.pos_start().clone(),
-        );
+        if let Some((symbol, _)) = symbol {
+            let function_type = symbol
+                .value_type()
+                .as_any()
+                .downcast_ref::<FunctionType>()
+                .unwrap();
+
+            if function_type.arg_types().clone() != arg_types
+                || function_type.return_type() != node.return_type()
+            {
+                res.failure(error::semantic_error(
+                    node.pos_start().clone(),
+                    node.pos_end().clone(),
+                    format!(
+                        "Function '{}' was already declared as {}. When defining it, it must have the same signature!",
+                        node.var_name(),
+                        function_type
+                    )
+                    .as_str(),
+                ));
+                return res;
+            }
+
+            self.redeclare_symbol(
+                node.var_name(),
+                Symbol::new(
+                    Box::new(FunctionType::new(
+                        arg_types.clone(),
+                        node.return_type().clone(),
+                    )),
+                    false,
+                ),
+                node.pos_start().clone(),
+            );
+        } else {
+            self.declare_symbol(
+                node.var_name().to_string(),
+                Symbol::new(
+                    Box::new(FunctionType::new(
+                        arg_types.clone(),
+                        node.return_type().clone(),
+                    )),
+                    false,
+                ),
+                node.pos_start().clone(),
+            );
+        }
 
         self.push_child_scope(ScopeType::Function);
         let old_return_type = self.current_function_return_type.clone();
@@ -842,7 +910,7 @@ impl Validator {
                     arg_types.clone(),
                     node.return_type().clone(),
                 )),
-                false,
+                true,
             ),
             node.pos_start().clone(),
         );

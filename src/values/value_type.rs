@@ -67,3 +67,9 @@ impl Clone for Box<dyn ValueType> {
         self.box_clone()
     }
 }
+
+impl PartialEq for dyn ValueType {
+    fn eq(&self, other: &Self) -> bool {
+        self.value_type() == other.value_type()
+    }
+}

@@ -1285,8 +1285,17 @@ impl Compiler {
             let stack_allocation_node =
                 node.as_any().downcast_ref::<StackAllocationNode>().unwrap();
 
-            // let beginning_offset = self.base_offset;
+            let beginning_offset = self.base_offset;
             self.base_offset += stack_allocation_node.size_in_bytes();
+
+            for i in 0..*stack_allocation_node.size_in_bytes() {
+                writeln!(
+                    w,
+                    "\tmov     BYTE [rbp-{}], {}",
+                    beginning_offset + (i + 1),
+                    0
+                )?;
+            }
 
             let reg = self.res_scratch();
             writeln!(

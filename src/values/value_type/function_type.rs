@@ -38,7 +38,16 @@ impl ValueTypeAsAny for FunctionType {
 
 impl Display for FunctionType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<FunctionType>[]")
+        write!(
+            f,
+            "fun ({}): {}",
+            self.arg_types
+                .iter()
+                .map(|a| format!("{}", a))
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.return_type
+        )
     }
 }
 
