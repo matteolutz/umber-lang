@@ -36,7 +36,7 @@ impl Display for FloatingBinOpNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<FloatingBinOpNode>[Left: {}, Op: {}, Right: {}]",
+            "{} {} {}",
             self.left_node, self.op_token, self.right_node
         )
     }

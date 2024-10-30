@@ -33,7 +33,7 @@ impl NodeToAny for SizeOfNode {
 
 impl Display for SizeOfNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<SizeOfNode>[Type: {}]", self.value_type)
+        write!(f, "sizeof[{}]", self.value_type)
     }
 }
 

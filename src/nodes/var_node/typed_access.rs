@@ -44,7 +44,7 @@ impl VarTypedAccessNode {
 
 impl Display for VarTypedAccessNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<VarSizedAccess>[{}]", self.var_name)
+        write!(f, "{}", self.var_name)
     }
 }
 

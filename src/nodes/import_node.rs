@@ -26,7 +26,7 @@ impl NodeToAny for ImportNode {
 
 impl Display for ImportNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "<ImportNode>[Node: {}]", self.node)
+        writeln!(f, "import ({})", self.node)
     }
 }
 

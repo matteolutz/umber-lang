@@ -26,11 +26,7 @@ impl UnaryOpNode {
 
 impl Display for UnaryOpNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<UnaryOpNode>[Op: {}, Node: {}]",
-            self.op_token, self.node
-        )
+        write!(f, "{}({})", self.op_token, self.node)
     }
 }
 

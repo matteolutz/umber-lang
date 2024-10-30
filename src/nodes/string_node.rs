@@ -22,7 +22,7 @@ impl StringNode {
 
 impl Display for StringNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<StringNode>[Token: {}]", self.token)
+        write!(f, "\"{}\"", self.token)
     }
 }
 

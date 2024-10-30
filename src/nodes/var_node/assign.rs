@@ -33,11 +33,7 @@ impl VarAssignNode {
 
 impl Display for VarAssignNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<VarAssignNode>[Name: {}, Value: {}]",
-            self.var_name, self.value_node
-        )
+        write!(f, "{} = {}", self.var_name, self.value_node)
     }
 }
 

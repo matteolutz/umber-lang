@@ -50,7 +50,7 @@ impl Display for ForNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<ForNode>[Init: {}, Condition: {}, Next: {}, Body: {}]",
+            "for ({}); ({}); ({}) {{ {} }}",
             self.init_stmt, self.condition, self.next_expr, self.body
         )
     }

@@ -1,5 +1,3 @@
-use std::fmt::{Display, Formatter};
-
 use crate::nodes::Node;
 
 #[derive(Clone)]
@@ -22,15 +20,5 @@ impl IfCase {
 
     pub fn statements(&self) -> &Box<dyn Node> {
         &self.statements
-    }
-}
-
-impl Display for IfCase {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<IfCase>[Cond.: {}, Stmts: {}]",
-            self.condition, self.statements
-        )
     }
 }

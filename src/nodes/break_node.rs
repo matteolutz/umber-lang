@@ -18,7 +18,7 @@ impl BreakNode {
 
 impl Display for BreakNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<BreakNode>[]")
+        write!(f, "break")
     }
 }
 

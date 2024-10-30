@@ -77,11 +77,7 @@ impl FloatingPointNode {
 
 impl Display for FloatingPointNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<FloatingPointNode>[Token: {}, Size: {}]",
-            self.token, self.size
-        )
+        write!(f, "{}", self.token)
     }
 }
 

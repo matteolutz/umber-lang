@@ -52,8 +52,11 @@ impl Display for VarDeclarationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<VarDeclarationNode>[Name: {}, Type: {}, Value: {}, IsMutable?: {}]",
-            self.var_name, self.var_type, self.value_node, self.is_mutable
+            "let{} {}: {} = {}",
+            if self.is_mutable { " mut" } else { "" },
+            self.var_name,
+            self.var_type,
+            self.value_node
         )
     }
 }

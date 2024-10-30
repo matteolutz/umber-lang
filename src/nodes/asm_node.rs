@@ -33,7 +33,7 @@ impl NodeToAny for AssemblyNode {
 
 impl Display for AssemblyNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<AssemblyNode>[\"{}\"]", &self.content)
+        write!(f, "asm[\"{}\"]", &self.content)
     }
 }
 

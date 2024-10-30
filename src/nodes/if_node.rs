@@ -34,28 +34,21 @@ impl IfNode {
 
 impl Display for IfNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.else_case.is_some() {
+        for (idx, case) in self.cases.iter().enumerate() {
             write!(
                 f,
-                "<IfNode>[Cases: [{}], ElseCase: {}]",
-                self.cases
-                    .iter()
-                    .map(|c| format!("{}", c))
-                    .collect::<Vec<String>>()
-                    .join(","),
-                self.else_case.as_ref().unwrap()
-            )
-        } else {
-            write!(
-                f,
-                "<IfNode>[Cases: [{}]]",
-                self.cases
-                    .iter()
-                    .map(|c| format!("{}", c))
-                    .collect::<Vec<String>>()
-                    .join(",")
-            )
+                "{} ({}) {{ {} }}",
+                if idx == 0 { "if" } else { "else if" },
+                case.condition(),
+                case.statements()
+            )?;
         }
+
+        if let Some(else_case) = self.else_case.as_ref() {
+            write!(f, "else {{ {} }}", else_case.statements())?;
+        }
+
+        Ok(())
     }
 }
 

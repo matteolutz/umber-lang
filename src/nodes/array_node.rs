@@ -44,16 +44,7 @@ impl ArrayNode {
 
 impl Display for ArrayNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<ArrayNode>[{}, Type: {}]",
-            self.element_nodes
-                .iter()
-                .map(|el| format!("{}", el))
-                .collect::<Vec<String>>()
-                .join(","),
-            self.element_type
-        )
+        write!(f, "[<{}>; {}]", self.element_type, self.size)
     }
 }
 

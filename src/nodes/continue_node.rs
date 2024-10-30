@@ -18,7 +18,7 @@ impl ContinueNode {
 
 impl Display for ContinueNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<ContinueNode>[]")
+        write!(f, "continue")
     }
 }
 

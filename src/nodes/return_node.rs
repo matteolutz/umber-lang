@@ -31,14 +31,10 @@ impl ReturnNode {
 
 impl Display for ReturnNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        if self.node_to_return.is_some() {
-            write!(
-                f,
-                "<ReturnNode>[Node: {}]",
-                self.node_to_return.as_ref().unwrap()
-            )
+        if let Some(node_to_return) = self.node_to_return.as_ref() {
+            write!(f, "return {}", node_to_return)
         } else {
-            write!(f, "<ReturnNode>[]")
+            write!(f, "return")
         }
     }
 }

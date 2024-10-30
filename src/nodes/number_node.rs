@@ -35,7 +35,7 @@ impl NumberNode {
 
 impl Display for NumberNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<NumberNode>[Token: {}]", self.token)
+        write!(f, "{}", self.token)
     }
 }
 

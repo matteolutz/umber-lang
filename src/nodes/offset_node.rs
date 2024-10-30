@@ -43,7 +43,7 @@ impl NodeToAny for OffsetNode {
 
 impl Display for OffsetNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<OffsetNode>")
+        write!(f, "OffsetNode")
     }
 }
 

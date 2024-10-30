@@ -32,7 +32,15 @@ impl NodeToAny for SyscallNode {
 
 impl Display for SyscallNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<SyscallNode>[Args: {}]", self.args.len())
+        write!(
+            f,
+            "syscall[{}]",
+            self.args
+                .iter()
+                .map(|a| format!("{}", a))
+                .collect::<Vec<String>>()
+                .join(", ")
+        )
     }
 }
 

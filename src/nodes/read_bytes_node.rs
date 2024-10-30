@@ -36,11 +36,7 @@ impl NodeToAny for ReadBytesNode {
 
 impl Display for ReadBytesNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<ReadBytesNode>[Node: {}, Bytes: {}]",
-            self.node, self.bytes
-        )
+        write!(f, "ReadBytesNode")
     }
 }
 

@@ -39,7 +39,7 @@ impl NodeToAny for PointerAssignNode {
 
 impl Display for PointerAssignNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<PointerAssignNode>")
+        write!(f, "({}) @= ({})", self.ptr, self.value)
     }
 }
 

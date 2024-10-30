@@ -118,12 +118,13 @@ impl PartialEq for Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:?}:{}",
-            self.tok_type,
-            self.tok_value.as_ref().unwrap_or(&String::from("<NULL>"))
-        )
+        write!(f, "{:?}", self.tok_type,)?;
+
+        if let Some(token_value) = self.tok_value.as_ref() {
+            write!(f, ":{}", token_value)?;
+        }
+
+        Ok(())
     }
 }
 

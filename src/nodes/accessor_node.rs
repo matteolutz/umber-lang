@@ -35,7 +35,7 @@ impl NodeToAny for AccessorNode {
 
 impl Display for AccessorNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<AccessorNode>")
+        write!(f, "({}).({})", self.node, self.accessor)
     }
 }
 

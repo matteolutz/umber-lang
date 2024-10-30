@@ -46,9 +46,14 @@ impl Display for FunctionDeclarationNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<FunctionDeclarationNode>[Name: {}, Args: {}]",
+            "fun {}({}): {}",
             self.var_name,
-            self.args.len()
+            self.args
+                .iter()
+                .map(|(arg_name, arg_type)| format!("{}: {}", arg_name, arg_type))
+                .collect::<Vec<String>>()
+                .join(", "),
+            self.return_type
         )
     }
 }

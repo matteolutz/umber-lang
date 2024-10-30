@@ -23,7 +23,7 @@ impl NodeToAny for IgnoredNode {
 
 impl Display for IgnoredNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<IgnoredNode>[]")
+        write!(f, "IgnoredNode")
     }
 }
 

@@ -1,5 +1,3 @@
-use std::fmt::{Display, Formatter};
-
 use crate::nodes::Node;
 
 #[derive(Clone)]
@@ -14,11 +12,5 @@ impl ElseCase {
 
     pub fn statements(&self) -> &Box<dyn Node> {
         &self.statements
-    }
-}
-
-impl Display for ElseCase {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<ElseCase>[Stmts: {}]", self.statements)
     }
 }

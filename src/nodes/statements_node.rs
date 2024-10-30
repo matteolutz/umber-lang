@@ -33,12 +33,12 @@ impl Display for StatementsNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<StatementNodes>[{}]",
+            "{}",
             self.statement_nodes
                 .iter()
                 .map(|el| format!("{}", el))
                 .collect::<Vec<String>>()
-                .join(",")
+                .join("; ")
         )
     }
 }

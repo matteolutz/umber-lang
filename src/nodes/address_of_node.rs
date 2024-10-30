@@ -32,7 +32,7 @@ impl NodeToAny for AddressOfNode {
 
 impl Display for AddressOfNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AddressOfNode")
+        write!(f, "&{}", self.var_name)
     }
 }
 

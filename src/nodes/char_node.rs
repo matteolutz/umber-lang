@@ -32,7 +32,7 @@ impl NodeToAny for CharNode {
 
 impl Display for CharNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<CharNode>[Char: {}]", self.value)
+        write!(f, "'{}'", self.value)
     }
 }
 

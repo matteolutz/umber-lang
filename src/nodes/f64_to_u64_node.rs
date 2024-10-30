@@ -26,7 +26,7 @@ impl NodeToAny for F64ToU64Node {
 
 impl Display for F64ToU64Node {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<F64ToU64Node>[Node: {}]", self.node)
+        write!(f, "({}) as u64", self.node)
     }
 }
 

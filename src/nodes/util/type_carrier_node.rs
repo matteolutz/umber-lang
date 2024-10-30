@@ -33,7 +33,7 @@ impl NodeToAny for TypeCarrierNode {
 
 impl Display for TypeCarrierNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<TypeCarrierNode>")
+        write!(f, "{}", self.carried_type)
     }
 }
 

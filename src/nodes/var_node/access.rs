@@ -33,7 +33,7 @@ impl VarAccessNode {
 
 impl Display for VarAccessNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<VarAccessNode>[{}]", self.var_name)
+        write!(f, "{}", self.var_name)
     }
 }
 

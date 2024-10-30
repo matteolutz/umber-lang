@@ -44,11 +44,7 @@ impl VarTypedAssignNode {
 
 impl Display for VarTypedAssignNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<VarTypedAssignNode>[Name: {}, Value: {}]",
-            self.var_name, self.value_node
-        )
+        write!(f, "{} = {}", self.var_name, self.value_node)
     }
 }
 

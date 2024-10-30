@@ -29,11 +29,7 @@ impl WhileNode {
 
 impl Display for WhileNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<WhileNode>[Cond.: {}, Body: {}]",
-            self.condition_node, self.body_node
-        )
+        write!(f, "while {} {{ {} }}", self.condition_node, self.body_node)
     }
 }
 

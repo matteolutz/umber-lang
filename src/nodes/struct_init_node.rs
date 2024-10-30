@@ -26,7 +26,7 @@ impl StructInitNode {
 
 impl Display for StructInitNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {{}}", self.struct_name)
+        write!(f, "struct {} {{}}", self.struct_name)
     }
 }
 

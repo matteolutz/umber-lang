@@ -32,7 +32,7 @@ impl Display for CallNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<CallNode>[FuncToCall: {}, Args: [{}]]",
+            "{}({})",
             self.func_to_call,
             self.arg_nodes
                 .iter()

@@ -54,8 +54,11 @@ impl Display for StaticDefinitionNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<StaticDefinitionNode>[Name: {}, ValueType: {}, Value: {}, IsMutable?: {}]",
-            self.name, self.value_type, self.value, self.is_mutable
+            "static{} {}: {} = ({})",
+            self.name,
+            if self.is_mutable { " mut" } else { "" },
+            self.value_type,
+            self.value
         )
     }
 }

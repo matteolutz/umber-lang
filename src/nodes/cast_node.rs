@@ -36,11 +36,7 @@ impl NodeToAny for CastNode {
 
 impl Display for CastNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<CastNode>[Node: {}, CastType: {}]",
-            self.node, self.cast_type
-        )
+        write!(f, "({}) as {}", self.node, self.cast_type)
     }
 }
 

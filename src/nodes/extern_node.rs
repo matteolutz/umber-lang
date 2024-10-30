@@ -32,7 +32,7 @@ impl NodeToAny for ExternNode {
 
 impl Display for ExternNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<ExternNode>[]")
+        write!(f, "extern ({})", self.top_level_statement)
     }
 }
 

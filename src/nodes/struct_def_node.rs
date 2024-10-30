@@ -45,9 +45,13 @@ impl Display for StructDefinitionNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<StructDefinitionNode>[Name: {}, Fields: {}]",
+            "struct {} {{ {} }}",
             self.name,
-            self.fields.len()
+            self.fields
+                .iter()
+                .map(|(field_name, field_type)| format!("{}: {}", field_name, field_type))
+                .collect::<Vec<String>>()
+                .join(", ")
         )
     }
 }

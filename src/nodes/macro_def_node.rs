@@ -23,7 +23,7 @@ impl NodeToAny for MacroDefNode {
 
 impl Display for MacroDefNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<MacroDefNode>[]")
+        write!(f, "macro")
     }
 }
 

@@ -26,7 +26,7 @@ impl NodeToAny for DereferenceNode {
 
 impl Display for DereferenceNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<DereferenceNode>[Node: {}]", self.node)
+        write!(f, "*({})", self.node)
     }
 }
 
